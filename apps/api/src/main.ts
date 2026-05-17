@@ -8,7 +8,12 @@ const server = express();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
   app.enableCors();
-  await app.init();
+  
+  if (process.env.PORT) {
+    await app.listen(process.env.PORT);
+  } else {
+    await app.init();
+  }
 }
 bootstrap();
 
