@@ -6,7 +6,8 @@
   "license": "MIT",
   "scripts": {
     "db:generate": "prisma generate",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "build": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "6.7.0"
