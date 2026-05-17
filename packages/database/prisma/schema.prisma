@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  STREAMER
+  ADMIN
+  MODERATOR
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
+  password      String
+  role          Role      @default(USER)
+  avatar        String?
+  bio           String?
+  isLive        Boolean   @default(false)
+  
+  // Relations
+  stream        Stream?
+  wallet        Wallet?
+  
+  following     Follow[]  @relation("Following")
+  followers     Follow[]  @relation("Followers")
+  
+  notifications Notification[]
+  
+  reportsMade   ModerationReport[] @relation("Reporter")
+  reports       ModerationReport[] @relation("ReportedUser")
+
+  messages      Message[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Wallet {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  balance     Int      @default(0)
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  transactions Transaction[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  GIFT_SENT
+  GIFT_RECEIVED
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  amount      Int
+  type        TransactionType
+  
+  walletId    String
+  wallet      Wallet   @relation(fields: [walletId], references: [id])
+  
+  // Optional relations depending on transaction type
+  giftId      String?
+  gift        Gift?    @relation(fields: [giftId], references: [id])
+  
+  referenceId String?  // ID of the other user/stream/battle involved
+  
+  createdAt   DateTime @default(now())
+}
+
+model Gift {
+  id          String   @id @default(cuid())
+  name        String
+  price       Int
+  icon        String
+  animationUrl String?
+  
+  transactions Transaction[]
+}
+
+model Stream {
+  id          String   @id @default(cuid())
+  title       String
+  thumbnail   String?
+  isLive      Boolean  @default(false)
+  category    String?
+  
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages    Message[]
+  liveRoom    LiveRoom?
+  
+  battles1    StreamBattle[] @relation("Stream1")
+  battles2    StreamBattle[] @relation("Stream2")
+  reports     ModerationReport[]
+
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model LiveRoom {
+  id          String   @id @default(cuid())
+  streamId    String   @unique
+  activeViewers Int    @default(0)
+  totalViews  Int      @default(0)
+  likes       Int      @default(0)
+  
+  stream      Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  streamId  String
+  stream    Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
+
+  isGift    Boolean  @default(false)
+  giftId    String?
+
+  createdAt DateTime @default(now())
+}
+
+model Follow {
+  id          String @id @default(cuid())
+  followerId  String
+  followingId String
+
+  follower    User   @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User   @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+enum BattleStatus {
+  PENDING
+  ONGOING
+  FINISHED
+  CANCELLED
+}
+
+model StreamBattle {
+  id          String   @id @default(cuid())
+  stream1Id   String
+  stream2Id   String
+  
+  points1     Int      @default(0)
+  points2     Int      @default(0)
+  
+  winnerId    String?
+  
+  status      BattleStatus @default(PENDING)
+  
+  stream1     Stream   @relation("Stream1", fields: [stream1Id], references: [id])
+  stream2     Stream   @relation("Stream2", fields: [stream2Id], references: [id])
+  
+  startTime   DateTime?
+  endTime     DateTime?
+  
+  createdAt   DateTime @default(now())
+}
+
+enum NotificationType {
+  NEW_FOLLOWER
+  STREAM_STARTED
+  GIFT_RECEIVED
+  BATTLE_INVITE
+  SYSTEM
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        NotificationType
+  content     String
+  isRead      Boolean  @default(false)
+  link        String?
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  ACTION_TAKEN
+  DISMISSED
+}
+
+model ModerationReport {
+  id          String   @id @default(cuid())
+  reporterId  String
+  reportedId  String
+  streamId    String?
+  
+  reason      String
+  details     String?
+  status      ReportStatus @default(PENDING)
+  
+  reporter    User     @relation("Reporter", fields: [reporterId], references: [id])
+  reported    User     @relation("ReportedUser", fields: [reportedId], references: [id])
+  stream      Stream?  @relation(fields: [streamId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
