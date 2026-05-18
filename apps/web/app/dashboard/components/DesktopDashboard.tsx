@@ -10,7 +10,7 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 
-export default function DesktopDashboard({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati') => void, tab: string }) {
+export default function DesktopDashboard({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -40,6 +40,12 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium w-full text-left ${tab === 'parati' ? 'bg-white/5 text-purple-400 font-bold' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
           >
             <Play className="w-5 h-5" /> Para ti
+          </button>
+          <button 
+            onClick={() => setTab('siguiendo')}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium w-full text-left ${tab === 'siguiendo' ? 'bg-white/5 text-purple-400 font-bold' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
+          >
+            <User className="w-5 h-5" /> Siguiendo
           </button>
           <Link href="/en-vivo" className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
             <Play className="w-5 h-5" /> Gaming

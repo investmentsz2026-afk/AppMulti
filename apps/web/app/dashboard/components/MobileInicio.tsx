@@ -10,7 +10,7 @@ import { logoutUser } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function MobileInicio({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati') => void, tab: string }) {
+export default function MobileInicio({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const router = useRouter();
 
   return (
@@ -170,10 +170,10 @@ export default function MobileInicio({ user, setTab, tab }: { user: any, setTab:
           <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">12</span>
           <span className="text-[10px] font-bold">Mensajes</span>
         </button>
-        <button className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
+        <Link href={`/u/${user?.username}`} className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
           <User className="w-6 h-6" />
           <span className="text-[10px] font-bold">Perfil</span>
-        </button>
+        </Link>
       </div>
     </div>
   );
