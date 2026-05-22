@@ -5,6 +5,7 @@ import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Fl
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
+import { checkStreamStatus } from '@/app/actions/stream';
 
 const MOCK_REC_POSTS = [
   {
@@ -47,6 +48,8 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [inputMessage, setInputMessage] = useState('');
+  const [isStreamActive, setIsStreamActive] = useState(true);
+  const [streamTitleState, setStreamTitleState] = useState(streamTitle);
   const [localChatMessages, setLocalChatMessages] = useState([
     { id: 1, user: 'MoNito', badge: 'N.º 1', text: 'bro das codigo de nuevo no me deja entrar', color: 'text-zinc-300' },
     { id: 2, user: 'sigo a muertos...', text: 'pasa código mano', color: 'text-zinc-300' },
@@ -104,6 +107,50 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     };
   }, [isLive, streamerName, user]);
 
+  // Track stream status in real-time
+  useEffect(() => {
+    // 1. Initial check
+    async function checkInitialStatus() {
+      const res = await checkStreamStatus(streamerName);
+      setIsStreamActive(res.isLive);
+      if (res.title) {
+        setStreamTitleState(res.title);
+      }
+    }
+    
+    checkInitialStatus();
+
+    // 2. Poll every 4 seconds to detect cross-device end live
+    const interval = setInterval(async () => {
+      const res = await checkStreamStatus(streamerName);
+      setIsStreamActive(res.isLive);
+      if (res.title) {
+        setStreamTitleState(res.title);
+      }
+    }, 4000);
+
+    // 3. Storage event sync (for same-browser tab testing)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'live-stream-storage') {
+        try {
+          const parsed = JSON.parse(e.newValue || '{}');
+          const isLiveFromStorage = parsed.state?.isLive;
+          if (isLiveFromStorage !== undefined) {
+            setIsStreamActive(isLiveFromStorage);
+          }
+        } catch (err) {
+          console.error('Error parsed storage event:', err);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [streamerName]);
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
@@ -131,23 +178,26 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     setInputMessage('');
   };
 
-  if (!isLive) {
+  if (!isStreamActive) {
     return (
       <div className="h-screen w-full bg-[#05050a] text-white font-sans overflow-y-auto px-4 py-8 flex flex-col items-center">
-        {/* Stream Ended Header */}
-        <div className="text-center flex flex-col items-center gap-3 mb-8 mt-6 max-w-sm">
-          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 animate-pulse">
+        {/* Stream Ended Header - Premium TikTok Style */}
+        <div className="text-center flex flex-col items-center gap-4 mb-8 mt-6 max-w-sm bg-[#0d0d18] border border-white/5 p-6 rounded-2xl shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600" />
+          <div className="w-16 h-16 rounded-full bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500 animate-pulse">
             <Tv className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-white">Transmisión Finalizada</h1>
-            <p className="text-zinc-400 mt-1 text-xs font-semibold">
-              El streamer <span className="text-purple-400 font-bold">@{streamerName}</span> ha terminado su en vivo.
+            <h1 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400">
+              Este usuario finalizó el live
+            </h1>
+            <p className="text-zinc-400 mt-2 text-xs font-semibold leading-relaxed">
+              La transmisión en vivo de <span className="text-purple-400 font-bold">@{streamerName}</span> ha terminado.
             </p>
           </div>
           <Link 
             href="/dashboard"
-            className="mt-3 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black rounded-full hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-purple-500/20"
+            className="mt-3 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black rounded-full hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-purple-500/20"
           >
             Salir al Inicio
           </Link>

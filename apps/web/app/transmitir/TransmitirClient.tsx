@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import { updateStreamStatus } from '@/app/actions/stream';
 
 interface HeartAnimation {
   id: number;
@@ -26,6 +27,17 @@ export default function TransmitirClient({ user }: { user: any }) {
 
   useEffect(() => {
     setHasMounted(true);
+    
+    // Sync Zustand store across tabs on storage change
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'live-stream-storage') {
+        useLiveStore.persist.rehydrate();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
   
   // Setup view state
@@ -217,18 +229,32 @@ export default function TransmitirClient({ user }: { user: any }) {
   };
 
   // 5. Start live streaming
-  const handleStartLive = () => {
+  const handleStartLive = async () => {
     if (!title.trim()) {
       toast.error('Por favor escribe un título para tu transmisión.');
       return;
     }
     
+    const loadingToast = toast.loading('Iniciando transmisión...');
+    const res = await updateStreamStatus(true, title, category);
+    
+    if (res?.error) {
+      toast.dismiss(loadingToast);
+      toast.error(res.error);
+      return;
+    }
+    
+    toast.dismiss(loadingToast);
     startLive(title, category);
     toast.success('¡Estás en vivo ahora! 🔴');
   };
 
   // 6. Stop live streaming
-  const handleStopLive = () => {
+  const handleStopLive = async () => {
+    const loadingToast = toast.loading('Finalizando transmisión...');
+    await updateStreamStatus(false);
+    toast.dismiss(loadingToast);
+    
     stopLive();
     const activeStream = localStreamRef.current || localStream;
     if (activeStream) {
@@ -758,7 +784,7 @@ export default function TransmitirClient({ user }: { user: any }) {
       )}
 
       {/* Styled animation keyframes for floating hearts */}
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes floatHeart {
           0% {
             transform: translateY(0) scale(0.6);
@@ -772,7 +798,7 @@ export default function TransmitirClient({ user }: { user: any }) {
         .animate-float-heart {
           animation: floatHeart 2s ease-out forwards;
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
