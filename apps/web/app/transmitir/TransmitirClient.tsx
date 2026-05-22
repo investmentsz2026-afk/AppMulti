@@ -202,7 +202,40 @@ export default function TransmitirClient({ user }: { user: any }) {
         previewVideoRef.current.srcObject = stream;
       }
     } catch (e) {
-      toast.error('Error al cambiar de cámara');
+      console.warn('Failed to switch camera with audio, trying video only:', e);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: deviceId } }
+        });
+        setLocalStream(stream);
+        localStreamRef.current = stream;
+        if (previewVideoRef.current) {
+          previewVideoRef.current.srcObject = stream;
+        }
+        setMicActive(false);
+      } catch (videoErr) {
+        toast.error('Error al cambiar de cámara');
+      }
+    }
+  };
+
+  const refreshDevices = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter(device => device.kind === 'videoinput');
+      setVideoDevices(videoInputs);
+      if (videoInputs.length > 0) {
+        const exists = videoInputs.some(device => device.deviceId === selectedDeviceId);
+        if (!exists && videoInputs[0]) {
+          const firstDeviceId = videoInputs[0].deviceId;
+          setSelectedDeviceId(firstDeviceId);
+          await handleDeviceChange(firstDeviceId);
+        }
+      }
+      toast.success('Lista de cámaras actualizada.');
+    } catch (err) {
+      console.error('Error al enumerar dispositivos:', err);
+      toast.error('No se pudieron detectar los dispositivos de cámara.');
     }
   };
 
@@ -255,6 +288,7 @@ export default function TransmitirClient({ user }: { user: any }) {
     await updateStreamStatus(false);
     toast.dismiss(loadingToast);
     
+    setFloatingHearts([]);
     stopLive();
     const activeStream = localStreamRef.current || localStream;
     if (activeStream) {
@@ -418,7 +452,7 @@ export default function TransmitirClient({ user }: { user: any }) {
       
       {/* -------------------- SETUP PRE-LIVE VIEW -------------------- */}
       {!isLive ? (
-        <div className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden">
+        <div key="setup-view" className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden">
           
           {/* Left panel: Camera Preview & controls */}
           <div className="flex-none lg:flex-1 flex flex-col p-4 sm:p-8 relative bg-black justify-center items-center">
@@ -519,9 +553,19 @@ export default function TransmitirClient({ user }: { user: any }) {
               </div>
 
               {/* Camera selection dropdown */}
-              {videoDevices.length > 1 && (
+              {videoDevices.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Dispositivo de cámara</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest">Dispositivo de cámara</label>
+                    <button 
+                      onClick={refreshDevices}
+                      type="button"
+                      className="p-1 text-zinc-400 hover:text-white transition-colors"
+                      title="Refrescar lista de cámaras"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                   <div className="flex gap-2 items-center bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white">
                     <Camera className="w-4 h-4 text-zinc-400 shrink-0" />
                     <select 
@@ -561,7 +605,7 @@ export default function TransmitirClient({ user }: { user: any }) {
       ) : (
         
         // -------------------- ACTIVE STREAMING VIEW (Live) --------------------
-        <div className="flex-1 flex flex-col lg:flex-row h-full relative bg-black">
+        <div key="live-view" className="flex-1 flex flex-col lg:flex-row h-full relative bg-black">
           
           {/* Main broadcast video canvas */}
           <div className="absolute inset-0 lg:relative lg:flex-1 w-full h-full lg:h-auto flex items-center justify-center bg-black overflow-hidden group z-0 lg:z-10">
@@ -780,25 +824,24 @@ export default function TransmitirClient({ user }: { user: any }) {
 
           </div>
 
+          {/* Styled animation keyframes for floating hearts */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes floatHeart {
+              0% {
+                transform: translateY(0) scale(0.6);
+                opacity: 1;
+              }
+              100% {
+                transform: translateY(-400px) scale(1.4) rotate(var(--rotate-deg, 20deg));
+                opacity: 0;
+              }
+            }
+            .animate-float-heart {
+              animation: floatHeart 2s ease-out forwards;
+            }
+          ` }} />
         </div>
       )}
-
-      {/* Styled animation keyframes for floating hearts */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes floatHeart {
-          0% {
-            transform: translateY(0) scale(0.6);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-400px) scale(1.4) rotate(var(--rotate-deg, 20deg));
-            opacity: 0;
-          }
-        }
-        .animate-float-heart {
-          animation: floatHeart 2s ease-out forwards;
-        }
-      ` }} />
     </div>
   );
 }
