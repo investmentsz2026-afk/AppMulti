@@ -5,14 +5,15 @@ import Link from 'next/link';
 import { Video, BarChart2, DollarSign, Settings, LogOut, LayoutDashboard, Radio, Bell, Search, Plus, Home, User, Play } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
+import { logoutUser } from '@/app/actions/auth';
 
 export default function StreamerLayout({ children }: { children: React.ReactNode }) {
   const { logout, user } = useAuthStore();
   const router = useRouter();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     logout();
-    router.push('/login');
+    await logoutUser();
   };
 
   const streamerMenu = [

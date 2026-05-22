@@ -15,11 +15,18 @@ interface HeartAnimation {
   id: number;
   x: number;
   color: string;
+  rotate: number;
 }
 
 export default function TransmitirClient({ user }: { user: any }) {
   const router = useRouter();
   const { isLive, streamTitle, streamCategory, viewers, likes, comments, startLive, stopLive, addLike, addComment, setViewers } = useLiveStore();
+  
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
   
   // Setup view state
   const [title, setTitle] = useState('');
@@ -42,6 +49,7 @@ export default function TransmitirClient({ user }: { user: any }) {
   const liveVideoRef = useRef<HTMLVideoElement>(null);
   const desktopChatEndRef = useRef<HTMLDivElement>(null);
   const mobileChatEndRef = useRef<HTMLDivElement>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
   
   // Auto-scroll chat comments
   useEffect(() => {
@@ -63,47 +71,112 @@ export default function TransmitirClient({ user }: { user: any }) {
     { name: 'Música', icon: Music, color: 'text-blue-400 border-blue-500/20 bg-blue-500/5' },
     { name: 'Batallas PvP', icon: Swords, color: 'text-rose-400 border-rose-500/20 bg-rose-500/5' }
   ];
-
   // 1. Get available camera devices & request initial permissions
   useEffect(() => {
     async function initCamera() {
+      if (typeof window === 'undefined') return;
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast.error('El acceso a la cámara/micrófono requiere una conexión segura (HTTPS) o no está soportado en este navegador.');
+        return;
+      }
+
+      let stream: MediaStream | null = null;
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Try getting both video and audio
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setCameraActive(true);
+        setMicActive(true);
+      } catch (error) {
+        console.warn('No se pudo obtener cámara y micrófono a la vez. Intentando solo cámara...', error);
+        try {
+          // Fallback 1: Video only
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          setCameraActive(true);
+          setMicActive(false);
+          toast.success('Cámara iniciada (sin audio/micrófono).');
+        } catch (videoError) {
+          console.warn('No se pudo obtener la cámara. Intentando solo micrófono...', videoError);
+          try {
+            // Fallback 2: Audio only
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setCameraActive(false);
+            setMicActive(true);
+            toast.success('Micrófono iniciado (sin cámara/video).');
+          } catch (audioError) {
+            console.error('Todos los accesos a media fallaron:', audioError);
+          }
+        }
+      }
+
+      if (stream) {
         setLocalStream(stream);
+        localStreamRef.current = stream;
         if (previewVideoRef.current) {
           previewVideoRef.current.srcObject = stream;
         }
 
-        // List video output devices
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter(device => device.kind === 'videoinput');
-        setVideoDevices(videoInputs);
-        if (videoInputs.length > 0 && videoInputs[0]) {
-          setSelectedDeviceId(videoInputs[0].deviceId);
+        try {
+          // List video output devices
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoInputs = devices.filter(device => device.kind === 'videoinput');
+          setVideoDevices(videoInputs);
+          if (videoInputs.length > 0 && videoInputs[0]) {
+            setSelectedDeviceId(videoInputs[0].deviceId);
+          }
+        } catch (devicesError) {
+          console.warn('Error al enumerar dispositivos:', devicesError);
         }
-      } catch (error) {
-        console.error('Camera/Mic access denied', error);
-        toast.error('No se pudo acceder a la cámara. Por favor concede permisos.');
+      } else {
+        toast.error('No se pudo acceder a la cámara ni al micrófono. Por favor concede permisos.');
       }
     }
 
-    if (!isLive) {
-      initCamera();
-    }
+    initCamera();
 
     return () => {
       // Clean up track streams on unmount if setup screen is closed
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isLive]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 1.5. Synchronize localStream with the active video element
+  useEffect(() => {
+    const activeStream = localStreamRef.current || localStream;
+    if (!activeStream) return;
+
+    const playVideo = async (videoElement: HTMLVideoElement) => {
+      if (videoElement.srcObject !== activeStream) {
+        videoElement.srcObject = activeStream;
+      }
+      try {
+        await videoElement.play();
+      } catch (err) {
+        console.warn('Failed to play stream on video element:', err);
+      }
+    };
+
+    if (isLive) {
+      if (liveVideoRef.current) {
+        playVideo(liveVideoRef.current);
+      }
+    } else {
+      if (previewVideoRef.current) {
+        playVideo(previewVideoRef.current);
+      }
+    }
+  }, [isLive, localStream]);
 
   // 2. Handle switching cameras
   const handleDeviceChange = async (deviceId: string) => {
     setSelectedDeviceId(deviceId);
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
+    const activeStream = localStreamRef.current || localStream;
+    if (activeStream) {
+      activeStream.getTracks().forEach(track => track.stop());
     }
 
     try {
@@ -112,6 +185,7 @@ export default function TransmitirClient({ user }: { user: any }) {
         audio: micActive
       });
       setLocalStream(stream);
+      localStreamRef.current = stream;
       if (previewVideoRef.current) {
         previewVideoRef.current.srcObject = stream;
       }
@@ -151,35 +225,53 @@ export default function TransmitirClient({ user }: { user: any }) {
     
     startLive(title, category);
     toast.success('¡Estás en vivo ahora! 🔴');
-
-    // Mount stream to active live video element
-    setTimeout(() => {
-      if (liveVideoRef.current && localStream) {
-        liveVideoRef.current.srcObject = localStream;
-      }
-    }, 100);
   };
 
   // 6. Stop live streaming
   const handleStopLive = () => {
     stopLive();
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
+    const activeStream = localStreamRef.current || localStream;
+    if (activeStream) {
+      activeStream.getTracks().forEach(track => track.stop());
     }
     setLocalStream(null);
+    localStreamRef.current = null;
     setCameraActive(true);
     setMicActive(true);
     toast.success('Transmisión finalizada.');
     
     // Re-initialize setup preview
     setTimeout(async () => {
+      if (typeof window === 'undefined') return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
+      let stream: MediaStream | null = null;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setCameraActive(true);
+        setMicActive(true);
+      } catch (err) {
+        console.warn('Failed to re-request both. Trying video only...', err);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          setCameraActive(true);
+          setMicActive(false);
+        } catch (vErr) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setCameraActive(false);
+            setMicActive(true);
+          } catch (aErr) {}
+        }
+      }
+
+      if (stream) {
         setLocalStream(stream);
+        localStreamRef.current = stream;
         if (previewVideoRef.current) {
           previewVideoRef.current.srcObject = stream;
         }
-      } catch (e) {}
+      }
     }, 500);
   };
 
@@ -259,8 +351,9 @@ export default function TransmitirClient({ user }: { user: any }) {
     const x = Math.floor(Math.random() * 80) + 10; // Percentage offset
     const colors = ['#a855f7', '#ec4899', '#f43f5e', '#eab308', '#06b6d4', '#10b981'];
     const color = colors[Math.floor(Math.random() * colors.length)] || '#ec4899';
+    const rotate = Math.floor(Math.random() * 40) - 20; // Random rotation between -20 and 20deg
     
-    setFloatingHearts(prev => [...prev, { id, x, color }]);
+    setFloatingHearts(prev => [...prev, { id, x, color, rotate }]);
     
     // Clear heart after animation finishes
     setTimeout(() => {
@@ -282,6 +375,17 @@ export default function TransmitirClient({ user }: { user: any }) {
     });
     setChatInput('');
   };
+
+  if (!hasMounted) {
+    return (
+      <div className="flex h-screen w-full bg-[#05050a] text-white items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-purple-500/30 border-t-purple-500 animate-spin" />
+          <span className="text-zinc-400 font-bold text-sm tracking-wider animate-pulse">Cargando LiveX Studio...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-[#05050a] text-white overflow-hidden font-sans">
@@ -498,8 +602,9 @@ export default function TransmitirClient({ user }: { user: any }) {
                   className="absolute bottom-0 animate-float-heart"
                   style={{
                     left: `${heart.x}%`,
-                    color: heart.color
-                  }}
+                    color: heart.color,
+                    '--rotate-deg': `${heart.rotate}deg`
+                  } as React.CSSProperties}
                 >
                   <Heart className="w-7 h-7 fill-current" />
                 </div>
@@ -660,7 +765,7 @@ export default function TransmitirClient({ user }: { user: any }) {
             opacity: 1;
           }
           100% {
-            transform: translateY(-400px) scale(1.4) rotate(${Math.random() > 0.5 ? '20deg' : '-20deg'});
+            transform: translateY(-400px) scale(1.4) rotate(var(--rotate-deg, 20deg));
             opacity: 0;
           }
         }

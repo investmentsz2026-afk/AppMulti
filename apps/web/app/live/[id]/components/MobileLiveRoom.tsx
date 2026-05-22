@@ -1,12 +1,49 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play } from 'lucide-react';
+import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Flame } from 'lucide-react';
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
+import { usePublicPosts } from '@/hooks/usePosts';
+
+const MOCK_REC_POSTS = [
+  {
+    id: 'mock-1',
+    type: 'stream',
+    username: 'SofiLive',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=SofiLive',
+    title: '¡Gran Arena PvP con Subs! 🎮 Ven a jugar y pasa el rato!',
+    mediaUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800'
+  },
+  {
+    id: 'mock-2',
+    type: 'video',
+    username: 'GamerPro_2026',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=GamerPro',
+    title: '¡Espectacular triple kill en la copa Valorant! 🏆🔥',
+    mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-gaming-streamer-playing-first-person-shooter-40502-large.mp4'
+  },
+  {
+    id: 'mock-3',
+    type: 'image',
+    username: 'CosplayNeon',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=CosplayNeon',
+    title: 'Mi nuevo cosplay de Jett estilo Cyberpunk 2026 🌌',
+    mediaUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&q=80&w=800'
+  },
+  {
+    id: 'mock-4',
+    type: 'video',
+    username: 'ApexLegends_Fan',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ApexLegends',
+    title: '¡Esquivando balas en la última zona! 🚀🔥 Increíble final',
+    mediaUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-gamer-playing-with-a-controller-40508-large.mp4'
+  }
+];
 
 export default function MobileLiveRoom({ user, streamerName }: { user: any, streamerName: string }) {
   const { isLive, streamTitle, viewers, likes, comments, addComment } = useLiveStore();
+  const { posts: dbPosts } = usePublicPosts();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [inputMessage, setInputMessage] = useState('');
@@ -21,17 +58,43 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   useEffect(() => {
     let activeStream: MediaStream | null = null;
     if (isLive && streamerName === user?.username) {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
-        .then((s) => {
-          activeStream = s;
-          setStream(s);
-          if (videoRef.current) {
-            videoRef.current.srcObject = s;
+      if (typeof window !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const getMedia = async () => {
+          try {
+            const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+            activeStream = s;
+            setStream(s);
+            if (videoRef.current) {
+              videoRef.current.srcObject = s;
+            }
+          } catch (err) {
+            console.warn("Could not get both video/audio in Mobile Live Room. Trying video only...", err);
+            try {
+              const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+              activeStream = s;
+              setStream(s);
+              if (videoRef.current) {
+                videoRef.current.srcObject = s;
+              }
+            } catch (videoErr) {
+              console.warn("Could not get video only in Mobile Live Room. Trying audio only...", videoErr);
+              try {
+                const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+                activeStream = s;
+                setStream(s);
+                if (videoRef.current) {
+                  videoRef.current.srcObject = s;
+                }
+              } catch (audioErr) {
+                console.error("Failed to acquire any media for Mobile Live Room:", audioErr);
+              }
+            }
           }
-        })
-        .catch(err => {
-          console.error("Error accessing webcam on Mobile Live Room:", err);
-        });
+        };
+        getMedia();
+      } else {
+        console.warn("navigator.mediaDevices is not available. Please verify you are using HTTPS or localhost.");
+      }
     }
 
     return () => {
@@ -67,6 +130,105 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     }
     setInputMessage('');
   };
+
+  if (!isLive) {
+    return (
+      <div className="h-screen w-full bg-[#05050a] text-white font-sans overflow-y-auto px-4 py-8 flex flex-col items-center">
+        {/* Stream Ended Header */}
+        <div className="text-center flex flex-col items-center gap-3 mb-8 mt-6 max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 animate-pulse">
+            <Tv className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-white">Transmisión Finalizada</h1>
+            <p className="text-zinc-400 mt-1 text-xs font-semibold">
+              El streamer <span className="text-purple-400 font-bold">@{streamerName}</span> ha terminado su en vivo.
+            </p>
+          </div>
+          <Link 
+            href="/dashboard"
+            className="mt-3 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black rounded-full hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-purple-500/20"
+          >
+            Salir al Inicio
+          </Link>
+        </div>
+
+        <hr className="w-full border-white/5 mb-8" />
+
+        {/* Recommendations Title */}
+        <div className="w-full mb-4">
+          <h2 className="text-md font-black text-white flex items-center gap-1.5">
+            <Flame className="w-4.5 h-4.5 text-pink-500 animate-bounce" /> Recomendados para Ti
+          </h2>
+          <p className="text-[10px] text-zinc-500 font-semibold">Sigue disfrutando de otros contenidos</p>
+        </div>
+
+        {/* Recommendations Grid */}
+        <div className="grid grid-cols-2 gap-4 w-full pb-8">
+          {[
+            ...dbPosts.map(p => ({
+              id: p.id,
+              type: p.type === 'VIDEO' ? 'video' : 'image',
+              username: p.user.username,
+              avatar: p.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.user.username}`,
+              title: p.title,
+              mediaUrl: p.url,
+            })),
+            ...MOCK_REC_POSTS.map(p => ({
+              id: p.id,
+              type: p.type,
+              username: p.username,
+              avatar: p.avatar,
+              title: p.title,
+              mediaUrl: p.mediaUrl,
+            }))
+          ].slice(0, 6).map((item) => (
+            <div 
+              key={item.id} 
+              className="bg-[#0c0c14] border border-white/5 rounded-xl overflow-hidden flex flex-col justify-between"
+            >
+              {/* Media Thumbnail */}
+              <div className="relative aspect-[3/4] w-full bg-black overflow-hidden flex items-center justify-center">
+                {item.type === 'video' ? (
+                  <video 
+                    src={item.mediaUrl}
+                    className="w-full h-full object-cover"
+                    muted
+                    playsInline
+                    loop
+                    autoPlay
+                  />
+                ) : (
+                  <img 
+                    src={item.mediaUrl} 
+                    alt={item.title} 
+                    className="w-full h-full object-cover" 
+                  />
+                )}
+                {/* Badge type */}
+                <span className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded text-[7px] font-black uppercase tracking-wider text-zinc-300 border border-white/10">
+                  {item.type}
+                </span>
+              </div>
+
+              {/* Info Footer */}
+              <div className="p-2.5 flex flex-col gap-1.5 justify-between">
+                <h3 className="text-[10px] font-bold text-white line-clamp-2 leading-tight">
+                  {item.title}
+                </h3>
+                
+                <div className="flex items-center gap-1.5 pt-1.5 border-t border-white/5">
+                  <img src={item.avatar} className="w-4 h-4 rounded-full bg-zinc-800" />
+                  <span className="text-[8px] font-black text-zinc-400 truncate">@{item.username}</span>
+                </div>
+              </div>
+
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-[100dvh] w-full bg-black text-white overflow-hidden">

@@ -10,6 +10,7 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useUserPosts, DBPost } from '@/hooks/usePosts';
+import { updateProfile } from '@/app/actions/profile';
 
 // TikTok Custom SVG Icon
 function TiktokIcon({ className }: { className?: string }) {
@@ -40,17 +41,26 @@ function YoutubeIcon({ className }: { className?: string }) {
   );
 }
 
-export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfile }: { sessionUser: any, targetUsername: string, isOwnProfile: boolean }) {
+// Facebook Custom SVG Icon
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24" width="24" height="24">
+      <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.8c4.56-.93 8-4.96 8-9.8z" />
+    </svg>
+  );
+}
+
+export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }: { sessionUser: any, targetUser: any, isOwnProfile: boolean }) {
   const [activeTab, setActiveTab] = useState('Videos');
   const [activeFilter, setActiveFilter] = useState('Más recientes');
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   
   // Fetch real posts
-  const { posts: userPosts, loading: postsLoading } = useUserPosts(targetUsername, sessionUser?.id);
+  const { posts: userPosts, loading: postsLoading } = useUserPosts(targetUser.username, sessionUser?.id);
   
   // Settings & Adjustment Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsActiveTab, setSettingsActiveTab] = useState('perfil'); // perfil | monedas | apk | cuenta
+  const [settingsActiveTab, setSettingsActiveTab] = useState('perfil'); // perfil | monedas | apk | cuenta | redes
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   
@@ -59,9 +69,23 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
   const [isPurchasing, setIsPurchasing] = useState(false);
 
   // Profile fields state
-  const [profileName, setProfileName] = useState('ValenLG');
-  const [profileBio, setProfileBio] = useState('Creadora de contenido | Directos todos los días 💜 Jugamos, charlamos y creamos la mejor comunidad ✨');
-  const [profileEmail, setProfileEmail] = useState('contacto@valenlg.com');
+  const [profileName, setProfileName] = useState(targetUser.username || '');
+  const [profileBio, setProfileBio] = useState(targetUser.bio || '');
+  const [profileEmail, setProfileEmail] = useState(targetUser.email || '');
+
+  // Social links state
+  const [tiktokActive, setTiktokActive] = useState(targetUser.tiktokActive || false);
+  const [tiktokUrl, setTiktokUrl] = useState(targetUser.tiktokUrl || '');
+  const [instagramActive, setInstagramActive] = useState(targetUser.instagramActive || false);
+  const [instagramUrl, setInstagramUrl] = useState(targetUser.instagramUrl || '');
+  const [youtubeActive, setYoutubeActive] = useState(targetUser.youtubeActive || false);
+  const [youtubeUrl, setYoutubeUrl] = useState(targetUser.youtubeUrl || '');
+  const [facebookActive, setFacebookActive] = useState(targetUser.facebookActive || false);
+  const [facebookUrl, setFacebookUrl] = useState(targetUser.facebookUrl || '');
+
+  // Avatar and Cover live preview / state
+  const [avatarUrl, setAvatarUrl] = useState(targetUser.avatar || '');
+  const [coverUrl, setCoverUrl] = useState(targetUser.cover || '');
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -69,10 +93,85 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    triggerToast('¡Perfil actualizado con éxito! ✨');
-    setTimeout(() => setIsSettingsOpen(false), 800);
+    triggerToast('Guardando cambios... ⏳');
+    try {
+      const res = await updateProfile({
+        username: profileName,
+        bio: profileBio,
+      });
+      if (res.error) {
+        triggerToast(`Error: ${res.error}`);
+      } else {
+        triggerToast('¡Perfil actualizado con éxito! ✨');
+        if (profileName !== targetUser.username) {
+          window.location.href = `/u/${profileName}`;
+        } else {
+          setTimeout(() => setIsSettingsOpen(false), 800);
+        }
+      }
+    } catch (err) {
+      triggerToast('Error al guardar el perfil.');
+    }
+  };
+
+  const handleSaveSocialLinks = async (e: React.FormEvent) => {
+    e.preventDefault();
+    triggerToast('Guardando enlaces... ⏳');
+    try {
+      const res = await updateProfile({
+        tiktokActive,
+        tiktokUrl,
+        instagramActive,
+        instagramUrl,
+        youtubeActive,
+        youtubeUrl,
+        facebookActive,
+        facebookUrl,
+      });
+      if (res.error) {
+        triggerToast(`Error: ${res.error}`);
+      } else {
+        triggerToast('¡Enlaces de redes sociales guardados con éxito! ✨');
+        setTimeout(() => setIsSettingsOpen(false), 800);
+      }
+    } catch (err) {
+      triggerToast('Error al guardar redes sociales.');
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      triggerToast('La imagen supera el límite de 5MB. Escoge una más pequeña.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result as string;
+      if (type === 'avatar') {
+        setAvatarUrl(base64String);
+      } else {
+        setCoverUrl(base64String);
+      }
+      triggerToast('Subiendo imagen... ⏳');
+      try {
+        const res = await updateProfile({ [type]: base64String });
+        if (res.error) {
+          triggerToast(`Error al subir la imagen: ${res.error}`);
+        } else {
+          triggerToast('¡Imagen actualizada con éxito! ✨');
+        }
+      } catch (err) {
+        console.error(err);
+        triggerToast('Error de conexión al subir la imagen.');
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleBuyCoins = (packName: string) => {
@@ -91,10 +190,10 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
 
   const creator = {
     name: profileName,
-    username: targetUsername,
+    username: targetUser.username,
     verified: true,
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=300',
-    banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200',
+    avatar: avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.username}`,
+    banner: coverUrl || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200',
     followers: '1.2M',
     following: '248',
     likes: '3.6M',
@@ -258,21 +357,32 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
               <img src={creator.banner} className="w-full h-full object-cover opacity-60" alt="" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c14] via-transparent to-black/30" />
               {isOwnProfile && (
-                <div className="absolute top-4 right-4 flex items-center gap-2.5 z-20">
-                  {/* Button Group (Exactly as the third reference image!) */}
-                  <button onClick={() => { setSettingsActiveTab('perfil'); setIsSettingsOpen(true); }} className="bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md">
-                    <Edit3 className="w-3.5 h-3.5" /> Editar perfil
-                  </button>
-                  <button onClick={() => triggerToast('¡Función de promoción activada! 🚀')} className="bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md">
-                    Promocionar publicación
-                  </button>
-                  <button onClick={() => { setSettingsActiveTab('cuenta'); setIsSettingsOpen(true); }} className="w-9 h-9 rounded-full bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-md">
-                    <Settings className="w-4 h-4" />
-                  </button>
-                  <button onClick={handleCopyProfileLink} className="w-9 h-9 rounded-full bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-md">
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                </div>
+                <>
+                  <label className="absolute top-4 left-4 z-20 bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md">
+                    <ImageIcon className="w-3.5 h-3.5 text-purple-400" /> Cambiar portada
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => handleImageUpload(e, 'cover')} 
+                    />
+                  </label>
+                  <div className="absolute top-4 right-4 flex items-center gap-2.5 z-20">
+                    {/* Button Group (Exactly as the third reference image!) */}
+                    <button onClick={() => { setSettingsActiveTab('perfil'); setIsSettingsOpen(true); }} className="bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md">
+                      <Edit3 className="w-3.5 h-3.5" /> Editar perfil
+                    </button>
+                    <button onClick={() => triggerToast('¡Función de promoción activada! 🚀')} className="bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md">
+                      Promocionar publicación
+                    </button>
+                    <button onClick={() => { setSettingsActiveTab('cuenta'); setIsSettingsOpen(true); }} className="w-9 h-9 rounded-full bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-md">
+                      <Settings className="w-4 h-4" />
+                    </button>
+                    <button onClick={handleCopyProfileLink} className="w-9 h-9 rounded-full bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-md">
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </>
               )}
             </div>
 
@@ -282,10 +392,24 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
               {/* Profile Avatar, Identity, Stats */}
               <div className="flex flex-col md:flex-row items-center md:items-end gap-6 -mt-20 md:-mt-16 relative z-10">
                 {/* Large Avatar */}
-                <div className="relative w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-purple-600 to-pink-600 shadow-[0_0_20px_rgba(168,85,247,0.3)] shrink-0">
-                  <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#0c0c14]">
+                <div className="relative w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-purple-600 to-pink-600 shadow-[0_0_20px_rgba(168,85,247,0.3)] shrink-0 group/avatar">
+                  <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#0c0c14] relative">
                     <img src={creator.avatar} className="w-full h-full object-cover" alt="" />
+                    {isOwnProfile && (
+                      <label htmlFor="avatar-file-input" className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer z-10">
+                        <Edit3 className="w-6 h-6 text-white" />
+                      </label>
+                    )}
                   </div>
+                  {isOwnProfile && (
+                    <input 
+                      id="avatar-file-input" 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => handleImageUpload(e, 'avatar')} 
+                    />
+                  )}
                   {/* Status dot */}
                   <span className="absolute bottom-2 right-2 w-5 h-5 bg-green-500 rounded-full border-4 border-[#0c0c14]" />
                 </div>
@@ -373,15 +497,50 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
 
                 {/* Social networks icons */}
                 <div className="flex items-center gap-2.5">
-                  <button className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 hover:text-white transition-all text-zinc-400 border border-white/5 flex items-center justify-center cursor-pointer">
-                    <TiktokIcon className="w-4.5 h-4.5" />
-                  </button>
-                  <button className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 hover:text-white transition-all text-zinc-400 border border-white/5 flex items-center justify-center cursor-pointer">
-                    <InstagramIcon className="w-4.5 h-4.5" />
-                  </button>
-                  <button className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 hover:text-white transition-all text-zinc-400 border border-white/5 flex items-center justify-center cursor-pointer">
-                    <YoutubeIcon className="w-4.5 h-4.5" />
-                  </button>
+                  {tiktokActive && tiktokUrl && (
+                    <a 
+                      href={tiktokUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 hover:text-white transition-all text-zinc-400 border border-white/5 flex items-center justify-center cursor-pointer"
+                      title="TikTok"
+                    >
+                      <TiktokIcon className="w-4.5 h-4.5" />
+                    </a>
+                  )}
+                  {instagramActive && instagramUrl && (
+                    <a 
+                      href={instagramUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 hover:text-white transition-all text-zinc-400 border border-white/5 flex items-center justify-center cursor-pointer"
+                      title="Instagram"
+                    >
+                      <InstagramIcon className="w-4.5 h-4.5" />
+                    </a>
+                  )}
+                  {youtubeActive && youtubeUrl && (
+                    <a 
+                      href={youtubeUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 hover:text-white transition-all text-zinc-400 border border-white/5 flex items-center justify-center cursor-pointer"
+                      title="YouTube"
+                    >
+                      <YoutubeIcon className="w-4.5 h-4.5" />
+                    </a>
+                  )}
+                  {facebookActive && facebookUrl && (
+                    <a 
+                      href={facebookUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 hover:text-white transition-all text-zinc-400 border border-white/5 flex items-center justify-center cursor-pointer"
+                      title="Facebook"
+                    >
+                      <FacebookIcon className="w-4.5 h-4.5" />
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -518,6 +677,9 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
                 <button onClick={() => setSettingsActiveTab('perfil')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'perfil' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
                   Editar Perfil
                 </button>
+                <button onClick={() => setSettingsActiveTab('redes')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'redes' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
+                  Redes Sociales
+                </button>
                 <button onClick={() => setSettingsActiveTab('monedas')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'monedas' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
                   Recargar Monedas
                 </button>
@@ -568,6 +730,136 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
 
                     <button type="submit" className="mt-2 w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black rounded-xl hover:scale-[1.01] transition-all shadow-lg shadow-pink-500/20">
                       Guardar Cambios
+                    </button>
+                  </form>
+                )}
+
+                {/* SOCIAL LINKS TAB */}
+                {settingsActiveTab === 'redes' && (
+                  <form onSubmit={handleSaveSocialLinks} className="flex flex-col gap-5">
+                    <div>
+                      <h2 className="text-lg font-black text-white mb-1">Configurar Redes Sociales</h2>
+                      <p className="text-xs text-zinc-400">Activa y añade las URLs de tus redes sociales para mostrarlas en tu perfil.</p>
+                    </div>
+
+                    {/* TikTok Link */}
+                    <div className="bg-[#07070b]/60 border border-white/5 rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <TiktokIcon className="w-5 h-5 text-white" />
+                          <span className="text-xs font-bold text-white">TikTok</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={tiktokActive} 
+                            onChange={(e) => setTiktokActive(e.target.checked)} 
+                            className="sr-only peer" 
+                          />
+                          <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600 peer-checked:after:bg-white" />
+                        </label>
+                      </div>
+                      {tiktokActive && (
+                        <input 
+                          type="url" 
+                          placeholder="https://tiktok.com/@tu_usuario" 
+                          value={tiktokUrl} 
+                          onChange={(e) => setTiktokUrl(e.target.value)} 
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-purple-500 text-white"
+                          required
+                        />
+                      )}
+                    </div>
+
+                    {/* Instagram Link */}
+                    <div className="bg-[#07070b]/60 border border-white/5 rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <InstagramIcon className="w-5 h-5 text-pink-500" />
+                          <span className="text-xs font-bold text-white">Instagram</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={instagramActive} 
+                            onChange={(e) => setInstagramActive(e.target.checked)} 
+                            className="sr-only peer" 
+                          />
+                          <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600 peer-checked:after:bg-white" />
+                        </label>
+                      </div>
+                      {instagramActive && (
+                        <input 
+                          type="url" 
+                          placeholder="https://instagram.com/tu_usuario" 
+                          value={instagramUrl} 
+                          onChange={(e) => setInstagramUrl(e.target.value)} 
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-purple-500 text-white"
+                          required
+                        />
+                      )}
+                    </div>
+
+                    {/* YouTube Link */}
+                    <div className="bg-[#07070b]/60 border border-white/5 rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <YoutubeIcon className="w-5 h-5 text-red-500" />
+                          <span className="text-xs font-bold text-white">YouTube</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={youtubeActive} 
+                            onChange={(e) => setYoutubeActive(e.target.checked)} 
+                            className="sr-only peer" 
+                          />
+                          <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600 peer-checked:after:bg-white" />
+                        </label>
+                      </div>
+                      {youtubeActive && (
+                        <input 
+                          type="url" 
+                          placeholder="https://youtube.com/@tu_canal" 
+                          value={youtubeUrl} 
+                          onChange={(e) => setYoutubeUrl(e.target.value)} 
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-purple-500 text-white"
+                          required
+                        />
+                      )}
+                    </div>
+
+                    {/* Facebook Link */}
+                    <div className="bg-[#07070b]/60 border border-white/5 rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <FacebookIcon className="w-5 h-5 text-blue-500" />
+                          <span className="text-xs font-bold text-white">Facebook</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={facebookActive} 
+                            onChange={(e) => setFacebookActive(e.target.checked)} 
+                            className="sr-only peer" 
+                          />
+                          <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600 peer-checked:after:bg-white" />
+                        </label>
+                      </div>
+                      {facebookActive && (
+                        <input 
+                          type="url" 
+                          placeholder="https://facebook.com/tu_perfil" 
+                          value={facebookUrl} 
+                          onChange={(e) => setFacebookUrl(e.target.value)} 
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-purple-500 text-white"
+                          required
+                        />
+                      )}
+                    </div>
+
+                    <button type="submit" className="mt-2 w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black rounded-xl hover:scale-[1.01] transition-all shadow-lg shadow-pink-500/20">
+                      Guardar Redes Sociales
                     </button>
                   </form>
                 )}

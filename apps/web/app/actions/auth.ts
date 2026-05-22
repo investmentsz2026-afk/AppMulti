@@ -23,8 +23,10 @@ export async function loginUser(formData: FormData) {
   
   const cookieStore = await cookies();
   cookieStore.set('session', session, { expires, httpOnly: true, path: '/' });
-  
-  return { success: true };
+  return { 
+    success: true, 
+    user: { id: user.id, username: user.username, role: user.role, avatar: user.avatar } 
+  };
 }
 
 export async function registerUser(formData: FormData) {

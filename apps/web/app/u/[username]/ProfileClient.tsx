@@ -4,7 +4,7 @@ import React from 'react';
 import DesktopProfile from './DesktopProfile';
 import MobileProfile from './MobileProfile';
 
-export default function ProfileClient({ sessionUser, targetUsername }: { sessionUser: any, targetUsername: string }) {
+export default function ProfileClient({ sessionUser, targetUser }: { sessionUser: any, targetUser: any }) {
   const [isMobile, setIsMobile] = React.useState(false);
 
   React.useEffect(() => {
@@ -14,11 +14,11 @@ export default function ProfileClient({ sessionUser, targetUsername }: { session
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  const isOwnProfile = sessionUser?.username?.toLowerCase() === targetUsername?.toLowerCase();
+  const isOwnProfile = sessionUser?.id === targetUser?.id;
 
   return isMobile ? (
-    <MobileProfile sessionUser={sessionUser} targetUsername={targetUsername} isOwnProfile={isOwnProfile} />
+    <MobileProfile sessionUser={sessionUser} targetUser={targetUser} isOwnProfile={isOwnProfile} />
   ) : (
-    <DesktopProfile sessionUser={sessionUser} targetUsername={targetUsername} isOwnProfile={isOwnProfile} />
+    <DesktopProfile sessionUser={sessionUser} targetUser={targetUser} isOwnProfile={isOwnProfile} />
   );
 }

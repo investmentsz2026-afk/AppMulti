@@ -2,8 +2,6 @@
 
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 
 export async function createPost(formData: FormData) {
   const session = await getSession();
@@ -30,21 +28,11 @@ export async function createPost(formData: FormData) {
   const isVideo = file.type.startsWith('video/');
   const postType = isVideo ? 'VIDEO' : 'IMAGE';
 
-  // Generate unique filename
-  const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
-  const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
-
-  // Save file to public/uploads/
-  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-  await mkdir(uploadsDir, { recursive: true });
-
+  // Convert file to base64 Data URL to support serverless/production deployments without a writable filesystem
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  const filePath = path.join(uploadsDir, uniqueName);
-  await writeFile(filePath, buffer);
-
-  // URL relative to public
-  const fileUrl = `/uploads/${uniqueName}`;
+  const base64 = buffer.toString('base64');
+  const fileUrl = `data:${file.type};base64,${base64}`;
 
   // Create post in database
   const post = await prisma.post.create({

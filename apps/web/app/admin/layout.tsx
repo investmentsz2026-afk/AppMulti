@@ -5,14 +5,15 @@ import Link from 'next/link';
 import { Shield, Users, BarChart3, Settings, LogOut, Database, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
+import { logoutUser } from '@/app/actions/auth';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuthStore();
   const router = useRouter();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     logout();
-    router.push('/login');
+    await logoutUser();
   };
 
   const adminMenu = [

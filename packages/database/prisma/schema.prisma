@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/client"
 }
 
 datasource db {
@@ -25,6 +26,15 @@ model User {
   role          Role      @default(USER)
   avatar        String?
   bio           String?
+  cover         String?
+  tiktokActive    Boolean   @default(false)
+  tiktokUrl       String?
+  instagramActive Boolean   @default(false)
+  instagramUrl    String?
+  youtubeActive   Boolean   @default(false)
+  youtubeUrl      String?
+  facebookActive  Boolean   @default(false)
+  facebookUrl     String?
   isLive        Boolean   @default(false)
   
   // Relations
