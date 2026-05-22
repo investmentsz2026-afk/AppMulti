@@ -1,11 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play } from 'lucide-react';
 import Link from 'next/link';
+import { useLiveStore } from '@/store/useLiveStore';
 
 export default function MobileLiveRoom({ user, streamerName }: { user: any, streamerName: string }) {
-  const [chatMessages] = useState([
+  const { isLive, streamTitle, viewers, likes, comments, addComment } = useLiveStore();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [inputMessage, setInputMessage] = useState('');
+  const [localChatMessages, setLocalChatMessages] = useState([
     { id: 1, user: 'MoNito', badge: 'N.º 1', text: 'bro das codigo de nuevo no me deja entrar', color: 'text-zinc-300' },
     { id: 2, user: 'sigo a muertos...', text: 'pasa código mano', color: 'text-zinc-300' },
     { id: 3, user: 'sigo a muertos...', text: 'pasa código de equipo', color: 'text-zinc-300' },
@@ -13,15 +18,75 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     { id: 5, user: 'Dënnïs', badge: 'N.º 3', text: 'dolares o que', color: 'text-zinc-300' },
   ]);
 
+  useEffect(() => {
+    let activeStream: MediaStream | null = null;
+    if (isLive && streamerName === user?.username) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
+        .then((s) => {
+          activeStream = s;
+          setStream(s);
+          if (videoRef.current) {
+            videoRef.current.srcObject = s;
+          }
+        })
+        .catch(err => {
+          console.error("Error accessing webcam on Mobile Live Room:", err);
+        });
+    }
+
+    return () => {
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isLive, streamerName, user]);
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputMessage.trim()) return;
+
+    if (isLive && streamerName === user?.username) {
+      addComment({
+        id: Math.random().toString(),
+        user: user?.username || 'Creador',
+        text: inputMessage,
+        badge: 'Creador',
+        color: 'text-pink-400'
+      });
+    } else {
+      setLocalChatMessages(prev => [
+        ...prev,
+        {
+          id: Math.random(),
+          user: user?.username || 'Invitado',
+          badge: '',
+          text: inputMessage,
+          color: 'text-zinc-300'
+        }
+      ]);
+    }
+    setInputMessage('');
+  };
+
   return (
     <div className="relative h-[100dvh] w-full bg-black text-white overflow-hidden">
       {/* Video Background (Horizontal video centered on vertical screen) */}
       <div className="absolute inset-0 flex items-center justify-center">
-         <img 
-           src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800" 
-           alt="Stream" 
-           className="w-full h-auto aspect-video object-cover" 
-         />
+         {isLive && streamerName === user?.username ? (
+           <video 
+             ref={videoRef}
+             autoPlay
+             playsInline
+             muted
+             className="w-full h-full object-cover"
+           />
+         ) : (
+           <img 
+             src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800" 
+             alt="Stream" 
+             className="w-full h-auto aspect-video object-cover" 
+           />
+         )}
       </div>
 
       {/* Top Gradient for readability */}
@@ -39,12 +104,14 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
              <div className="flex flex-col">
                <span className="text-xs font-bold leading-tight">{streamerName}</span>
                <div className="flex items-center gap-1 text-[10px] text-zinc-300">
-                 <Heart className="w-2.5 h-2.5 fill-current" /> 678
+                 <Heart className="w-2.5 h-2.5 fill-current" /> {isLive && streamerName === user?.username ? likes : 678}
                </div>
              </div>
-             <button className="bg-pink-600 hover:bg-pink-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-full ml-1 transition-colors">
-               + Seguir
-             </button>
+             {streamerName !== user?.username && (
+               <button className="bg-pink-600 hover:bg-pink-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-full ml-1 transition-colors">
+                 + Seguir
+               </button>
+             )}
            </div>
            
            {/* Top Badges */}
@@ -65,7 +132,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=U1" className="w-7 h-7 rounded-full border border-black z-30" />
                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=U2" className="w-7 h-7 rounded-full border border-black z-20" />
              </div>
-             <div className="px-2 font-bold text-xs">28</div>
+             <div className="px-2 font-bold text-xs">{isLive && streamerName === user?.username ? viewers : 28}</div>
            </div>
            <Link href="/dashboard" className="w-8 h-8 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/10 transition-colors">
              <X className="w-5 h-5" />
@@ -82,7 +149,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
           </div>
           
           {/* Messages */}
-          {chatMessages.map(msg => (
+          {(isLive && streamerName === user?.username ? comments : localChatMessages).map(msg => (
             <div key={msg.id} className="flex gap-2 items-start text-sm drop-shadow-md">
               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user}`} className="w-6 h-6 rounded-full border border-white/10 bg-zinc-800 shrink-0" />
               <div className="flex flex-col">
@@ -105,32 +172,34 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
       </div>
 
       {/* Bottom Input Area */}
-      <div className="absolute bottom-0 left-0 right-0 h-[70px] px-4 flex items-center gap-3 z-30">
+      <form onSubmit={handleSendMessage} className="absolute bottom-0 left-0 right-0 h-[70px] px-4 flex items-center gap-3 z-30">
         <div className="flex-1 h-10 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center px-4">
           <input 
             type="text" 
             placeholder="Escribe algo..." 
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
             className="bg-transparent border-none outline-none w-full text-sm text-white placeholder-zinc-400"
           />
         </div>
         
         {/* Quick Action Buttons */}
-        <button className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform">
+        <button type="button" className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform">
            <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.5)]">
              <Heart className="w-4 h-4 fill-white text-white" />
            </div>
         </button>
         
-        <button className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform">
+        <button type="button" className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform">
            <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.5)]">
              <Gift className="w-4 h-4 fill-white text-white" />
            </div>
         </button>
         
-        <button className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/20 transition-colors border border-white/10">
+        <button type="button" className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/20 transition-colors border border-white/10">
           <Share2 className="w-5 h-5 text-white fill-white" />
         </button>
-      </div>
+      </form>
 
     </div>
   );

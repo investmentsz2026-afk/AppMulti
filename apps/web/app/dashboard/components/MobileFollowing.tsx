@@ -1,13 +1,18 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCreatorStore } from '@/store/useCreatorStore';
 import { 
   Home, Compass, Plus, MessageSquare, User, 
   Search, Crown, Heart, MessageCircle, Share2, 
-  Gift, Play, BadgeCheck, Trophy, Sparkles, X, ChevronRight, Swords
+  Gift, Play, BadgeCheck, Trophy, Sparkles, X, ChevronRight, Swords,
+  Coins, Sword, Tv
 } from 'lucide-react';
 
 export default function MobileFollowing({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
+  const router = useRouter();
+  const [showQuickActions, setShowQuickActions] = useState(false);
   const [activeFilter, setActiveFilter] = useState('Todo');
 
   const followingCount = 128;
@@ -195,7 +200,7 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
 
       {/* Bottom Navigation */}
       <div className="absolute bottom-0 left-0 right-0 h-[70px] bg-[#05050a] flex items-center justify-around z-20 px-2 pb-2 pt-1 border-t border-white/5">
-        <button onClick={() => setTab('inicio')} className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
+        <button onClick={() => setTab('inicio')} className="flex flex-col items-center gap-1 text-pink-500">
           <Home className="w-6 h-6" />
           <span className="text-[10px] font-bold">Inicio</span>
         </button>
@@ -204,7 +209,10 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
           <span className="text-[10px] font-bold">Gaming</span>
         </Link>
         <div className="relative -top-4">
-          <button className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 border-4 border-[#05050a] hover:scale-105 transition-transform">
+          <button 
+            onClick={() => setShowQuickActions(true)}
+            className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 border-4 border-[#05050a] hover:scale-105 transition-transform"
+          >
              <Plus className="w-6 h-6 text-white" />
           </button>
         </div>
@@ -218,6 +226,116 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
           <span className="text-[10px] font-bold">Perfil</span>
         </Link>
       </div>
+
+      {/* ----------------- MOBILE QUICK ACTIONS OVERLAY (Vision Pro/Esports Style) ----------------- */}
+      {showQuickActions && (
+        <div className="fixed inset-0 z-50 bg-[#05050ad9] backdrop-blur-xl flex flex-col justify-end p-6 animate-in fade-in duration-200">
+          
+          <div className="absolute inset-0 cursor-pointer" onClick={() => setShowQuickActions(false)} />
+
+          <div className="bg-[#0f0e1a]/95 border border-white/10 rounded-3xl p-6 shadow-2xl relative z-10 animate-in slide-in-from-bottom-10 duration-300 max-w-sm mx-auto w-full mb-4">
+            
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400">Acceso Rápido</h4>
+                <h3 className="text-base font-black text-white">LiveX Creator Studio</h3>
+              </div>
+              <button 
+                onClick={() => setShowQuickActions(false)}
+                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              
+              {/* 1. Transmitir en vivo */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  router.push('/transmitir');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-purple-600/10 to-indigo-600/10 border border-purple-500/20 hover:border-purple-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 mb-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                  <Play className="w-5 h-5 fill-purple-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">En Vivo</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Transmitir ahora</span>
+              </button>
+
+              {/* 2. Subir video o imagen */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('upload');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-pink-600/10 to-rose-600/10 border border-pink-500/20 hover:border-pink-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-pink-600/20 flex items-center justify-center text-pink-400 mb-1.5 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
+                  <Plus className="w-5 h-5 text-pink-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Publicar</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Subir video</span>
+              </button>
+
+              {/* 3. Batallas PvP */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  router.push('/batallas');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-rose-600/10 to-red-600/10 border border-rose-500/20 hover:border-rose-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-rose-600/20 flex items-center justify-center text-rose-400 mb-1.5 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+                  <Swords className="w-5 h-5 text-rose-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Batallas PvP</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Duelos en vivo</span>
+              </button>
+
+              {/* 4. Crear Sala */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('room');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-yellow-600/10 to-amber-600/10 border border-yellow-500/20 hover:border-yellow-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-yellow-600/20 flex items-center justify-center text-yellow-400 mb-1.5 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                  <Sword className="w-5 h-5 text-yellow-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Crear Sala</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Salas de juego</span>
+              </button>
+
+              {/* 5. Recargar monedas */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('coins');
+                }}
+                className="col-span-2 flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-amber-600/10 to-yellow-600/10 border border-amber-500/20 hover:border-amber-500/50 transition-all hover:scale-[1.01] text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-amber-600/20 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                    <Coins className="w-4.5 h-4.5 text-amber-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Recargar monedas</span>
+                    <span className="text-[9px] text-zinc-500 font-semibold">Compra diamantes LiveX</span>
+                  </div>
+                </div>
+                <Plus className="w-4.5 h-4.5 text-amber-400" />
+              </button>
+
+            </div>
+
+            <p className="text-[10px] text-zinc-500 text-center font-bold">LiveX Creator Hub © 2026</p>
+          </div>
+        </div>
+      )}
 
     </div>
   );

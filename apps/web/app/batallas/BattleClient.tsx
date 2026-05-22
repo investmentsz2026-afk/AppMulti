@@ -9,6 +9,7 @@ import {
   Sparkles, Flame, Swords, Send, X, Coins, Sparkle, Clock
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
+import { useCreatorStore } from '@/store/useCreatorStore';
 
 interface GiftType {
   id: string;
@@ -276,8 +277,11 @@ export default function BattleClient({ user }: { user: any }) {
           </Link>
         </nav>
 
-        <button onClick={() => triggerToast('👑 ¡Creando Sala de Batalla PVP!')} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8">
-          <Plus className="w-5 h-5" /> Transmitir en vivo
+        <button 
+          onClick={() => useCreatorStore.getState().open()} 
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8"
+        >
+          <Plus className="w-5 h-5" /> Crear
         </button>
 
         {/* Monedas Card */}
@@ -330,7 +334,6 @@ export default function BattleClient({ user }: { user: any }) {
             </div>
             <span className="text-xs font-black tracking-tighter">LiveX</span>
           </div>
-
           <div className="flex items-center gap-4 text-[13px] sm:text-[14px] font-bold overflow-x-auto scrollbar-none py-1 pr-2 shrink-0 max-w-[65%] lg:hidden">
             <Link href="/dashboard?tab=siguiendo" className="transition-all shrink-0 text-zinc-500">
               Siguiendo
@@ -338,8 +341,8 @@ export default function BattleClient({ user }: { user: any }) {
             <Link href="/dashboard?tab=parati" className="transition-all shrink-0 text-zinc-500">
               Para ti
             </Link>
-            <Link href="/batallas" className="transition-all shrink-0 text-white border-b-2 border-pink-500 pb-0.5 font-black">
-              Batallas ⚔️
+            <Link href="/batallas" className="text-white border-b-2 border-pink-500 pb-0.5 flex items-center gap-0.5 shrink-0 font-black">
+              Batallas <Swords className="w-3.5 h-3.5 text-pink-500" />
             </Link>
             <Link href="/explorar" className="text-zinc-500 hover:text-white flex items-center gap-0.5 shrink-0">
               Explorar <Compass className="w-3.5 h-3.5" />

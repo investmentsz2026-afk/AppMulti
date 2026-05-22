@@ -6,7 +6,11 @@ import {
   Search, Crown, Heart, MessageCircle, Share2, 
   Gift, Play, BadgeCheck, Swords, Sword, Coins, X, Music, Volume2, VolumeX, Flame, Tv, Image, PlayCircle
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useCreatorStore } from '@/store/useCreatorStore';
+import { useLiveStore } from '@/store/useLiveStore';
+import { usePublicPosts, DBPost } from '@/hooks/usePosts';
 
 // Extremely premium mixed-media posts (Streams, Videos, Cosplay/Images, Live Battles)
 const FEED_POSTS = [
@@ -116,10 +120,55 @@ const FEED_POSTS = [
 ];
 
 export default function MobileDashboard({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
+  const router = useRouter();
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+
+  const { isLive, streamTitle, viewers, likes } = useLiveStore();
+  const { posts: dbPosts } = usePublicPosts();
+
+  const userStream = isLive && user ? {
+    id: 'my-live-stream-post',
+    type: 'stream',
+    username: user.username,
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+    verified: true,
+    title: streamTitle || '¡Transmisión en Vivo de LiveX! 🎮',
+    mediaUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800',
+    tags: ['Live', 'Gaming', 'TuVivo'],
+    music: `Sonido en vivo - ${user.username}`,
+    viewers: viewers > 1000 ? `${(viewers / 1000).toFixed(1)}K` : String(viewers),
+    likes: likes > 1000 ? `${(likes / 1000).toFixed(1)}K` : String(likes),
+    comments: '0',
+    shares: '0',
+    liveUrl: `/live/${user.username}`,
+    isUserOwnStream: true
+  } : null;
+
+  // Convert DB posts to feed format
+  const dbFeedPosts = dbPosts.map((p: DBPost) => ({
+    id: `db-${p.id}`,
+    type: p.type === 'VIDEO' ? 'video' : 'image',
+    username: p.user.username,
+    avatar: p.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.user.username}`,
+    verified: false,
+    title: p.title,
+    mediaUrl: p.url,
+    posterUrl: p.type === 'VIDEO' ? undefined : undefined,
+    tags: ['Contenido', 'LiveX'],
+    music: `Publicación - ${p.user.username}`,
+    likes: '0',
+    comments: '0',
+    shares: '0'
+  }));
+
+  const activeFeedPosts = [
+    ...(userStream ? [userStream] : []),
+    ...dbFeedPosts,
+    ...FEED_POSTS
+  ];
 
   // Monitor vertical touch scrolling/snapping to update active post
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -127,7 +176,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
     const clientHeight = e.currentTarget.clientHeight;
     if (clientHeight === 0) return;
     const index = Math.round(scrollTop / clientHeight);
-    if (index !== activeIndex && index >= 0 && index < FEED_POSTS.length) {
+    if (index !== activeIndex && index >= 0 && index < activeFeedPosts.length) {
       setActiveIndex(index);
     }
   };
@@ -159,8 +208,8 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
             Para ti
           </button>
           
-          <Link href="/batallas" className="text-pink-500 hover:text-pink-400 flex items-center gap-0.5 animate-pulse shrink-0 font-black">
-            Batallas <Swords className="w-3.5 h-3.5 text-pink-500" />
+          <Link href="/batallas" className="text-zinc-500 hover:text-white flex items-center gap-0.5 shrink-0">
+            Batallas <Swords className="w-3.5 h-3.5" />
           </Link>
 
           <Link href="/explorar" className="text-zinc-500 hover:text-white flex items-center gap-0.5 shrink-0">
@@ -181,7 +230,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto snap-y snap-mandatory scrollbar-none bg-black relative"
       >
-        {FEED_POSTS.map((post, idx) => {
+        {activeFeedPosts.map((post: any, idx) => {
           const isActive = idx === activeIndex;
           return (
             <div key={post.id} className="h-full w-full snap-start relative flex flex-col justify-between overflow-hidden bg-black">
@@ -343,7 +392,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
 
                 {/* Hashtags display */}
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {post.tags.map((tag) => (
+                  {post.tags.map((tag: string) => (
                     <span key={tag} className="text-[8px] font-black text-purple-400">
                       #{tag}
                     </span>
@@ -363,7 +412,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
 
       {/* Bottom Navigation Bar */}
       <div className="h-[70px] shrink-0 bg-[#05050a] flex items-center justify-around z-20 px-2 pb-2 pt-1 border-t border-white/5">
-        <button onClick={() => setTab('inicio')} className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
+        <button onClick={() => setTab('inicio')} className="flex flex-col items-center gap-1 text-pink-500">
           <Home className="w-6 h-6" />
           <span className="text-[10px] font-bold">Inicio</span>
         </button>
@@ -414,56 +463,86 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               
-              <Link 
-                href="/en-vivo" 
-                className="flex flex-col items-center p-4 rounded-2xl bg-gradient-to-br from-purple-600/10 to-indigo-600/10 border border-purple-500/20 hover:border-purple-500/50 transition-all hover:scale-[1.02] text-center"
-              >
-                <div className="w-12 h-12 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 mb-2 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
-                  <Play className="w-6 h-6 fill-purple-400" />
-                </div>
-                <span className="text-xs font-bold text-white mb-0.5">Transmitir</span>
-                <span className="text-[9px] text-zinc-500 font-semibold">Iniciar streaming</span>
-              </Link>
-
-              <Link 
-                href="/batallas" 
-                className="flex flex-col items-center p-4 rounded-2xl bg-gradient-to-br from-pink-600/10 to-rose-600/10 border border-pink-500/20 hover:border-pink-500/50 transition-all hover:scale-[1.02] text-center relative overflow-hidden group"
-              >
-                <div className="absolute top-1.5 right-1.5 bg-pink-500 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider animate-pulse">
-                  NEW
-                </div>
-                <div className="w-12 h-12 rounded-full bg-pink-600/20 flex items-center justify-center text-pink-400 mb-2 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
-                  <Swords className="w-6 h-6 text-pink-400" />
-                </div>
-                <span className="text-xs font-bold text-white mb-0.5">Batallas PvP</span>
-                <span className="text-[9px] text-zinc-500 font-semibold">Desafiar en vivo</span>
-              </Link>
-
-              <Link 
-                href="/en-vivo" 
-                className="flex flex-col items-center p-4 rounded-2xl bg-gradient-to-br from-yellow-600/10 to-amber-600/10 border border-yellow-500/20 hover:border-yellow-500/50 transition-all hover:scale-[1.02] text-center"
-              >
-                <div className="w-12 h-12 rounded-full bg-yellow-600/20 flex items-center justify-center text-yellow-400 mb-2 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
-                  <Sword className="w-6 h-6 text-yellow-400" />
-                </div>
-                <span className="text-xs font-bold text-white mb-0.5">Crear Sala</span>
-                <span className="text-[9px] text-zinc-500 font-semibold">Salas PvP Free Fire</span>
-              </Link>
-
+              {/* 1. Transmitir en vivo */}
               <button 
                 onClick={() => {
                   setShowQuickActions(false);
-                  alert('¡Monedas cargadas! 💎');
+                  router.push('/transmitir');
                 }}
-                className="flex flex-col items-center p-4 rounded-2xl bg-gradient-to-br from-cyan-600/10 to-blue-600/10 border border-cyan-500/20 hover:border-cyan-500/50 transition-all hover:scale-[1.02] text-center"
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-purple-600/10 to-indigo-600/10 border border-purple-500/20 hover:border-purple-500/50 transition-all hover:scale-[1.02] text-center"
               >
-                <div className="w-12 h-12 rounded-full bg-cyan-600/20 flex items-center justify-center text-cyan-400 mb-2 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                  <Coins className="w-6 h-6 text-cyan-400" />
+                <div className="w-10 h-10 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 mb-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                  <Play className="w-5 h-5 fill-purple-400" />
                 </div>
-                <span className="text-xs font-bold text-white mb-0.5">Wallet</span>
-                <span className="text-[9px] text-zinc-500 font-semibold">Monedas & Recargas</span>
+                <span className="text-xs font-bold text-white mb-0.5">En Vivo</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Transmitir ahora</span>
+              </button>
+
+              {/* 2. Subir video o imagen */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('upload');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-pink-600/10 to-rose-600/10 border border-pink-500/20 hover:border-pink-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-pink-600/20 flex items-center justify-center text-pink-400 mb-1.5 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
+                  <Plus className="w-5 h-5 text-pink-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Publicar</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Subir video</span>
+              </button>
+
+              {/* 3. Batallas PvP */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  router.push('/batallas');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-rose-600/10 to-red-600/10 border border-rose-500/20 hover:border-rose-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-rose-600/20 flex items-center justify-center text-rose-400 mb-1.5 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+                  <Swords className="w-5 h-5 text-rose-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Batallas PvP</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Duelos en vivo</span>
+              </button>
+
+              {/* 4. Crear Sala */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('room');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-yellow-600/10 to-amber-600/10 border border-yellow-500/20 hover:border-yellow-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-yellow-600/20 flex items-center justify-center text-yellow-400 mb-1.5 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                  <Sword className="w-5 h-5 text-yellow-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Crear Sala</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Salas de juego</span>
+              </button>
+
+              {/* 5. Recargar monedas */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('coins');
+                }}
+                className="col-span-2 flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-amber-600/10 to-yellow-600/10 border border-amber-500/20 hover:border-amber-500/50 transition-all hover:scale-[1.01] text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-amber-600/20 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                    <Coins className="w-4.5 h-4.5 text-amber-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Recargar monedas</span>
+                    <span className="text-[9px] text-zinc-500 font-semibold">Compra diamantes LiveX</span>
+                  </div>
+                </div>
+                <Plus className="w-4.5 h-4.5 text-amber-400" />
               </button>
 
             </div>

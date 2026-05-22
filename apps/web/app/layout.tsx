@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
+import CreatorModal from "@/components/CreatorModal";
 
 export const metadata: Metadata = {
   title: "LiveX - Plataforma de Streaming en Vivo",
@@ -44,6 +45,7 @@ export default function RootLayout({
       <body className="antialiased min-h-screen bg-background text-foreground">
         <Toaster position="top-center" toastOptions={{ style: { background: '#18181b', color: '#fff', border: '1px solid #27272a' } }} />
         {children}
+        <CreatorModal />
       </body>
     </html>
   );

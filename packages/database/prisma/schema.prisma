@@ -30,6 +30,7 @@ model User {
   // Relations
   stream        Stream?
   wallet        Wallet?
+  posts         Post[]
   
   following     Follow[]  @relation("Following")
   followers     Follow[]  @relation("Followers")
@@ -43,6 +44,25 @@ model User {
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+enum PostType {
+  IMAGE
+  VIDEO
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  url         String
+  type        PostType
+  isPrivate   Boolean  @default(false)
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Wallet {

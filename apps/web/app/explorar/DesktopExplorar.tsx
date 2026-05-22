@@ -7,6 +7,8 @@ import {
   Gamepad2, Mic2, Radio, Monitor, Heart, Flame, Film, Coffee, Headphones
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
+import { useCreatorStore } from '@/store/useCreatorStore';
+import { useLiveStore } from '@/store/useLiveStore';
 
 const streams = [
   { name: 'AndrésGG', viewers: '2,345', title: 'Batalla épica contra DiegoStream', cat: 'Call of Duty: Warzone', tags: ['Español','Multijugador'], img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400' },
@@ -55,6 +57,19 @@ const trendingStreams = [
 
 export default function DesktopExplorar({ user }: { user: any }) {
   const [activeCat, setActiveCat] = React.useState('Todo');
+  const { isLive, streamTitle, viewers, streamCategory } = useLiveStore();
+
+  const userStream = isLive && user ? {
+    name: user.username,
+    viewers: viewers > 1000 ? `${(viewers / 1000).toFixed(1)}K` : String(viewers),
+    title: streamTitle || '¡Transmisión en Vivo de LiveX! 🎮',
+    cat: streamCategory || 'Gaming',
+    tags: ['Español', 'TuVivo'],
+    img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400',
+    isOwn: true
+  } : null;
+
+  const activeStreams = userStream ? [userStream, ...streams] : streams;
 
   return (
     <div className="flex h-screen w-full bg-[#05050a] text-white">
@@ -117,8 +132,11 @@ export default function DesktopExplorar({ user }: { user: any }) {
           </Link>
         </nav>
 
-        <button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8">
-          <Plus className="w-5 h-5" /> Transmitir en vivo
+        <button 
+          onClick={() => useCreatorStore.getState().open()}
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8"
+        >
+          <Plus className="w-5 h-5" /> Crear
         </button>
 
         {/* Monedas Card */}
@@ -250,8 +268,8 @@ export default function DesktopExplorar({ user }: { user: any }) {
                 <h3 className="text-lg font-black flex items-center gap-2">En vivo ahora <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /></h3>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {streams.map((s, i) => (
-                  <Link href={`/live/${s.name}`} key={i} className="group cursor-pointer block">
+                {activeStreams.map((s: any, i: number) => (
+                  <Link href={`/live/${s.name}`} key={i} className={`group cursor-pointer block ${s.isOwn ? 'border-2 border-purple-500 rounded-2xl p-2 bg-[#1c0933]/30 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : ''}`}>
                     <div className="relative aspect-video rounded-xl overflow-hidden mb-2 border border-white/5 group-hover:border-purple-500/30 transition-all">
                       <img src={s.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -260,7 +278,7 @@ export default function DesktopExplorar({ user }: { user: any }) {
                         <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md text-[8px] font-black rounded flex items-center gap-1 border border-white/10"><Eye className="w-2.5 h-2.5" /> {s.viewers}</span>
                       </div>
                       <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2">
-                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-7 h-7 rounded-full border border-white/20 bg-zinc-800" />
+                        <img src={s.isOwn && user?.avatar ? user.avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-7 h-7 rounded-full border border-white/20 bg-zinc-800" alt="" />
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold truncate flex items-center gap-1">{s.name} <BadgeCheck className="w-2.5 h-2.5 text-blue-400 shrink-0" /></h4>
                           <p className="text-[9px] text-zinc-400 truncate">{s.title}</p>
@@ -268,7 +286,7 @@ export default function DesktopExplorar({ user }: { user: any }) {
                       </div>
                     </div>
                     <p className="text-[10px] text-zinc-500 truncate px-1">{s.cat}</p>
-                    <div className="flex gap-1 px-1 mt-1">{s.tags.map(t => <span key={t} className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded text-zinc-400 border border-white/5">{t}</span>)}</div>
+                    <div className="flex gap-1 px-1 mt-1">{s.tags.map((t: string) => <span key={t} className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded text-zinc-400 border border-white/5">{t}</span>)}</div>
                   </Link>
                 ))}
               </div>

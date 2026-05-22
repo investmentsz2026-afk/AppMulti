@@ -8,6 +8,7 @@ import {
   Sparkles, Shield, ChevronUp, ChevronDown, Calendar, Star, Film, Image, Video
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
+import { useCreatorStore } from '@/store/useCreatorStore';
 
 export default function DesktopFollowing({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const [activeFilter, setActiveFilter] = useState('Todo');
@@ -103,8 +104,11 @@ export default function DesktopFollowing({ user, setTab, tab }: { user: any, set
           </Link>
         </nav>
 
-        <button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8">
-          <Plus className="w-5 h-5" /> Transmitir en vivo
+        <button 
+          onClick={() => useCreatorStore.getState().open()}
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8"
+        >
+          <Plus className="w-5 h-5" /> Crear
         </button>
 
         {/* Monedas Card */}

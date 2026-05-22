@@ -10,6 +10,9 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useCreatorStore } from '@/store/useCreatorStore';
+import { useLiveStore } from '@/store/useLiveStore';
+import { usePublicPosts, DBPost } from '@/hooks/usePosts';
 
 // Extremely premium mixed-media posts (Streams, Videos, Cosplay/Images, Live Battles)
 const FEED_POSTS = [
@@ -125,14 +128,58 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
   const [isMuted, setIsMuted] = useState(true);
   const lastScrollTime = useRef(0);
 
+  const { isLive, streamTitle, viewers, likes } = useLiveStore();
+  const { posts: dbPosts } = usePublicPosts();
+
+  const userStream = isLive && user ? {
+    id: 'my-live-stream-post',
+    type: 'stream',
+    username: user.username,
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+    verified: true,
+    title: streamTitle || '¡Transmisión en Vivo de LiveX! 🎮',
+    mediaUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800',
+    tags: ['Live', 'Gaming', 'TuVivo'],
+    music: `Sonido en vivo - ${user.username}`,
+    viewers: viewers > 1000 ? `${(viewers / 1000).toFixed(1)}K` : String(viewers),
+    likes: likes > 1000 ? `${(likes / 1000).toFixed(1)}K` : String(likes),
+    comments: '0',
+    shares: '0',
+    liveUrl: `/live/${user.username}`,
+    isUserOwnStream: true
+  } : null;
+
+  // Convert DB posts to feed format
+  const dbFeedPosts = dbPosts.map((p: DBPost) => ({
+    id: `db-${p.id}`,
+    type: p.type === 'VIDEO' ? 'video' : 'image',
+    username: p.user.username,
+    avatar: p.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.user.username}`,
+    verified: false,
+    title: p.title,
+    mediaUrl: p.url,
+    posterUrl: p.type === 'VIDEO' ? undefined : undefined,
+    tags: ['Contenido', 'LiveX'],
+    music: `Publicación - ${p.user.username}`,
+    likes: '0',
+    comments: '0',
+    shares: '0'
+  }));
+
+  const activeFeedPosts = [
+    ...(userStream ? [userStream] : []),
+    ...dbFeedPosts,
+    ...FEED_POSTS
+  ];
+
   // Keyboard navigation
   const handleNext = useCallback(() => {
-    setActiveIndex((prev) => (prev + 1) % FEED_POSTS.length);
-  }, []);
+    setActiveIndex((prev) => (prev + 1) % activeFeedPosts.length);
+  }, [activeFeedPosts.length]);
 
   const handlePrev = useCallback(() => {
-    setActiveIndex((prev) => (prev - 1 + FEED_POSTS.length) % FEED_POSTS.length);
-  }, []);
+    setActiveIndex((prev) => (prev - 1 + activeFeedPosts.length) % activeFeedPosts.length);
+  }, [activeFeedPosts.length]);
 
   // Handle keydown for Arrow keys
   useEffect(() => {
@@ -242,8 +289,11 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
           </Link>
         </nav>
 
-        <button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8">
-          <Plus className="w-5 h-5" /> Transmitir en vivo
+        <button 
+          onClick={() => useCreatorStore.getState().open()}
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8"
+        >
+          <Plus className="w-5 h-5" /> Crear
         </button>
 
         {/* Monedas Card */}
@@ -315,7 +365,7 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
         {/* Dynamic Post Feed Wrapper */}
         <div className="relative h-[90%] w-full max-w-[460px] flex items-center justify-center py-4">
           
-          {FEED_POSTS.map((post, idx) => {
+          {activeFeedPosts.map((post: any, idx) => {
             const isActive = idx === activeIndex;
             return (
               <div 
@@ -502,7 +552,7 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
 
                   {/* Hashtags display */}
                   <div className="flex flex-wrap gap-1.5 mb-2.5">
-                    {post.tags.map((tag) => (
+                    {post.tags.map((tag: string) => (
                       <span key={tag} className="text-[9px] font-black text-purple-400 hover:underline cursor-pointer">
                         #{tag}
                       </span>

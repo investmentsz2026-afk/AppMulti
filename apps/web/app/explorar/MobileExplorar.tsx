@@ -1,10 +1,13 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCreatorStore } from '@/store/useCreatorStore';
+import { useLiveStore } from '@/store/useLiveStore';
 import {
   Home, Compass, Plus, MessageSquare, User, Search, Bell, Crown, Swords,
   BadgeCheck, Eye, Gamepad2, Mic2, Radio, Trophy, Coffee, Headphones,
-  Monitor, Flame, ChevronRight, Play
+  Monitor, Flame, ChevronRight, Play, X, Coins, Sword
 } from 'lucide-react';
 
 const streams = [
@@ -31,6 +34,21 @@ const topCategories = [
 ];
 
 export default function MobileExplorar({ user }: { user: any }) {
+  const router = useRouter();
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const { isLive, streamTitle, viewers, streamCategory } = useLiveStore();
+
+  const userStream = isLive && user ? {
+    name: user.username,
+    viewers: viewers > 1000 ? `${(viewers / 1000).toFixed(1)}K` : String(viewers),
+    title: streamTitle || '¡Transmisión en Vivo de LiveX! 🎮',
+    cat: streamCategory || 'Gaming',
+    img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400',
+    isOwn: true
+  } : null;
+
+  const activeStreams = userStream ? [userStream, ...streams] : streams;
+
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-[#05050a] text-white overflow-hidden">
 
@@ -105,8 +123,8 @@ export default function MobileExplorar({ user }: { user: any }) {
             <button className="text-[11px] text-purple-400 font-bold flex items-center gap-0.5">Ver todo <ChevronRight className="w-3 h-3" /></button>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {streams.map((s, i) => (
-              <Link href={`/live/${s.name}`} key={i} className="group block">
+            {activeStreams.map((s: any, i: number) => (
+              <Link href={`/live/${s.name}`} key={i} className={`group block ${s.isOwn ? 'border border-purple-500/50 rounded-2xl p-2 bg-[#1c0933]/30 shadow-[0_0_10px_rgba(168,85,247,0.15)]' : ''}`}>
                 <div className="relative aspect-[4/5] rounded-xl overflow-hidden mb-2 border border-white/5">
                   <img src={s.img} className="w-full h-full object-cover" alt="" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
@@ -116,7 +134,7 @@ export default function MobileExplorar({ user }: { user: any }) {
                   </div>
                   <div className="absolute bottom-2 left-2 right-2">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-6 h-6 rounded-full border border-white/20 bg-zinc-800" />
+                      <img src={s.isOwn && user?.avatar ? user.avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-6 h-6 rounded-full border border-white/20 bg-zinc-800" alt="" />
                       <span className="text-[11px] font-bold flex items-center gap-0.5">{s.name} <BadgeCheck className="w-2.5 h-2.5 text-blue-400" /></span>
                     </div>
                     <p className="text-[9px] text-zinc-400 truncate">{s.title}</p>
@@ -196,7 +214,10 @@ export default function MobileExplorar({ user }: { user: any }) {
           <span className="text-[10px] font-bold">Gaming</span>
         </Link>
         <div className="relative -top-4">
-          <button className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 border-4 border-[#05050a] hover:scale-105 transition-transform">
+          <button 
+            onClick={() => setShowQuickActions(true)}
+            className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 border-4 border-[#05050a] hover:scale-105 transition-transform"
+          >
             <Plus className="w-6 h-6 text-white" />
           </button>
         </div>
@@ -210,6 +231,116 @@ export default function MobileExplorar({ user }: { user: any }) {
           <span className="text-[10px] font-bold">Perfil</span>
         </Link>
       </div>
+
+      {/* ----------------- MOBILE QUICK ACTIONS OVERLAY ----------------- */}
+      {showQuickActions && (
+        <div className="fixed inset-0 z-50 bg-[#05050ad9] backdrop-blur-xl flex flex-col justify-end p-6 animate-in fade-in duration-200">
+          
+          <div className="absolute inset-0 cursor-pointer" onClick={() => setShowQuickActions(false)} />
+
+          <div className="bg-[#0f0e1a]/95 border border-white/10 rounded-3xl p-6 shadow-2xl relative z-10 animate-in slide-in-from-bottom-10 duration-300 max-w-sm mx-auto w-full mb-4">
+            
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400">Acceso Rápido</h4>
+                <h3 className="text-base font-black text-white">LiveX Creator Studio</h3>
+              </div>
+              <button 
+                onClick={() => setShowQuickActions(false)}
+                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              
+              {/* 1. Transmitir en vivo */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  router.push('/transmitir');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-purple-600/10 to-indigo-600/10 border border-purple-500/20 hover:border-purple-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 mb-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                  <Play className="w-5 h-5 fill-purple-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">En Vivo</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Transmitir ahora</span>
+              </button>
+
+              {/* 2. Subir video o imagen */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('upload');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-pink-600/10 to-rose-600/10 border border-pink-500/20 hover:border-pink-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-pink-600/20 flex items-center justify-center text-pink-400 mb-1.5 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
+                  <Plus className="w-5 h-5 text-pink-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Publicar</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Subir video</span>
+              </button>
+
+              {/* 3. Batallas PvP */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  router.push('/batallas');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-rose-600/10 to-red-600/10 border border-rose-500/20 hover:border-rose-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-rose-600/20 flex items-center justify-center text-rose-400 mb-1.5 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+                  <Swords className="w-5 h-5 text-rose-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Batallas PvP</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Duelos en vivo</span>
+              </button>
+
+              {/* 4. Crear Sala */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('room');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-yellow-600/10 to-amber-600/10 border border-yellow-500/20 hover:border-yellow-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-yellow-600/20 flex items-center justify-center text-yellow-400 mb-1.5 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                  <Sword className="w-5 h-5 text-yellow-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Crear Sala</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Salas de juego</span>
+              </button>
+
+              {/* 5. Recargar monedas */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('coins');
+                }}
+                className="col-span-2 flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-amber-600/10 to-yellow-600/10 border border-amber-500/20 hover:border-amber-500/50 transition-all hover:scale-[1.01] text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-amber-600/20 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                    <Coins className="w-4.5 h-4.5 text-amber-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Recargar monedas</span>
+                    <span className="text-[9px] text-zinc-500 font-semibold">Compra diamantes LiveX</span>
+                  </div>
+                </div>
+                <Plus className="w-4.5 h-4.5 text-amber-400" />
+              </button>
+
+            </div>
+
+            <p className="text-[10px] text-zinc-500 text-center font-bold">LiveX Creator Hub © 2026</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Home, Play, Compass, Sword, Trophy, MessageSquare, 
   Bell, User, Wallet, Plus, Search, Crown, LogOut, 
@@ -8,8 +9,11 @@ import {
   Sparkles, Shield, ChevronUp, ChevronDown, Flame, Swords, Star, Send, X, Coins
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
+import { useCreatorStore } from '@/store/useCreatorStore';
+import { useLiveStore } from '@/store/useLiveStore';
 
 export default function GamingClient({ user }: { user: any }) {
+  const router = useRouter();
   const [mobileFullscreenStream, setMobileFullscreenStream] = useState<any | null>(null);
   const [showQuickActions, setShowQuickActions] = useState(false);
   
@@ -85,6 +89,8 @@ export default function GamingClient({ user }: { user: any }) {
     }, 2000);
   };
 
+  const { isLive, streamTitle, viewers, streamCategory } = useLiveStore();
+
   const liveStreamers = [
     { id: 1, name: 'NobruFF', avatar: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=150', category: 'Clasificatoria Heroico', views: '15.4K', preview: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400' },
     { id: 2, name: 'A3FF_Gamer', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', category: 'Salas 4vs4 Apostado', views: '8.2K', preview: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400&u=1' },
@@ -92,6 +98,18 @@ export default function GamingClient({ user }: { user: any }) {
     { id: 4, name: 'DonatoPlay', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', category: 'Torneo Semanal FF', views: '22.3K', preview: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=400' },
     { id: 5, name: 'SofiLive', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', category: 'Jugando con Seguidores', views: '4.1K', preview: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=400' },
   ];
+
+  const userStreamer = isLive && user ? {
+    id: 9999,
+    name: user.username,
+    avatar: user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+    category: streamCategory || 'Free Fire Arena',
+    views: viewers > 1000 ? `${(viewers / 1000).toFixed(1)}K` : String(viewers),
+    preview: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400',
+    isOwn: true
+  } : null;
+
+  const activeLiveStreamers = userStreamer ? [userStreamer, ...liveStreamers] : liveStreamers;
 
   const pvpRooms = [
     { id: 1, name: 'PvP Apostado 4vs4', mode: 'Escuadra vs Escuadra', players: '6/8', fee: '50 Monedas', prize: '800 Monedas', roomID: '2287910', online: true },
@@ -110,6 +128,20 @@ export default function GamingClient({ user }: { user: any }) {
     { id: 2, streamerId: 3, name: 'Sura_FF', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', views: '6.7K', title: '¿Quién contra mí en 1vs1? M1014 tiro a la cabeza solamente. 🔥', img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=600', category: 'Free Fire · Retos', pvpID: '8876295' },
     { id: 3, streamerId: 4, name: 'DonatoPlay', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', views: '22.3K', title: 'Torneo Relámpago Free Fire! Entrando con los espectadores en vivo 🏆', img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=600', category: 'Free Fire · Torneo' },
   ];
+
+  const userFeedItem = isLive && user ? {
+    id: 9999,
+    streamerId: 9999,
+    name: user.username,
+    avatar: user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+    views: viewers > 1000 ? `${(viewers / 1000).toFixed(1)}K` : String(viewers),
+    title: streamTitle || '¡Transmisión en Vivo en Free Fire Arena! 🎮',
+    img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=600',
+    category: streamCategory || 'Free Fire · Arena',
+    isOwn: true
+  } : null;
+
+  const activeFeedItems = userFeedItem ? [userFeedItem, ...mainFeedItems] : mainFeedItems;
 
   return (
     <div className="flex h-screen w-full bg-[#040408] text-white overflow-hidden relative">
@@ -164,8 +196,11 @@ export default function GamingClient({ user }: { user: any }) {
           </Link>
         </nav>
 
-        <button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8">
-          <Plus className="w-5 h-5" /> Transmitir en vivo
+        <button 
+          onClick={() => useCreatorStore.getState().open()}
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8"
+        >
+          <Plus className="w-5 h-5" /> Crear
         </button>
 
         {/* Monedas Card */}
@@ -255,10 +290,14 @@ export default function GamingClient({ user }: { user: any }) {
             </div>
 
             <div className="flex gap-4 overflow-x-auto pb-3 custom-scrollbar snap-x">
-              {liveStreamers.map(streamer => (
+              {activeLiveStreamers.map((streamer: any) => (
                 <div 
                   key={streamer.id} 
-                  className="w-[190px] shrink-0 snap-start bg-[#0d0c16]/80 border border-white/5 rounded-3xl p-3 flex flex-col justify-between items-center text-center relative group hover:border-pink-500/30 transition-all shadow-md"
+                  className={`w-[190px] shrink-0 snap-start bg-[#0d0c16]/80 border rounded-3xl p-3 flex flex-col justify-between items-center text-center relative group transition-all shadow-md ${
+                    streamer.isOwn 
+                      ? 'border-purple-500/50 bg-[#1c0933]/30 shadow-[0_0_15px_rgba(168,85,247,0.2)] hover:border-pink-500' 
+                      : 'border-white/5 hover:border-pink-500/30'
+                  }`}
                 >
                   {/* LIVE Indicator overlay */}
                   <span className="absolute top-2.5 left-2.5 bg-red-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full shadow flex items-center gap-0.5">
@@ -277,7 +316,13 @@ export default function GamingClient({ user }: { user: any }) {
                   <p className="text-[9px] text-zinc-500 font-bold uppercase truncate max-w-full mb-3">{streamer.category}</p>
 
                   <button 
-                    onClick={() => setMobileFullscreenStream(streamer)} 
+                    onClick={() => {
+                      if (streamer.isOwn) {
+                        router.push(`/live/${streamer.name}`);
+                      } else {
+                        setMobileFullscreenStream(streamer);
+                      }
+                    }} 
                     className="w-full py-1.5 bg-pink-600 hover:bg-pink-700 text-[10px] font-black rounded-xl uppercase tracking-wider transition-colors shadow-md shadow-pink-600/10"
                   >
                     Entrar
@@ -299,10 +344,14 @@ export default function GamingClient({ user }: { user: any }) {
                 </h3>
               </div>
 
-              {mainFeedItems.map(item => (
+              {activeFeedItems.map((item: any) => (
                 <div 
                   key={item.id} 
-                  className="bg-[#0b0a12]/90 border border-white/5 rounded-3xl overflow-hidden shadow-lg group hover:border-purple-500/20 transition-all duration-300"
+                  className={`bg-[#0b0a12]/90 border rounded-3xl overflow-hidden shadow-lg group transition-all duration-300 ${
+                    item.isOwn 
+                      ? 'border-purple-500/40 bg-[#1c0933]/15 shadow-[0_0_20px_rgba(168,85,247,0.15)] hover:border-pink-500' 
+                      : 'border-white/5 hover:border-purple-500/20'
+                  }`}
                 >
                   {/* Large thumbnail */}
                   <div className="relative aspect-[16/9] w-full overflow-hidden">
@@ -328,7 +377,13 @@ export default function GamingClient({ user }: { user: any }) {
                     {/* Click stream overlay button */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 z-10">
                       <button 
-                        onClick={() => setMobileFullscreenStream(item)} 
+                        onClick={() => {
+                          if (item.isOwn) {
+                            router.push(`/live/${item.name}`);
+                          } else {
+                            setMobileFullscreenStream(item);
+                          }
+                        }} 
                         className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-xs font-black rounded-full shadow-lg shadow-pink-500/20 uppercase tracking-widest hover:scale-105 transition-transform"
                       >
                         Ver Directo
@@ -350,16 +405,18 @@ export default function GamingClient({ user }: { user: any }) {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleFollowToggle(item.id, item.name)}
-                          className={`px-3.5 py-1 rounded-full text-[10px] font-black border transition-all ${
-                            followedStreamers.includes(item.id) 
-                              ? 'bg-purple-600/20 border-purple-500/30 text-purple-300' 
-                              : 'bg-white/5 border-transparent text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {followedStreamers.includes(item.id) ? 'Siguiendo ✓' : '+ Seguir'}
-                        </button>
+                        {!item.isOwn && (
+                          <button 
+                            onClick={() => handleFollowToggle(item.id, item.name)}
+                            className={`px-3.5 py-1 rounded-full text-[10px] font-black border transition-all ${
+                              followedStreamers.includes(item.id) 
+                                ? 'bg-purple-600/20 border-purple-500/30 text-purple-300' 
+                                : 'bg-white/5 border-transparent text-white hover:bg-white/10'
+                            }`}
+                          >
+                            {followedStreamers.includes(item.id) ? 'Siguiendo ✓' : '+ Seguir'}
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -394,7 +451,13 @@ export default function GamingClient({ user }: { user: any }) {
                           </button>
                         )}
                         <button 
-                          onClick={() => setMobileFullscreenStream(item)} 
+                          onClick={() => {
+                            if (item.isOwn) {
+                              router.push(`/live/${item.name}`);
+                            } else {
+                              setMobileFullscreenStream(item);
+                            }
+                          }} 
                           className="px-2.5 sm:px-3.5 py-1.5 bg-[#171333] border border-purple-500/20 text-purple-300 text-[9px] sm:text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-[#1f1a44] transition-colors"
                         >
                           Ver Live
@@ -676,57 +739,86 @@ export default function GamingClient({ user }: { user: any }) {
               </button>
             </div>
 
-            {/* Actions Grid */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               
-              <Link 
-                href="/en-vivo" 
-                className="flex flex-col items-center p-4 rounded-2xl bg-gradient-to-br from-purple-600/10 to-indigo-600/10 border border-purple-500/20 hover:border-purple-500/50 transition-all hover:scale-[1.02] text-center"
-              >
-                <div className="w-12 h-12 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 mb-2 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
-                  <Play className="w-6 h-6 fill-purple-400" />
-                </div>
-                <span className="text-xs font-bold text-white mb-0.5">Transmitir</span>
-                <span className="text-[9px] text-zinc-500 font-semibold">Iniciar streaming</span>
-              </Link>
-
-              <Link 
-                href="/batallas" 
-                className="flex flex-col items-center p-4 rounded-2xl bg-gradient-to-br from-pink-600/10 to-rose-600/10 border border-pink-500/20 hover:border-pink-500/50 transition-all hover:scale-[1.02] text-center relative overflow-hidden group"
-              >
-                <div className="absolute top-1.5 right-1.5 bg-pink-500 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider animate-pulse">
-                  NEW
-                </div>
-                <div className="w-12 h-12 rounded-full bg-pink-600/20 flex items-center justify-center text-pink-400 mb-2 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
-                  <Swords className="w-6 h-6 text-pink-400" />
-                </div>
-                <span className="text-xs font-bold text-white mb-0.5">Batallas PvP</span>
-                <span className="text-[9px] text-zinc-500 font-semibold">Desafiar en vivo</span>
-              </Link>
-
-              <Link 
-                href="/en-vivo" 
-                className="flex flex-col items-center p-4 rounded-2xl bg-gradient-to-br from-yellow-600/10 to-amber-600/10 border border-yellow-500/20 hover:border-yellow-500/50 transition-all hover:scale-[1.02] text-center"
-              >
-                <div className="w-12 h-12 rounded-full bg-yellow-600/20 flex items-center justify-center text-yellow-400 mb-2 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
-                  <Sword className="w-6 h-6 text-yellow-400" />
-                </div>
-                <span className="text-xs font-bold text-white mb-0.5">Crear Sala</span>
-                <span className="text-[9px] text-zinc-500 font-semibold">Salas PvP Free Fire</span>
-              </Link>
-
+              {/* 1. Transmitir en vivo */}
               <button 
                 onClick={() => {
                   setShowQuickActions(false);
-                  triggerToast('¡Monedas cargadas! 💎');
+                  router.push('/transmitir');
                 }}
-                className="flex flex-col items-center p-4 rounded-2xl bg-gradient-to-br from-cyan-600/10 to-blue-600/10 border border-cyan-500/20 hover:border-cyan-500/50 transition-all hover:scale-[1.02] text-center"
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-purple-600/10 to-indigo-600/10 border border-purple-500/20 hover:border-purple-500/50 transition-all hover:scale-[1.02] text-center"
               >
-                <div className="w-12 h-12 rounded-full bg-cyan-600/20 flex items-center justify-center text-cyan-400 mb-2 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                  <Coins className="w-6 h-6 text-cyan-400" />
+                <div className="w-10 h-10 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 mb-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                  <Play className="w-5 h-5 fill-purple-400" />
                 </div>
-                <span className="text-xs font-bold text-white mb-0.5">Wallet</span>
-                <span className="text-[9px] text-zinc-500 font-semibold">Monedas & Recargas</span>
+                <span className="text-xs font-bold text-white mb-0.5">En Vivo</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Transmitir ahora</span>
+              </button>
+
+              {/* 2. Subir video o imagen */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('upload');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-pink-600/10 to-rose-600/10 border border-pink-500/20 hover:border-pink-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-pink-600/20 flex items-center justify-center text-pink-400 mb-1.5 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
+                  <Plus className="w-5 h-5 text-pink-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Publicar</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Subir video</span>
+              </button>
+
+              {/* 3. Batallas PvP */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  router.push('/batallas');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-rose-600/10 to-red-600/10 border border-rose-500/20 hover:border-rose-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-rose-600/20 flex items-center justify-center text-rose-400 mb-1.5 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+                  <Swords className="w-5 h-5 text-rose-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Batallas PvP</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Duelos en vivo</span>
+              </button>
+
+              {/* 4. Crear Sala */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('room');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-yellow-600/10 to-amber-600/10 border border-yellow-500/20 hover:border-yellow-500/50 transition-all hover:scale-[1.02] text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-yellow-600/20 flex items-center justify-center text-yellow-400 mb-1.5 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                  <Sword className="w-5 h-5 text-yellow-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Crear Sala</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Salas de juego</span>
+              </button>
+
+              {/* 5. Recargar monedas */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('coins');
+                }}
+                className="col-span-2 flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-amber-600/10 to-yellow-600/10 border border-amber-500/20 hover:border-amber-500/50 transition-all hover:scale-[1.01] text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-amber-600/20 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                    <Coins className="w-4.5 h-4.5 text-amber-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Recargar monedas</span>
+                    <span className="text-[9px] text-zinc-500 font-semibold">Compra diamantes LiveX</span>
+                  </div>
+                </div>
+                <Plus className="w-4.5 h-4.5 text-amber-400" />
               </button>
 
             </div>

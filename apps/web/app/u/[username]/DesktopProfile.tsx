@@ -5,9 +5,11 @@ import {
   Home, Play, Compass, Sword, Trophy, MessageSquare, Bell, User, Wallet,
   Plus, Search, Crown, LogOut, ChevronRight, BadgeCheck, Eye, Gift, Film,
   Share2, Heart, Edit3, Grid, List, Shield, Check, MessageCircle, AlertCircle,
-  Settings, Smartphone, Sparkles, X, QrCode
+  Settings, Smartphone, Sparkles, X, QrCode, Lock, Image as ImageIcon
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
+import { useCreatorStore } from '@/store/useCreatorStore';
+import { useUserPosts, DBPost } from '@/hooks/usePosts';
 
 // TikTok Custom SVG Icon
 function TiktokIcon({ className }: { className?: string }) {
@@ -42,6 +44,9 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
   const [activeTab, setActiveTab] = useState('Videos');
   const [activeFilter, setActiveFilter] = useState('Más recientes');
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
+  
+  // Fetch real posts
+  const { posts: userPosts, loading: postsLoading } = useUserPosts(targetUsername, sessionUser?.id);
   
   // Settings & Adjustment Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -103,19 +108,13 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
   const tabs = ['Videos', 'Shorts', 'Fotos', 'Streams', 'Guardados', 'Me gusta'];
   const filters = ['Más recientes', 'Populares', 'Más antiguos'];
 
-  const gridItems = [
+  const staticGridItems = [
     { id: 1, img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400', views: '1.2M', title: 'Así fue mi primera vez en torneo internacional 🏆💜', pinned: true },
     { id: 2, img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400&u=1', views: '840K', title: 'Pov: Cuando ganas la partida épica 🔥😎', pinned: true },
     { id: 3, img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=400&u=2', views: '2.3M', title: 'Probando el nuevo set up ✨ ¿Qué les parece?', pinned: true },
     { id: 4, img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=400&u=3', views: '1.1M', title: 'Noche de chill y charlas con ustedes 💜', pinned: true },
     { id: 5, img: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=400', views: '560K', title: 'Explorando lugares increíbles en directo 🌲' },
     { id: 6, img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400&u=4', views: '950K', title: 'Ustedes hacen todo esto posible 💜' },
-    { id: 7, img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400&u=5', views: '1.7M', title: 'Partida intensa en ranked 🎮' },
-    { id: 8, img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=400&u=6', views: '1.3M', title: 'Gracias por tanto amor siempre 💜' },
-    { id: 9, img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=400&u=7', views: '620K', title: 'Nuevo video en YouTube ¡Vayan a verlo! 🎬💜' },
-    { id: 10, img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400&u=8', views: '860K', title: 'Storytime: Lo que nadie sabe de mí 🙊' },
-    { id: 11, img: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=400&u=9', views: '730K', title: 'Un día diferente... conectando con la vida 🌸' },
-    { id: 12, img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=400&u=10', views: '1.9M', title: 'Preparando algo muy especial... ✨' }
   ];
 
   return (
@@ -179,8 +178,11 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
           </Link>
         </nav>
 
-        <button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8">
-          <Plus className="w-5 h-5" /> Transmitir en vivo
+        <button 
+          onClick={() => useCreatorStore.getState().open()}
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8"
+        >
+          <Plus className="w-5 h-5" /> Crear
         </button>
 
         {/* Monedas Card */}
@@ -429,31 +431,69 @@ export default function DesktopProfile({ sessionUser, targetUsername, isOwnProfi
 
           {/* Media Grid Content */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
-            {gridItems.map(item => (
-              <div key={item.id} className="group cursor-pointer block">
-                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-purple-500/30 transition-all shadow-md">
-                  <img src={item.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  
-                  {/* Top Badges */}
-                  {item.pinned && (
-                    <div className="absolute top-3 left-3">
-                      <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-pink-600 text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
-                        📌 Fijado
-                      </span>
-                    </div>
-                  )}
+            {/* Real uploaded posts */}
+            {userPosts.length > 0 ? (
+              userPosts.map((post: DBPost) => (
+                <div key={post.id} className="group cursor-pointer block">
+                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-purple-500/30 transition-all shadow-md">
+                    {post.type === 'VIDEO' ? (
+                      <video src={post.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" muted playsInline />
+                    ) : (
+                      <img src={post.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={post.title} />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    
+                    {/* Private badge */}
+                    {post.isPrivate && (
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2 py-0.5 bg-pink-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
+                          <Lock className="w-3 h-3" /> Privado
+                        </span>
+                      </div>
+                    )}
 
-                  {/* Views overlay */}
-                  <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/40 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold text-white">
-                    <span className="text-[8px] font-black">▷</span> {item.views}
+                    {/* Type badge */}
+                    <div className="absolute top-3 right-3">
+                      {post.type === 'VIDEO' ? (
+                        <span className="px-2 py-0.5 bg-purple-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
+                          <Film className="w-3 h-3" /> Video
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-blue-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
+                          <ImageIcon className="w-3 h-3" /> Foto
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  
+                  <h4 className="text-[13px] font-bold text-zinc-100 group-hover:text-purple-400 line-clamp-2 transition-colors px-1 leading-snug">{post.title}</h4>
                 </div>
-                
-                {/* Title & Stats */}
-                <h4 className="text-[13px] font-bold text-zinc-100 group-hover:text-purple-400 line-clamp-2 transition-colors px-1 leading-snug">{item.title}</h4>
-              </div>
-            ))}
+              ))
+            ) : (
+              // Fallback to static grid
+              staticGridItems.map(item => (
+                <div key={item.id} className="group cursor-pointer block">
+                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-purple-500/30 transition-all shadow-md">
+                    <img src={item.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    
+                    {item.pinned && (
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-pink-600 text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
+                          📌 Fijado
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/40 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold text-white">
+                      <span className="text-[8px] font-black">▷</span> {item.views}
+                    </div>
+                  </div>
+                  
+                  <h4 className="text-[13px] font-bold text-zinc-100 group-hover:text-purple-400 line-clamp-2 transition-colors px-1 leading-snug">{item.title}</h4>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Load More Button */}

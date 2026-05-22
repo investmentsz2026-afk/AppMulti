@@ -9,9 +9,12 @@ import {
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
+import { useCreatorStore } from '@/store/useCreatorStore';
+import { useLiveStore } from '@/store/useLiveStore';
 
 export default function DesktopDashboard({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const router = useRouter();
+  const { isLive, streamTitle, viewers } = useLiveStore();
 
   const handleLogout = async () => {
     await logoutUser();
@@ -39,13 +42,19 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
             onClick={() => setTab('parati')}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium w-full text-left ${tab === 'parati' ? 'bg-white/5 text-purple-400 font-bold' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
           >
-            <Play className="w-5 h-5" /> Para ti
+            <Home className="w-5 h-5" /> Para ti
           </button>
           <button 
             onClick={() => setTab('siguiendo')}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium w-full text-left ${tab === 'siguiendo' ? 'bg-white/5 text-purple-400 font-bold' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
           >
-            <User className="w-5 h-5" /> Siguiendo
+            <Home className="w-5 h-5" /> Siguiendo
+          </button>
+          <button 
+            onClick={() => useCreatorStore.getState().open()}
+            className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium"
+          >
+            <Plus className="w-5 h-5" /> Crear
           </button>
           <Link href="/en-vivo" className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
             <Play className="w-5 h-5" /> Gaming
@@ -78,8 +87,11 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
           </Link>
         </nav>
 
-        <button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8">
-          <Plus className="w-5 h-5" /> Transmitir en vivo
+        <button 
+          onClick={() => useCreatorStore.getState().open()}
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl shadow-lg shadow-pink-500/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 mb-8"
+        >
+          <Plus className="w-5 h-5" /> Crear
         </button>
 
         <div className="bg-[#12152b] rounded-xl p-4 mb-4 border border-white/5">
@@ -235,6 +247,33 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
                   </button>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {isLive && user && (
+                    <Link href={`/live/${user.username}`} className="group cursor-pointer block border-2 border-purple-500 rounded-3xl p-2 bg-[#1c0933]/30 shadow-[0_0_15px_rgba(168,85,247,0.2)] hover:border-pink-500 transition-all">
+                      <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5">
+                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 animate-pulse" />
+                        <div className="absolute top-2 left-2 flex gap-1">
+                          <span className="px-1.5 py-0.5 bg-pink-600 text-[8px] font-black rounded uppercase shadow-[0_0_10px_rgba(236,72,153,0.5)]">Tu Vivo</span>
+                          <span className="px-1.5 py-0.5 bg-black/60 backdrop-blur-md text-[8px] font-black rounded flex items-center gap-1 border border-white/10">
+                            <Eye className="w-2.5 h-2.5 text-pink-400" /> {viewers}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} className="w-8 h-8 rounded-full bg-zinc-800 border border-pink-500 shrink-0" />
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold truncate flex items-center gap-1 text-pink-300">
+                            {user.username} <BadgeCheck className="w-3 h-3 text-blue-400 shrink-0" />
+                          </h4>
+                          <p className="text-[10px] text-white font-bold truncate mb-1">{streamTitle || 'Transmitiendo en Vivo'}</p>
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500">
+                            <div className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center"><span className="text-[6px] text-black">L</span></div>
+                            0
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+
                   {[
                     { name: 'AndrésGG', viewers: '1,234', title: 'Rankeds de noche 🌙', coins: '12.5K' },
                     { name: 'SofiLive', viewers: '987', title: 'Charlando con ustedes 💜', coins: '8.7K' },

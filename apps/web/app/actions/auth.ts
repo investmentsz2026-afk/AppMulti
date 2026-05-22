@@ -18,7 +18,7 @@ export async function loginUser(formData: FormData) {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return { error: 'Usuario o contraseña incorrectos' };
 
-  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
   const session = await encrypt({ id: user.id, username: user.username, role: user.role, avatar: user.avatar });
   
   const cookieStore = await cookies();

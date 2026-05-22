@@ -5,9 +5,10 @@ import {
   Home, Compass, Plus, MessageSquare, User, Search, Bell, Crown,
   BadgeCheck, Eye, Gamepad2, Mic2, Radio, Trophy, Coffee, Headphones,
   Monitor, Flame, ChevronRight, Play, ArrowLeft, Upload, Menu, Shield,
-  Heart, Image, Grid, Film, X, Sparkles, Smartphone, QrCode, LogOut, Edit3
+  Heart, Image, Grid, Film, X, Sparkles, Smartphone, QrCode, LogOut, Edit3, Lock
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
+import { useUserPosts, DBPost } from '@/hooks/usePosts';
 
 // TikTok Custom SVG Icon
 function TiktokIcon({ className }: { className?: string }) {
@@ -41,9 +42,12 @@ function YoutubeIcon({ className }: { className?: string }) {
 export default function MobileProfile({ sessionUser, targetUsername, isOwnProfile }: { sessionUser: any, targetUsername: string, isOwnProfile: boolean }) {
   const [activeSubTab, setActiveSubTab] = useState('grid');
   
+  // Fetch real posts
+  const { posts: userPosts, loading: postsLoading } = useUserPosts(targetUsername, sessionUser?.id);
+  
   // Mobile drawer states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [drawerSubView, setDrawerSubView] = useState<'menu' | 'editar' | 'recargar' | 'apk'>('menu'); // menu | editar | recargar | apk
+  const [drawerSubView, setDrawerSubView] = useState<'menu' | 'editar' | 'recargar' | 'apk'>('menu');
   
   // Input fields states
   const [profileName, setProfileName] = useState('ValenLG');
@@ -98,19 +102,14 @@ export default function MobileProfile({ sessionUser, targetUsername, isOwnProfil
     xpProgress: 75,
   };
 
-  const gridItems = [
+  // Static fallback grid items (only used if no real posts)
+  const staticGridItems = [
     { id: 1, img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=300', views: '1.2M', pinned: true },
     { id: 2, img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=300&u=1', views: '840K', pinned: true },
     { id: 3, img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=300&u=2', views: '2.3M', pinned: true },
     { id: 4, img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=300&u=3', views: '1.1M' },
     { id: 5, img: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=300', views: '560K' },
     { id: 6, img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=300&u=4', views: '950K' },
-    { id: 7, img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=300&u=5', views: '1.7M' },
-    { id: 8, img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=300&u=6', views: '1.3M' },
-    { id: 9, img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=300&u=7', views: '620K' },
-    { id: 10, img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=300&u=8', views: '860K' },
-    { id: 11, img: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=300&u=9', views: '730K' },
-    { id: 12, img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=300&u=10', views: '1.9M' }
   ];
 
   return (
@@ -238,26 +237,66 @@ export default function MobileProfile({ sessionUser, targetUsername, isOwnProfil
 
         {/* 3-Column Media Grid */}
         <div className="grid grid-cols-3 gap-0.5 px-0.5">
-          {gridItems.map(item => (
-            <div key={item.id} className="relative aspect-[3/4] overflow-hidden group">
-              <img src={item.img} className="w-full h-full object-cover" alt="" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              
-              {/* Top Pinned Badge */}
-              {item.pinned && (
-                <div className="absolute top-1.5 left-1.5">
-                  <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-600 to-pink-600 text-[7px] font-black rounded uppercase tracking-wider shadow">
-                    📌 Fijado
-                  </span>
-                </div>
-              )}
+          {/* Real uploaded posts */}
+          {userPosts.length > 0 ? (
+            userPosts.map((post: DBPost) => (
+              <div key={post.id} className="relative aspect-[3/4] overflow-hidden group">
+                {post.type === 'VIDEO' ? (
+                  <video src={post.url} className="w-full h-full object-cover" muted playsInline />
+                ) : (
+                  <img src={post.url} className="w-full h-full object-cover" alt={post.title} />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                
+                {/* Private badge */}
+                {post.isPrivate && (
+                  <div className="absolute top-1.5 left-1.5">
+                    <span className="px-1.5 py-0.5 bg-pink-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow flex items-center gap-0.5">
+                      <Lock className="w-2.5 h-2.5" /> Privado
+                    </span>
+                  </div>
+                )}
 
-              {/* Bottom View Count overlay */}
-              <div className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-[8px] font-black text-white bg-black/40 px-1 py-0.5 rounded">
-                <span>▷</span> {item.views}
+                {/* Type badge */}
+                <div className="absolute top-1.5 right-1.5">
+                  {post.type === 'VIDEO' ? (
+                    <span className="px-1.5 py-0.5 bg-purple-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow flex items-center gap-0.5">
+                      <Film className="w-2.5 h-2.5" /> Video
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 bg-blue-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow flex items-center gap-0.5">
+                      <Image className="w-2.5 h-2.5" /> Foto
+                    </span>
+                  )}
+                </div>
+
+                {/* Title overlay */}
+                <div className="absolute bottom-1.5 left-1.5 right-1.5 text-[8px] font-bold text-white truncate">
+                  {post.title}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            // Fallback to static grid
+            staticGridItems.map(item => (
+              <div key={item.id} className="relative aspect-[3/4] overflow-hidden group">
+                <img src={item.img} className="w-full h-full object-cover" alt="" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                
+                {item.pinned && (
+                  <div className="absolute top-1.5 left-1.5">
+                    <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-600 to-pink-600 text-[7px] font-black rounded uppercase tracking-wider shadow">
+                      📌 Fijado
+                    </span>
+                  </div>
+                )}
+
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-[8px] font-black text-white bg-black/40 px-1 py-0.5 rounded">
+                  <span>▷</span> {item.views}
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
       </div>
