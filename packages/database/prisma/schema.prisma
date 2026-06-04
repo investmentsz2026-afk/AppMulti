@@ -293,6 +293,8 @@ model DirectMessage {
   senderId   String
   receiverId String
   content    String
+  mediaUrl   String?
+  mediaType  String?  // 'IMAGE' | 'VIDEO' | 'AUDIO'
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 

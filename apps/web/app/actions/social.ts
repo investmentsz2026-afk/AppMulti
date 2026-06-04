@@ -478,7 +478,7 @@ export async function getFollowingUserIds() {
 
 // ================= PRIVATE MESSAGES ACTIONS =================
 
-export async function sendDirectMessage(receiverId: string, content: string) {
+export async function sendDirectMessage(receiverId: string, content: string, mediaUrl?: string, mediaType?: string) {
   const session = await getSession();
   if (!session) return { error: 'No autenticado' };
 
@@ -486,14 +486,16 @@ export async function sendDirectMessage(receiverId: string, content: string) {
   if (senderId === receiverId) return { error: 'No puedes enviarte mensajes a ti mismo' };
 
   const trimmed = content.trim();
-  if (!trimmed) return { error: 'Mensaje vacío' };
+  if (!trimmed && !mediaUrl) return { error: 'Mensaje vacío' };
 
   try {
     const dm = await prisma.directMessage.create({
       data: {
         senderId,
         receiverId,
-        content: trimmed
+        content: trimmed,
+        mediaUrl: mediaUrl || null,
+        mediaType: mediaType || null
       },
       include: {
         sender: { select: { id: true, username: true, avatar: true } },
@@ -575,7 +577,13 @@ export async function getConversations() {
       if (!conversationsMap.has(otherUser.id)) {
         conversationsMap.set(otherUser.id, {
           user: otherUser,
-          lastMessage: dm.content,
+          lastMessage: dm.mediaType === 'IMAGE' 
+            ? '📷 Imagen' 
+            : dm.mediaType === 'VIDEO' 
+            ? '🎥 Video' 
+            : dm.mediaType === 'AUDIO' 
+            ? '🎙️ Nota de voz' 
+            : dm.content,
           createdAt: dm.createdAt,
           isRead: dm.isRead || dm.senderId === userId
         });

@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Home, Play, Compass, Sword, Trophy, MessageSquare, 
   Bell, User, Wallet, Plus, Search, Crown, LogOut, 
-  BadgeCheck, Send, ArrowLeft, Sparkles, X, Heart
+  BadgeCheck, Send, ArrowLeft, Sparkles, X, Heart,
+  Paperclip, Mic, Trash2, Camera, Video, Image as ImageIcon
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
@@ -35,6 +36,145 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Voice Recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Media attachments state
+  const [attachedFile, setAttachedFile] = useState<string | null>(null);
+  const [attachedType, setAttachedType] = useState<'IMAGE' | 'VIDEO' | null>(null);
+  const [attachedName, setAttachedName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // File select handler
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('El archivo supera el límite de 15MB');
+      return;
+    }
+
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isImage && !isVideo) {
+      toast.error('Formato no soportado. Selecciona una imagen o video.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = () => {
+      setAttachedFile(reader.result as string);
+      setAttachedType(isVideo ? 'VIDEO' : 'IMAGE');
+      setAttachedName(file.name);
+    };
+    
+    e.target.value = '';
+  };
+
+  // Start Voice Recording
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      setMediaRecorder(recorder);
+      
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result as string;
+          await handleSendMedia(base64Audio, 'AUDIO');
+        };
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+    } catch (err) {
+      console.error('Error sharing microphone:', err);
+      toast.error('No se pudo acceder al micrófono');
+    }
+  };
+
+  // Stop Voice Recording
+  const stopRecording = (cancel = false) => {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (!mediaRecorder) return;
+    
+    if (cancel) {
+      mediaRecorder.onstop = () => {};
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+      setRecordingTime(0);
+      return;
+    }
+
+    mediaRecorder.stop();
+    setIsRecording(false);
+    setRecordingTime(0);
+  };
+
+  // Send message with media
+  const handleSendMedia = async (mediaData: string, mediaType: 'IMAGE' | 'VIDEO' | 'AUDIO') => {
+    if (!activePartner || sending) return;
+    setSending(true);
+
+    const tempId = `temp-${Date.now()}`;
+    const tempMsg = {
+      id: tempId,
+      senderId: sessionUser.id,
+      receiverId: activePartner.id,
+      content: '',
+      mediaUrl: mediaData,
+      mediaType: mediaType,
+      createdAt: new Date(),
+      sender: { id: sessionUser.id, username: sessionUser.username, avatar: sessionUser.avatar },
+      receiver: activePartner
+    };
+    setMessages(prev => [...prev, tempMsg]);
+
+    try {
+      const res = await sendDirectMessage(activePartner.id, '', mediaData, mediaType);
+      if (res.error) {
+        toast.error(res.error);
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      } else if (res.message) {
+        setMessages(prev => prev.map(m => m.id === tempId ? res.message : m));
+        loadConversationsList();
+      }
+    } catch (err) {
+      toast.error('Error al enviar archivo');
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
+  }, []);
 
   // Auto scroll to bottom
   const scrollToBottom = () => {
@@ -176,14 +316,22 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
     }
   };
 
-  // Send Direct Message
+  // Send Direct Message (handles both text, images, and videos)
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !activePartner || sending) return;
+    if (isRecording) return;
 
+    const hasAttachment = !!attachedFile;
     const messageText = newMessage.trim();
-    setNewMessage('');
+
+    if (!messageText && !hasAttachment) return;
+    if (!activePartner || sending) return;
+
     setSending(true);
+    setNewMessage('');
+    setAttachedFile(null);
+    setAttachedType(null);
+    setAttachedName('');
 
     // Optimistic update
     const tempId = `temp-${Date.now()}`;
@@ -192,6 +340,8 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
       senderId: sessionUser.id,
       receiverId: activePartner.id,
       content: messageText,
+      mediaUrl: attachedFile || undefined,
+      mediaType: attachedType || undefined,
       createdAt: new Date(),
       sender: { id: sessionUser.id, username: sessionUser.username, avatar: sessionUser.avatar },
       receiver: activePartner
@@ -199,15 +349,17 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      const res = await sendDirectMessage(activePartner.id, messageText);
+      const res = await sendDirectMessage(
+        activePartner.id, 
+        messageText, 
+        attachedFile || undefined, 
+        attachedType || undefined
+      );
       if (res.error) {
         toast.error(res.error);
-        // Rollback optimistic message
         setMessages(prev => prev.filter(m => m.id !== tempId));
       } else if (res.message) {
-        // Swap temp message with real database message
         setMessages(prev => prev.map(m => m.id === tempId ? res.message : m));
-        // Refresh conversations list to update sidebar immediately
         loadConversationsList();
       }
     } catch (err) {
@@ -450,7 +602,31 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
                             ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-tr-none border border-purple-500/25 shadow-purple-500/5' 
                             : 'bg-white/5 text-zinc-200 border border-white/5 rounded-tl-none'
                         }`}>
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {msg.mediaType === 'IMAGE' && msg.mediaUrl && (
+                            <div className="mb-2">
+                              <img 
+                                src={msg.mediaUrl} 
+                                className="max-w-[240px] max-h-[300px] rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity" 
+                                onClick={() => window.open(msg.mediaUrl)} 
+                                alt="Imagen"
+                              />
+                            </div>
+                          )}
+                          {msg.mediaType === 'VIDEO' && msg.mediaUrl && (
+                            <div className="mb-2">
+                              <video 
+                                src={msg.mediaUrl} 
+                                controls 
+                                className="max-w-[240px] max-h-[300px] rounded-xl object-cover" 
+                              />
+                            </div>
+                          )}
+                          {msg.mediaType === 'AUDIO' && msg.mediaUrl && (
+                            <div className="mb-1">
+                              <AudioBubblePlayer src={msg.mediaUrl} isOwn={isOwn} />
+                            </div>
+                          )}
+                          {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
                         </div>
                         <span className={`text-[8px] text-zinc-600 font-medium mt-1 ${isOwn ? 'text-right' : 'text-left'}`}>
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -463,23 +639,117 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
               </div>
 
               {/* Chat Send Input Form */}
-              <form onSubmit={handleSendMessage} className="p-4 border-t border-white/5 bg-[#09090e] flex gap-2 relative z-10">
-                <div className="flex-1 flex items-center bg-white/5 border border-white/10 rounded-full px-4 h-11 focus-within:border-purple-500 transition-colors">
+              <form onSubmit={handleSendMessage} className="p-4 border-t border-white/5 bg-[#09090e] flex flex-col gap-2 relative z-10">
+                
+                {/* File preview if present */}
+                {attachedFile && (
+                  <div className="p-2 bg-[#12121e] border border-white/5 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in duration-200 mb-2">
+                    <div className="flex items-center gap-2">
+                      {attachedType === 'IMAGE' ? (
+                        <img src={attachedFile} className="w-12 h-12 rounded-lg object-cover border border-white/10" alt="" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center border border-white/10">
+                          <Video className="w-6 h-6 text-purple-400" />
+                        </div>
+                      )}
+                      <div className="text-left">
+                        <span className="text-[10px] text-zinc-500 block uppercase font-bold tracking-wider">{attachedType === 'IMAGE' ? 'Imagen' : 'Video'} adjunto</span>
+                        <span className="text-xs text-white font-bold truncate max-w-[150px] block">{attachedName}</span>
+                      </div>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setAttachedFile(null);
+                        setAttachedType(null);
+                        setAttachedName('');
+                      }}
+                      className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex gap-2 items-center">
                   <input 
-                    type="text" 
-                    placeholder="Escribe un mensaje privado..." 
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    className="bg-transparent border-none outline-none flex-1 text-xs text-white placeholder-zinc-500 font-medium"
+                    type="file" 
+                    ref={fileInputRef}
+                    accept="image/*,video/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
                   />
+
+                  {isRecording ? (
+                    <>
+                      {/* Cancel Recording */}
+                      <button
+                        type="button"
+                        onClick={() => stopRecording(true)}
+                        className="w-11 h-11 rounded-full bg-red-600/10 border border-red-500/20 text-red-500 flex items-center justify-center hover:bg-red-600/20 transition-colors"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                      
+                      {/* Recording status timer banner */}
+                      <div className="flex-1 flex items-center justify-between bg-red-600/5 border border-red-500/20 rounded-full px-5 h-11 animate-pulse">
+                        <span className="text-xs text-red-400 font-bold flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" /> Grabando Nota de Voz...
+                        </span>
+                        <span className="text-xs text-white font-black">
+                          {Math.floor(recordingTime / 60)}:{(recordingTime % 60) < 10 ? '0' : ''}{recordingTime % 60}
+                        </span>
+                      </div>
+
+                      {/* Stop & Send Recording */}
+                      <button
+                        type="button"
+                        onClick={() => stopRecording(false)}
+                        className="w-11 h-11 rounded-full bg-green-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                      >
+                        <Send className="w-4.5 h-4.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-11 h-11 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center hover:bg-white/10 transition-colors shrink-0"
+                        title="Adjuntar Foto/Video"
+                      >
+                        <Paperclip className="w-4.5 h-4.5" />
+                      </button>
+
+                      <div className="flex-1 flex items-center bg-white/5 border border-white/10 rounded-full px-4 h-11 focus-within:border-purple-500 transition-colors">
+                        <input 
+                          type="text" 
+                          placeholder="Escribe un mensaje privado..." 
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          className="bg-transparent border-none outline-none flex-1 text-xs text-white placeholder-zinc-500 font-medium"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={startRecording}
+                        className="w-11 h-11 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center hover:bg-white/10 transition-colors shrink-0"
+                        title="Grabar Nota de Voz"
+                      >
+                        <Mic className="w-4.5 h-4.5" />
+                      </button>
+
+                      <button 
+                        type="submit"
+                        disabled={(!newMessage.trim() && !attachedFile) || sending}
+                        className="w-11 h-11 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center shrink-0 disabled:opacity-50"
+                      >
+                        <Send className="w-4 h-4 text-white" />
+                      </button>
+                    </>
+                  )}
                 </div>
-                <button 
-                  type="submit"
-                  disabled={!newMessage.trim() || sending}
-                  className="w-11 h-11 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center shrink-0 disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4 text-white" />
-                </button>
               </form>
             </>
           ) : (
@@ -495,6 +765,96 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
 
       </main>
 
+    </div>
+  );
+}
+
+// Custom voice message bubble player with waveforms and progress
+function AudioBubblePlayer({ src, isOwn }: { src: string; isOwn: boolean }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    if (!src) return;
+    const audio = new Audio(src);
+    audioRef.current = audio;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoadedMetadata = () => setDuration(audio.duration || 0);
+    const onEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('ended', onEnded);
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('ended', onEnded);
+    };
+  }, [src]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(err => console.error(err));
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (isNaN(time) || !isFinite(time)) return '0:00';
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  return (
+    <div className="flex items-center gap-3 py-1 px-1 min-w-[200px]">
+      <button 
+        type="button"
+        onClick={togglePlay}
+        className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+          isOwn 
+            ? 'bg-white text-purple-700 hover:scale-105 active:scale-95' 
+            : 'bg-purple-600/30 text-purple-300 border border-purple-500/20 hover:bg-purple-600/50 hover:scale-105 active:scale-95'
+        }`}
+      >
+        {isPlaying ? (
+          <span className="flex gap-0.5">
+            <span className="w-1 h-3.5 bg-current rounded-full animate-pulse" />
+            <span className="w-1 h-3.5 bg-current rounded-full animate-pulse [animation-delay:0.15s]" />
+          </span>
+        ) : (
+          <Play className="w-4.5 h-4.5 fill-current ml-0.5" />
+        )}
+      </button>
+
+      <div className="flex-1 flex flex-col gap-1">
+        <div className="h-1.5 bg-white/20 rounded-full overflow-hidden relative">
+          <div 
+            className={`h-full ${isOwn ? 'bg-white' : 'bg-purple-500'}`} 
+            style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-[8px] text-zinc-400 font-bold">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration || 10)}</span>
+        </div>
+      </div>
     </div>
   );
 }
