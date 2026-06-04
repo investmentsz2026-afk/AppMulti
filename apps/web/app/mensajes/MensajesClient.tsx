@@ -374,7 +374,7 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
     <div className="flex h-screen w-full bg-[#05050a] text-white relative">
       
       {/* 1. LEFT SIDEBAR NAVIGATION */}
-      <aside className="w-[260px] border-r border-white/5 bg-[#0a0a0f] flex flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar">
+      <aside className="hidden lg:flex w-[260px] border-r border-white/5 bg-[#0a0a0f] flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar">
         <Link href="/dashboard?tab=inicio" className="flex items-center gap-3 mb-8 px-2">
           <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
             <Play className="text-white fill-white w-4 h-4" />
@@ -449,10 +449,10 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
       </aside>
 
       {/* 2. MESSAGES CORE INTERFACE */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className={`flex-1 flex overflow-hidden relative ${activePartner ? 'pb-0' : 'pb-[70px] lg:pb-0'}`}>
         
         {/* Chats Sidebar */}
-        <section className="w-80 border-r border-white/5 flex flex-col bg-[#08080d]">
+        <section className={`${activePartner ? 'hidden lg:flex' : 'flex'} w-full lg:w-80 border-r border-white/5 flex-col bg-[#08080d] shrink-0`}>
           {/* Search bar to find users */}
           <div className="p-4 border-b border-white/5 bg-[#09090e]">
             <h2 className="text-base font-black mb-3">Mensajes Privados</h2>
@@ -548,12 +548,22 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
         </section>
 
         {/* Chat window panel */}
-        <section className="flex-1 flex flex-col bg-[#050508]">
+        <section className={`${activePartner ? 'flex' : 'hidden lg:flex'} flex-1 flex-col bg-[#050508]`}>
           {activePartner ? (
             <>
               {/* Active Chat Header */}
-              <div className="h-[55px] shrink-0 border-b border-white/5 px-6 flex items-center justify-between bg-[#0a0a0f]/40 backdrop-blur-md relative z-10">
+              <div className="h-[55px] shrink-0 border-b border-white/5 px-4 lg:px-6 flex items-center justify-between bg-[#0a0a0f]/40 backdrop-blur-md relative z-10">
                 <div className="flex items-center gap-3">
+                  {/* Mobile Back Button */}
+                  <button 
+                    type="button"
+                    onClick={() => setActivePartner(null)}
+                    className="block lg:hidden text-zinc-400 hover:text-white transition-colors p-1"
+                    title="Atrás"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+
                   <img src={activePartner.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activePartner.username}`} className="w-8 h-8 rounded-full border border-white/10 bg-zinc-800" alt="" />
                   <div>
                     <h3 className="text-xs font-black flex items-center gap-1">
@@ -764,6 +774,40 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
         </section>
 
       </main>
+
+      {/* Bottom Navigation Bar */}
+      {!activePartner && (
+        <div className="absolute bottom-0 left-0 right-0 h-[70px] bg-[#05050a] flex lg:hidden items-center justify-around z-20 px-2 pb-2 pt-1 border-t border-white/5 animate-in slide-in-from-bottom duration-200">
+          <Link href="/dashboard?tab=inicio" className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
+            <Home className="w-6 h-6" />
+            <span className="text-[10px] font-bold">Inicio</span>
+          </Link>
+          <Link href="/en-vivo" className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
+            <Play className="w-6 h-6" />
+            <span className="text-[10px] font-bold">Gaming</span>
+          </Link>
+          
+          {/* Center Plus Button */}
+          <div className="relative -top-4">
+            <button 
+              type="button"
+              onClick={() => useCreatorStore.getState().open()}
+              className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 border-4 border-[#05050a] hover:scale-105 transition-transform"
+            >
+               <Plus className="w-6 h-6 text-white" />
+            </button>
+          </div>
+
+          <Link href="/mensajes" className="flex flex-col items-center gap-1 text-pink-500">
+            <MessageSquare className="w-6 h-6" />
+            <span className="text-[10px] font-bold">Mensajes</span>
+          </Link>
+          <Link href={`/u/${sessionUser.username}`} className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
+            <User className="w-6 h-6" />
+            <span className="text-[10px] font-bold">Perfil</span>
+          </Link>
+        </div>
+      )}
 
     </div>
   );
