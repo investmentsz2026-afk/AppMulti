@@ -47,33 +47,107 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
   const [attachedFile, setAttachedFile] = useState<string | null>(null);
   const [attachedType, setAttachedType] = useState<'IMAGE' | 'VIDEO' | null>(null);
   const [attachedName, setAttachedName] = useState('');
+  // Image preview state
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // File select handler
+  // File select handler with client-side image compression
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error('El archivo supera el límite de 15MB');
-      return;
-    }
-
-    const isVideo = file.type.startsWith('video/');
-    const isImage = file.type.startsWith('image/');
+    const fileName = file.name.toLowerCase();
+    const isImage = file.type.startsWith('image/') || 
+                    /\.(jpg|jpeg|png|webp|gif|bmp|heic|heif)$/i.test(fileName);
+    const isVideo = file.type.startsWith('video/') || 
+                    /\.(mp4|webm|mov|m4v|avi|mkv|3gp)$/i.test(fileName);
 
     if (!isImage && !isVideo) {
       toast.error('Formato no soportado. Selecciona una imagen o video.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onloadend = () => {
-      setAttachedFile(reader.result as string);
-      setAttachedType(isVideo ? 'VIDEO' : 'IMAGE');
-      setAttachedName(file.name);
-    };
+    if (isVideo && file.size > 3 * 1024 * 1024) {
+      toast.error('El video supera el límite de 3MB para el chat.');
+      return;
+    }
+
+    if (isImage && file.size > 15 * 1024 * 1024) {
+      toast.error('La imagen supera el límite de 15MB');
+      return;
+    }
+
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const resultStr = reader.result as string;
+        const img = new Image();
+        
+        img.onload = () => {
+          try {
+            // Canvas compression
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1200;
+            const MAX_HEIGHT = 1200;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              // Compress to jpeg with 0.75 quality (greatly reduces size to ~100-300KB)
+              const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+              setAttachedFile(compressedBase64);
+              setAttachedType('IMAGE');
+              setAttachedName(file.name);
+            } else {
+              setAttachedFile(resultStr);
+              setAttachedType('IMAGE');
+              setAttachedName(file.name);
+            }
+          } catch (err) {
+            console.error('Error compressing image:', err);
+            setAttachedFile(resultStr);
+            setAttachedType('IMAGE');
+            setAttachedName(file.name);
+          }
+        };
+
+        img.onerror = () => {
+          console.error('Error loading image object');
+          setAttachedFile(resultStr);
+          setAttachedType('IMAGE');
+          setAttachedName(file.name);
+        };
+
+        img.src = resultStr;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // It's a video, read it directly as base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAttachedFile(reader.result as string);
+        setAttachedType('VIDEO');
+        setAttachedName(file.name);
+      };
+      reader.readAsDataURL(file);
+    }
     
     e.target.value = '';
   };
@@ -552,7 +626,7 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
           {activePartner ? (
             <>
               {/* Active Chat Header */}
-              <div className="h-[55px] shrink-0 border-b border-white/5 px-4 lg:px-6 flex items-center justify-between bg-[#0a0a0f]/40 backdrop-blur-md relative z-10">
+              <div className="h-[55px] shrink-0 border-b border-white/5 px-5 lg:px-6 flex items-center justify-between bg-[#0a0a0f]/40 backdrop-blur-md relative z-10">
                 <div className="flex items-center gap-3">
                   {/* Mobile Back Button */}
                   <button 
@@ -613,11 +687,11 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
                             : 'bg-white/5 text-zinc-200 border border-white/5 rounded-tl-none'
                         }`}>
                           {msg.mediaType === 'IMAGE' && msg.mediaUrl && (
-                            <div className="mb-2">
+                            <div className="mb-2 overflow-hidden rounded-xl">
                               <img 
                                 src={msg.mediaUrl} 
-                                className="max-w-[240px] max-h-[300px] rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity" 
-                                onClick={() => window.open(msg.mediaUrl)} 
+                                className="max-w-[240px] max-h-[300px] rounded-xl object-cover cursor-pointer hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 shadow-md" 
+                                onClick={() => setPreviewImage(msg.mediaUrl)} 
                                 alt="Imagen"
                               />
                             </div>
@@ -649,7 +723,7 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
               </div>
 
               {/* Chat Send Input Form */}
-              <form onSubmit={handleSendMessage} className="p-4 border-t border-white/5 bg-[#09090e] flex flex-col gap-2 relative z-10">
+              <form onSubmit={handleSendMessage} className="p-5 border-t border-white/5 bg-[#09090e] flex flex-col gap-2 relative z-10">
                 
                 {/* File preview if present */}
                 {attachedFile && (
@@ -681,7 +755,7 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
                   </div>
                 )}
 
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2.5 items-center w-full">
                   <input 
                     type="file" 
                     ref={fileInputRef}
@@ -696,17 +770,17 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
                       <button
                         type="button"
                         onClick={() => stopRecording(true)}
-                        className="w-11 h-11 rounded-full bg-red-600/10 border border-red-500/20 text-red-500 flex items-center justify-center hover:bg-red-600/20 transition-colors"
+                        className="w-10 h-10 rounded-full bg-red-600/10 border border-red-500/20 text-red-500 flex items-center justify-center hover:bg-red-600/20 transition-colors shrink-0"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                       
                       {/* Recording status timer banner */}
-                      <div className="flex-1 flex items-center justify-between bg-red-600/5 border border-red-500/20 rounded-full px-5 h-11 animate-pulse">
-                        <span className="text-xs text-red-400 font-bold flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" /> Grabando Nota de Voz...
+                      <div className="flex-1 min-w-0 flex items-center justify-between bg-red-600/5 border border-red-500/20 rounded-full px-4 h-10 animate-pulse">
+                        <span className="text-[10px] text-red-400 font-bold flex items-center gap-1.5 truncate">
+                          <span className="w-2 h-2 bg-red-500 rounded-full animate-ping shrink-0" /> Grabando...
                         </span>
-                        <span className="text-xs text-white font-black">
+                        <span className="text-xs text-white font-black shrink-0 ml-1">
                           {Math.floor(recordingTime / 60)}:{(recordingTime % 60) < 10 ? '0' : ''}{recordingTime % 60}
                         </span>
                       </div>
@@ -715,9 +789,9 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
                       <button
                         type="button"
                         onClick={() => stopRecording(false)}
-                        className="w-11 h-11 rounded-full bg-green-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                        className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shrink-0"
                       >
-                        <Send className="w-4.5 h-4.5" />
+                        <Send className="w-4 h-4" />
                       </button>
                     </>
                   ) : (
@@ -725,26 +799,26 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-11 h-11 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center hover:bg-white/10 transition-colors shrink-0"
+                        className="w-10 h-10 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center hover:bg-white/10 transition-colors shrink-0"
                         title="Adjuntar Foto/Video"
                       >
                         <Paperclip className="w-4.5 h-4.5" />
                       </button>
 
-                      <div className="flex-1 flex items-center bg-white/5 border border-white/10 rounded-full px-4 h-11 focus-within:border-purple-500 transition-colors">
+                      <div className="flex-1 min-w-0 flex items-center bg-white/5 border border-white/10 rounded-full px-4 h-10 focus-within:border-purple-500 transition-colors">
                         <input 
                           type="text" 
                           placeholder="Escribe un mensaje privado..." 
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
-                          className="bg-transparent border-none outline-none flex-1 text-xs text-white placeholder-zinc-500 font-medium"
+                          className="bg-transparent border-none outline-none flex-1 w-full min-w-0 text-xs text-white placeholder-zinc-500 font-medium"
                         />
                       </div>
 
                       <button
                         type="button"
                         onClick={startRecording}
-                        className="w-11 h-11 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center hover:bg-white/10 transition-colors shrink-0"
+                        className="w-10 h-10 rounded-full bg-white/5 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center hover:bg-white/10 transition-colors shrink-0"
                         title="Grabar Nota de Voz"
                       >
                         <Mic className="w-4.5 h-4.5" />
@@ -753,7 +827,7 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
                       <button 
                         type="submit"
                         disabled={(!newMessage.trim() && !attachedFile) || sending}
-                        className="w-11 h-11 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center shrink-0 disabled:opacity-50"
+                        className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center shrink-0 disabled:opacity-50"
                       >
                         <Send className="w-4 h-4 text-white" />
                       </button>
@@ -806,6 +880,34 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
             <User className="w-6 h-6" />
             <span className="text-[10px] font-bold">Perfil</span>
           </Link>
+        </div>
+      )}
+
+      {/* Fullscreen Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
+          {/* Backdrop click to close */}
+          <div className="absolute inset-0 cursor-pointer" onClick={() => setPreviewImage(null)} />
+          
+          {/* Close Button positioned in the top-right corner of the viewport */}
+          <button 
+            type="button"
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 md:top-6 md:right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all z-50 border border-white/10 shadow-lg backdrop-blur-md"
+            title="Cerrar"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          <div className="relative max-w-full max-h-full flex items-center justify-center z-10 pointer-events-none">
+            {/* Image */}
+            <img 
+              src={previewImage} 
+              className="max-w-[95vw] max-h-[85vh] md:max-w-[85vw] md:max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200 pointer-events-auto cursor-zoom-out hover:scale-[1.005] active:scale-[0.99] transition-all duration-200" 
+              onClick={() => setPreviewImage(null)}
+              alt="Vista previa" 
+            />
+          </div>
         </div>
       )}
 

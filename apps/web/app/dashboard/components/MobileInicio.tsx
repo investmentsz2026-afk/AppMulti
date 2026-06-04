@@ -224,11 +224,11 @@ export default function MobileInicio({ user, setTab, tab }: { user: any, setTab:
           </button>
         </div>
 
-        <button className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors relative">
+        <Link href="/mensajes" className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors relative">
           <MessageSquare className="w-6 h-6" />
           <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">12</span>
           <span className="text-[10px] font-bold">Mensajes</span>
-        </button>
+        </Link>
         <Link href={`/u/${user?.username}`} className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
           <User className="w-6 h-6" />
           <span className="text-[10px] font-bold">Perfil</span>
