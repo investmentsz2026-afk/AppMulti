@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Home, Compass, Plus, MessageSquare, User, Search, Bell, Crown,
@@ -7,9 +7,11 @@ import {
   Monitor, Flame, ChevronRight, Play, ArrowLeft, Upload, Menu, Shield,
   Heart, Image, Grid, Film, X, Sparkles, Smartphone, QrCode, LogOut, Edit3, Lock
 } from 'lucide-react';
-import { logoutUser } from '@/app/actions/auth';
-import { useUserPosts, DBPost } from '@/hooks/usePosts';
 import { updateProfile } from '@/app/actions/profile';
+import { logoutUser } from '@/app/actions/auth';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus } from '@/app/actions/social';
+import { useRouter } from 'next/navigation';
+import { Check, AlertCircle } from 'lucide-react';
 
 // Facebook Custom SVG Icon
 function FacebookIcon({ className }: { className?: string }) {
@@ -51,10 +53,106 @@ function YoutubeIcon({ className }: { className?: string }) {
 
 export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }: { sessionUser: any, targetUser: any, isOwnProfile: boolean }) {
   const targetUsername = targetUser?.username || '';
-  const [activeSubTab, setActiveSubTab] = useState('grid');
-  
-  // Fetch real posts
-  const { posts: userPosts, loading: postsLoading } = useUserPosts(targetUsername, sessionUser?.id);
+  const [activeTab, setActiveTab] = useState('Videos');
+  const router = useRouter();
+
+  // Real stats & follow states
+  const [stats, setStats] = useState({ followers: 0, following: 0, likes: 0 });
+  const [isFollowingTargetUser, setIsFollowingTargetUser] = useState(false);
+
+  // Real tab posts states
+  const [tabPosts, setTabPosts] = useState<any[]>([]);
+  const [tabLoading, setTabLoading] = useState(true);
+
+  // Load stats
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const res = await getProfileStats(targetUsername);
+        setStats(res);
+      } catch (err) {
+        console.error('Error loading stats:', err);
+      }
+    }
+    loadStats();
+  }, [targetUsername]);
+
+  // Load follow status
+  useEffect(() => {
+    async function loadFollowStatus() {
+      if (isOwnProfile || !sessionUser) return;
+      try {
+        const res = await checkFollowStatus(targetUser.id);
+        setIsFollowingTargetUser(res.following);
+      } catch (err) {
+        console.error('Error checking follow status:', err);
+      }
+    }
+    loadFollowStatus();
+  }, [targetUser.id, isOwnProfile, sessionUser]);
+
+  // Load tab posts
+  useEffect(() => {
+    async function loadTabPosts() {
+      setTabLoading(true);
+      try {
+        const posts = await getTabPosts(targetUsername, activeTab, sessionUser?.id);
+        setTabPosts(posts);
+      } catch (err) {
+        console.error('Error loading tab posts:', err);
+      } finally {
+        setTabLoading(false);
+      }
+    }
+    loadTabPosts();
+  }, [activeTab, targetUsername, sessionUser?.id]);
+
+  const handleProfileFollowToggle = async () => {
+    if (!sessionUser) {
+      router.push('/login');
+      return;
+    }
+    const prevStatus = isFollowingTargetUser;
+    setIsFollowingTargetUser(!prevStatus);
+    setStats(prev => ({
+      ...prev,
+      followers: !prevStatus ? prev.followers + 1 : Math.max(0, prev.followers - 1)
+    }));
+    try {
+      const res = await toggleFollowUser(targetUser.id);
+      if (res.error) {
+        setIsFollowingTargetUser(prevStatus);
+        setStats(prev => ({
+          ...prev,
+          followers: prevStatus ? prev.followers + 1 : Math.max(0, prev.followers - 1)
+        }));
+        triggerToast(res.error);
+      } else if (res.success) {
+        setIsFollowingTargetUser(res.following ?? !prevStatus);
+      }
+    } catch (err) {
+      setIsFollowingTargetUser(prevStatus);
+      setStats(prev => ({
+        ...prev,
+        followers: prevStatus ? prev.followers + 1 : Math.max(0, prev.followers - 1)
+      }));
+    }
+  };
+
+  const formatStat = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toLocaleString();
+  };
+
+  const tabs = isOwnProfile 
+    ? ['Videos', 'Shorts', 'Fotos', 'Streams', 'Guardados', 'Me gusta']
+    : ['Videos', 'Shorts', 'Fotos', 'Streams', 'Me gusta'];
+
   
   // Mobile drawer states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -224,10 +322,19 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
         <Link href="/dashboard" className="text-zinc-300">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-base font-black tracking-wide">Mi perfil</h1>
+        <h1 className="text-base font-black tracking-wide">{isOwnProfile ? 'Mi perfil' : `@${targetUsername}`}</h1>
         <div className="flex items-center gap-4 text-zinc-300">
-          <button onClick={() => triggerToast('¡Enlace de perfil copiado! 🔗')} className="cursor-pointer"><Upload className="w-5 h-5" /></button>
-          <button className="cursor-pointer" onClick={() => { setDrawerSubView('menu'); setIsDrawerOpen(true); }}><Menu className="w-5 h-5" /></button>
+          <button onClick={() => {
+            navigator.clipboard.writeText(window.location.href);
+            triggerToast('¡Enlace de perfil copiado! 🔗');
+          }} className="cursor-pointer">
+            <Upload className="w-5 h-5" />
+          </button>
+          {isOwnProfile && (
+            <button className="cursor-pointer" onClick={() => { setDrawerSubView('menu'); setIsDrawerOpen(true); }}>
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -341,20 +448,50 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
             {/* Stats Row */}
             <div className="flex w-full max-w-xs items-center justify-around bg-white/5 p-3 rounded-2xl border border-white/5 mb-5">
               <div className="text-center">
-                <span className="font-black text-sm text-white block leading-none">{creator.followers}</span>
+                <span className="font-black text-sm text-white block leading-none">{formatStat(stats.followers)}</span>
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Seguidores</span>
               </div>
               <div className="h-6 w-px bg-white/10" />
               <div className="text-center">
-                <span className="font-black text-sm text-white block leading-none">{creator.following}</span>
+                <span className="font-black text-sm text-white block leading-none">{formatStat(stats.following)}</span>
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Siguiendo</span>
               </div>
               <div className="h-6 w-px bg-white/10" />
               <div className="text-center">
-                <span className="font-black text-sm text-white block leading-none">{creator.likes}</span>
+                <span className="font-black text-sm text-white block leading-none">{formatStat(stats.likes)}</span>
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Me gusta</span>
               </div>
             </div>
+
+            {/* Action Buttons for Visiting Profile */}
+            {!isOwnProfile && (
+              <div className="flex w-full max-w-xs gap-3 mb-5">
+                <button
+                  onClick={handleProfileFollowToggle}
+                  className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                    isFollowingTargetUser
+                      ? 'bg-zinc-800 text-white border border-white/10'
+                      : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-pink-500/20 active:scale-95'
+                  }`}
+                >
+                  {isFollowingTargetUser ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-green-400" /> Siguiendo
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" /> Seguir
+                    </>
+                  )}
+                </button>
+                <Link
+                  href={`/mensajes?to=${targetUsername}`}
+                  className="flex-1 py-3 bg-[#12152b] border border-white/10 hover:bg-[#1f2444] rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 text-white shadow-md active:scale-95 text-center"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-purple-400" /> Mensaje
+                </Link>
+              </div>
+            )}
 
             {/* XP Level System Card */}
             <div className="w-full max-w-sm bg-[#171333]/70 border border-purple-500/20 rounded-2xl p-3.5 mb-5 shadow-[0_0_12px_rgba(147,51,234,0.05)]">
@@ -376,32 +513,43 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
           </div>
         </div>
 
-        {/* Tab Icons Row */}
-        <div className="border-t border-b border-white/5 flex items-center justify-around py-2.5 mb-2 bg-[#0a0a0f]/50">
-          {[
-            { id: 'grid', icon: Grid },
-            { id: 'video', icon: Film },
-            { id: 'photo', icon: Image },
-            { id: 'stream', icon: Radio },
-            { id: 'heart', icon: Heart }
-          ].map(tab => (
+        {/* Tab Text Scrollable Row */}
+        <div className="border-t border-b border-white/5 flex items-center gap-6 overflow-x-auto scrollbar-none px-4 py-3 mb-2 bg-[#0a0a0f]/50 whitespace-nowrap">
+          {tabs.map(tab => (
             <button
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
-              className={`p-2 transition-colors ${activeSubTab === tab.id ? 'text-pink-500' : 'text-zinc-500'}`}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`text-xs font-black uppercase tracking-wider transition-all relative pb-1 shrink-0 ${
+                activeTab === tab ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
             >
-              <tab.icon className="w-5 h-5" />
+              {tab}
+              {activeTab === tab && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.6)]" />
+              )}
             </button>
           ))}
         </div>
 
         {/* 3-Column Media Grid */}
         <div className="grid grid-cols-3 gap-0.5 px-0.5">
-          {/* Real uploaded posts */}
-          {userPosts.length > 0 ? (
-            userPosts.map((post: DBPost) => (
+          {tabLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="animate-pulse bg-white/5 aspect-[3/4] border border-white/5" />
+            ))
+          ) : tabPosts.length > 0 ? (
+            tabPosts.map((post: any) => (
               <div key={post.id} className="relative aspect-[3/4] overflow-hidden group">
-                {post.type === 'VIDEO' ? (
+                {post.isStream ? (
+                  <>
+                    <img src={post.url} className="w-full h-full object-cover" alt={post.title} />
+                    <div className="absolute top-1.5 left-1.5">
+                      <span className="px-1.5 py-0.5 bg-red-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow">
+                        ● DIRECTO
+                      </span>
+                    </div>
+                  </>
+                ) : post.type === 'VIDEO' ? (
                   <video src={post.url} className="w-full h-full object-cover" muted playsInline />
                 ) : (
                   <img src={post.url} className="w-full h-full object-cover" alt={post.title} />
@@ -418,17 +566,19 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                 )}
 
                 {/* Type badge */}
-                <div className="absolute top-1.5 right-1.5">
-                  {post.type === 'VIDEO' ? (
-                    <span className="px-1.5 py-0.5 bg-purple-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow flex items-center gap-0.5">
-                      <Film className="w-2.5 h-2.5" /> Video
-                    </span>
-                  ) : (
-                    <span className="px-1.5 py-0.5 bg-blue-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow flex items-center gap-0.5">
-                      <Image className="w-2.5 h-2.5" /> Foto
-                    </span>
-                  )}
-                </div>
+                {!post.isStream && (
+                  <div className="absolute top-1.5 right-1.5">
+                    {post.type === 'VIDEO' ? (
+                      <span className="px-1.5 py-0.5 bg-purple-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow flex items-center gap-0.5">
+                        <Film className="w-2.5 h-2.5" /> Video
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 bg-blue-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow flex items-center gap-0.5">
+                        <Image className="w-2.5 h-2.5" /> Foto
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Title overlay */}
                 <div className="absolute bottom-1.5 left-1.5 right-1.5 text-[8px] font-bold text-white truncate">
@@ -437,25 +587,10 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
               </div>
             ))
           ) : (
-            // Fallback to static grid
-            staticGridItems.map(item => (
-              <div key={item.id} className="relative aspect-[3/4] overflow-hidden group">
-                <img src={item.img} className="w-full h-full object-cover" alt="" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                
-                {item.pinned && (
-                  <div className="absolute top-1.5 left-1.5">
-                    <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-600 to-pink-600 text-[7px] font-black rounded uppercase tracking-wider shadow">
-                      📌 Fijado
-                    </span>
-                  </div>
-                )}
-
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-[8px] font-black text-white bg-black/40 px-1 py-0.5 rounded">
-                  <span>▷</span> {item.views}
-                </div>
-              </div>
-            ))
+            <div className="col-span-3 py-10 text-center border border-dashed border-white/5 rounded-2xl bg-[#0a0a0f]/50 my-2 mx-2">
+              <AlertCircle className="w-6 h-6 text-zinc-600 mx-auto mb-1.5" />
+              <p className="text-xs font-bold text-zinc-400">Sin contenido</p>
+            </div>
           )}
         </div>
 

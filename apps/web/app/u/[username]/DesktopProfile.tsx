@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Home, Play, Compass, Sword, Trophy, MessageSquare, Bell, User, Wallet,
@@ -9,8 +9,9 @@ import {
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
-import { useUserPosts, DBPost } from '@/hooks/usePosts';
 import { updateProfile } from '@/app/actions/profile';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus } from '@/app/actions/social';
+import { useRouter } from 'next/navigation';
 
 // TikTok Custom SVG Icon
 function TiktokIcon({ className }: { className?: string }) {
@@ -55,8 +56,101 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   const [activeFilter, setActiveFilter] = useState('Más recientes');
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   
-  // Fetch real posts
-  const { posts: userPosts, loading: postsLoading } = useUserPosts(targetUser.username, sessionUser?.id);
+  const router = useRouter();
+
+  // Real stats & follow states
+  const [stats, setStats] = useState({ followers: 0, following: 0, likes: 0 });
+  const [isFollowingTargetUser, setIsFollowingTargetUser] = useState(false);
+
+  // Real tab posts states
+  const [tabPosts, setTabPosts] = useState<any[]>([]);
+  const [tabLoading, setTabLoading] = useState(true);
+
+  // Load stats
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const res = await getProfileStats(targetUser.username);
+        setStats(res);
+      } catch (err) {
+        console.error('Error loading stats:', err);
+      }
+    }
+    loadStats();
+  }, [targetUser.username]);
+
+  // Load follow status
+  useEffect(() => {
+    async function loadFollowStatus() {
+      if (isOwnProfile || !sessionUser) return;
+      try {
+        const res = await checkFollowStatus(targetUser.id);
+        setIsFollowingTargetUser(res.following);
+      } catch (err) {
+        console.error('Error checking follow status:', err);
+      }
+    }
+    loadFollowStatus();
+  }, [targetUser.id, isOwnProfile, sessionUser]);
+
+  // Load tab posts
+  useEffect(() => {
+    async function loadTabPosts() {
+      setTabLoading(true);
+      try {
+        const posts = await getTabPosts(targetUser.username, activeTab, sessionUser?.id);
+        setTabPosts(posts);
+      } catch (err) {
+        console.error('Error loading tab posts:', err);
+      } finally {
+        setTabLoading(false);
+      }
+    }
+    loadTabPosts();
+  }, [activeTab, targetUser.username, sessionUser?.id]);
+
+  const handleProfileFollowToggle = async () => {
+    if (!sessionUser) {
+      router.push('/login');
+      return;
+    }
+    const prevStatus = isFollowingTargetUser;
+    setIsFollowingTargetUser(!prevStatus);
+    setStats(prev => ({
+      ...prev,
+      followers: !prevStatus ? prev.followers + 1 : Math.max(0, prev.followers - 1)
+    }));
+    try {
+      const res = await toggleFollowUser(targetUser.id);
+      if (res.error) {
+        setIsFollowingTargetUser(prevStatus);
+        setStats(prev => ({
+          ...prev,
+          followers: prevStatus ? prev.followers + 1 : Math.max(0, prev.followers - 1)
+        }));
+        triggerToast(res.error);
+      } else if (res.success) {
+        setIsFollowingTargetUser(res.following ?? !prevStatus);
+      }
+    } catch (err) {
+      setIsFollowingTargetUser(prevStatus);
+      setStats(prev => ({
+        ...prev,
+        followers: prevStatus ? prev.followers + 1 : Math.max(0, prev.followers - 1)
+      }));
+    }
+  };
+
+  const formatStat = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toLocaleString();
+  };
+
   
   // Settings & Adjustment Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -204,7 +298,9 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
     xpProgress: 75,
   };
 
-  const tabs = ['Videos', 'Shorts', 'Fotos', 'Streams', 'Guardados', 'Me gusta'];
+  const tabs = isOwnProfile 
+    ? ['Videos', 'Shorts', 'Fotos', 'Streams', 'Guardados', 'Me gusta']
+    : ['Videos', 'Shorts', 'Fotos', 'Streams', 'Me gusta'];
   const filters = ['Más recientes', 'Populares', 'Más antiguos'];
 
   const staticGridItems = [
@@ -356,7 +452,7 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
             <div className="h-[200px] relative w-full overflow-hidden">
               <img src={creator.banner} className="w-full h-full object-cover opacity-60" alt="" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c14] via-transparent to-black/30" />
-              {isOwnProfile && (
+              {isOwnProfile ? (
                 <>
                   <label className="absolute top-4 left-4 z-20 bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md">
                     <ImageIcon className="w-3.5 h-3.5 text-purple-400" /> Cambiar portada
@@ -383,6 +479,36 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                     </button>
                   </div>
                 </>
+              ) : (
+                <div className="absolute top-4 right-4 flex items-center gap-2.5 z-20">
+                  <button 
+                    onClick={handleProfileFollowToggle} 
+                    className={`px-6 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md ${
+                      isFollowingTargetUser 
+                        ? 'bg-zinc-800 hover:bg-zinc-700 border border-white/10' 
+                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 shadow-pink-500/20'
+                    }`}
+                  >
+                    {isFollowingTargetUser ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-green-400" /> Siguiendo
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" /> Seguir
+                      </>
+                    )}
+                  </button>
+                  <Link 
+                    href={`/mensajes?to=${targetUser.username}`} 
+                    className="bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-6 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md hover:scale-105"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-purple-400" /> Mensaje
+                  </Link>
+                  <button onClick={handleCopyProfileLink} className="w-9 h-9 rounded-full bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-md">
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                </div>
               )}
             </div>
 
@@ -435,17 +561,17 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                   {/* Followers Stats */}
                   <div className="flex justify-center md:justify-start items-center gap-6">
                     <div>
-                      <span className="font-black text-lg text-white block leading-none">{creator.followers}</span>
+                      <span className="font-black text-lg text-white block leading-none">{formatStat(stats.followers)}</span>
                       <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Seguidores</span>
                     </div>
                     <div className="border-l border-white/5 h-8" />
                     <div>
-                      <span className="font-black text-lg text-white block leading-none">{creator.following}</span>
+                      <span className="font-black text-lg text-white block leading-none">{formatStat(stats.following)}</span>
                       <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Siguiendo</span>
                     </div>
                     <div className="border-l border-white/5 h-8" />
                     <div>
-                      <span className="font-black text-lg text-white block leading-none">{creator.likes}</span>
+                      <span className="font-black text-lg text-white block leading-none">{formatStat(stats.likes)}</span>
                       <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Me gusta</span>
                     </div>
                   </div>
@@ -590,12 +716,28 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
 
           {/* Media Grid Content */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
-            {/* Real uploaded posts */}
-            {userPosts.length > 0 ? (
-              userPosts.map((post: DBPost) => (
+            {tabLoading ? (
+              // Beautiful neon skeletons
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse flex flex-col gap-3">
+                  <div className="aspect-[3/4] bg-white/5 rounded-2xl border border-white/5 shadow-md" />
+                  <div className="h-4 bg-white/10 rounded w-3/4 mx-1" />
+                </div>
+              ))
+            ) : tabPosts.length > 0 ? (
+              tabPosts.map((post: any) => (
                 <div key={post.id} className="group cursor-pointer block">
                   <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-purple-500/30 transition-all shadow-md">
-                    {post.type === 'VIDEO' ? (
+                    {post.isStream ? (
+                      <>
+                        <img src={post.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={post.title} />
+                        <div className="absolute top-3 left-3">
+                          <span className="px-2 py-0.5 bg-red-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
+                            ● DIRECTO
+                          </span>
+                        </div>
+                      </>
+                    ) : post.type === 'VIDEO' ? (
                       <video src={post.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" muted playsInline />
                     ) : (
                       <img src={post.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={post.title} />
@@ -611,47 +753,31 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                       </div>
                     )}
 
-                    {/* Type badge */}
-                    <div className="absolute top-3 right-3">
-                      {post.type === 'VIDEO' ? (
-                        <span className="px-2 py-0.5 bg-purple-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
-                          <Film className="w-3 h-3" /> Video
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-blue-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
-                          <ImageIcon className="w-3 h-3" /> Foto
-                        </span>
-                      )}
-                    </div>
+                    {/* Type badge (if not stream) */}
+                    {!post.isStream && (
+                      <div className="absolute top-3 right-3">
+                        {post.type === 'VIDEO' ? (
+                          <span className="px-2 py-0.5 bg-purple-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
+                            <Film className="w-3 h-3" /> Video
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-blue-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
+                            <ImageIcon className="w-3 h-3" /> Foto
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
                   <h4 className="text-[13px] font-bold text-zinc-100 group-hover:text-purple-400 line-clamp-2 transition-colors px-1 leading-snug">{post.title}</h4>
                 </div>
               ))
             ) : (
-              // Fallback to static grid
-              staticGridItems.map(item => (
-                <div key={item.id} className="group cursor-pointer block">
-                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-purple-500/30 transition-all shadow-md">
-                    <img src={item.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    
-                    {item.pinned && (
-                      <div className="absolute top-3 left-3">
-                        <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-pink-600 text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
-                          📌 Fijado
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/40 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded-lg text-[10px] font-bold text-white">
-                      <span className="text-[8px] font-black">▷</span> {item.views}
-                    </div>
-                  </div>
-                  
-                  <h4 className="text-[13px] font-bold text-zinc-100 group-hover:text-purple-400 line-clamp-2 transition-colors px-1 leading-snug">{item.title}</h4>
-                </div>
-              ))
+              <div className="col-span-full py-16 text-center border border-dashed border-white/5 rounded-3xl bg-[#0a0a0f]/50">
+                <AlertCircle className="w-8 h-8 text-zinc-600 mx-auto mb-2.5" />
+                <p className="text-sm font-bold text-zinc-400">No hay contenido en esta pestaña</p>
+                <p className="text-xs text-zinc-600 mt-1">El creador no ha subido publicaciones de este tipo todavía.</p>
+              </div>
             )}
           </div>
 

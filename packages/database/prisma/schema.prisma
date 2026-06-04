@@ -52,6 +52,11 @@ model User {
 
   messages      Message[]
 
+  likes         PostLike[]
+  savedPosts    SavedPost[]
+  sentDMs       DirectMessage[] @relation("SentDirectMessages")
+  receivedDMs   DirectMessage[] @relation("ReceivedDirectMessages")
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -73,6 +78,9 @@ model Post {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  likes       PostLike[]
+  savedBy     SavedPost[]
 }
 
 model Wallet {
@@ -256,4 +264,38 @@ model ModerationReport {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+model SavedPost {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+model DirectMessage {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation("SentDirectMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("ReceivedDirectMessages", fields: [receiverId], references: [id], onDelete: Cascade)
 }

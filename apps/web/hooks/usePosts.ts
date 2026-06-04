@@ -16,6 +16,9 @@ export interface DBPost {
     username: string;
     avatar: string | null;
   };
+  likesCount?: number;
+  isLiked?: boolean;
+  isSaved?: boolean;
 }
 
 export function usePublicPosts() {

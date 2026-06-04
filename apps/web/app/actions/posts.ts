@@ -54,6 +54,9 @@ export async function createPost(formData: FormData) {
 }
 
 export async function getPublicPosts() {
+  const session = await getSession();
+  const userId = session?.id as string | undefined;
+
   const posts = await prisma.post.findMany({
     where: { isPrivate: false },
     orderBy: { createdAt: 'desc' },
@@ -61,10 +64,27 @@ export async function getPublicPosts() {
     include: {
       user: {
         select: { id: true, username: true, avatar: true }
+      },
+      likes: {
+        select: { userId: true }
+      },
+      savedBy: {
+        select: { userId: true }
       }
     }
   });
-  return posts;
+
+  return posts.map(post => {
+    const likesCount = post.likes.length;
+    const isLiked = userId ? post.likes.some(l => l.userId === userId) : false;
+    const isSaved = userId ? post.savedBy.some(s => s.userId === userId) : false;
+    return {
+      ...post,
+      likesCount,
+      isLiked,
+      isSaved
+    };
+  });
 }
 
 export async function getUserPosts(username: string, viewerId?: string) {
@@ -82,9 +102,25 @@ export async function getUserPosts(username: string, viewerId?: string) {
     include: {
       user: {
         select: { id: true, username: true, avatar: true }
+      },
+      likes: {
+        select: { userId: true }
+      },
+      savedBy: {
+        select: { userId: true }
       }
     }
   });
 
-  return posts;
+  return posts.map(post => {
+    const likesCount = post.likes.length;
+    const isLiked = viewerId ? post.likes.some(l => l.userId === viewerId) : false;
+    const isSaved = viewerId ? post.savedBy.some(s => s.userId === viewerId) : false;
+    return {
+      ...post,
+      likesCount,
+      isLiked,
+      isSaved
+    };
+  });
 }

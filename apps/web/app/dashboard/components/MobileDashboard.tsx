@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts, DBPost } from '@/hooks/usePosts';
+import { toggleLikePost, toggleFollowUser, getFollowingUserIds } from '@/app/actions/social';
 
 // Extremely premium mixed-media posts (Streams, Videos, Cosplay/Images, Live Battles)
 const FEED_POSTS = [
@@ -129,8 +130,34 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
   const { isLive, streamTitle, viewers, likes } = useLiveStore();
   const { posts: dbPosts } = usePublicPosts();
 
+  // Social & interactions states
+  const [likesState, setLikesState] = useState<Record<string, { count: number; liked: boolean }>>({});
+  const [followingState, setFollowingState] = useState<Record<string, boolean>>({});
+  const [followedIds, setFollowedIds] = useState<string[]>([]);
+  const [animatingFollows, setAnimatingFollows] = useState<Record<string, boolean>>({});
+
+  // Load followed users on mount
+  useEffect(() => {
+    async function loadFollows() {
+      try {
+        const ids = await getFollowingUserIds();
+        setFollowedIds(ids);
+        const state: Record<string, boolean> = {};
+        ids.forEach(id => {
+          state[id] = true;
+        });
+        setFollowingState(state);
+      } catch (err) {
+        console.error('Error loading follows:', err);
+      }
+    }
+    loadFollows();
+  }, []);
+
   const userStream = isLive && user ? {
     id: 'my-live-stream-post',
+    dbId: null,
+    userId: user.id,
     type: 'stream',
     username: user.username,
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
@@ -141,6 +168,8 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
     music: `Sonido en vivo - ${user.username}`,
     viewers: viewers > 1000 ? `${(viewers / 1000).toFixed(1)}K` : String(viewers),
     likes: likes > 1000 ? `${(likes / 1000).toFixed(1)}K` : String(likes),
+    likesCount: likes,
+    isLiked: false,
     comments: '0',
     shares: '0',
     liveUrl: `/live/${user.username}`,
@@ -150,25 +179,114 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
   // Convert DB posts to feed format
   const dbFeedPosts = dbPosts.map((p: DBPost) => ({
     id: `db-${p.id}`,
+    dbId: p.id,
+    userId: p.user.id,
     type: p.type === 'VIDEO' ? 'video' : 'image',
     username: p.user.username,
     avatar: p.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.user.username}`,
-    verified: false,
+    verified: p.user.username === 'SofiLive' || p.user.username === 'GamerPro_2026' || p.user.username === 'SetupFuturista',
     title: p.title,
     mediaUrl: p.url,
     posterUrl: p.type === 'VIDEO' ? undefined : undefined,
-    tags: ['Contenido', 'LiveX'],
+    tags: p.title.match(/#[a-zA-Z0-9_]+/g)?.map(t => t.replace('#', '')) || ['Contenido', 'LiveX'],
     music: `Publicación - ${p.user.username}`,
-    likes: '0',
-    comments: '0',
-    shares: '0'
+    likesCount: p.likesCount || 0,
+    isLiked: p.isLiked || false,
+    comments: '12',
+    shares: '4'
   }));
 
   const activeFeedPosts = [
     ...(userStream ? [userStream] : []),
     ...dbFeedPosts,
-    ...FEED_POSTS
+    ...(dbFeedPosts.length > 0 ? FEED_POSTS.filter(p => p.type === 'battle') : FEED_POSTS)
   ];
+
+  // Handlers for follows and likes
+  const handleLike = async (post: any) => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (post.dbId) {
+      const currentLiked = likesState[post.id]?.liked ?? post.isLiked;
+      const currentCount = likesState[post.id]?.count ?? post.likesCount ?? 0;
+      
+      const newLiked = !currentLiked;
+      const newCount = newLiked ? currentCount + 1 : Math.max(0, currentCount - 1);
+      
+      setLikesState(prev => ({
+        ...prev,
+        [post.id]: { liked: newLiked, count: newCount }
+      }));
+      
+      try {
+        const res = await toggleLikePost(post.dbId);
+        if (res.error) {
+          setLikesState(prev => ({
+            ...prev,
+            [post.id]: { liked: currentLiked, count: currentCount }
+          }));
+        } else if (res.success && typeof res.count === 'number') {
+          setLikesState(prev => ({
+            ...prev,
+            [post.id]: { liked: res.liked ?? newLiked, count: res.count ?? newCount }
+          }));
+        }
+      } catch (err) {
+        setLikesState(prev => ({
+          ...prev,
+          [post.id]: { liked: currentLiked, count: currentCount }
+        }));
+      }
+    } else {
+      const currentLiked = likesState[post.id]?.liked ?? false;
+      const currentCountStr = post.likes || '0';
+      let currentCount = 0;
+      if (currentCountStr.endsWith('K')) {
+        currentCount = parseFloat(currentCountStr.replace('K', '')) * 1000;
+      } else {
+        currentCount = parseInt(currentCountStr.replace(/,/g, '')) || 0;
+      }
+      const newLiked = !currentLiked;
+      const newCount = newLiked ? currentCount + 1 : Math.max(0, currentCount - 1);
+      
+      setLikesState(prev => ({
+        ...prev,
+        [post.id]: { liked: newLiked, count: newCount }
+      }));
+    }
+  };
+
+  const handleFollow = async (targetUserId: string) => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (!targetUserId || targetUserId === user.id) return;
+    
+    setAnimatingFollows(prev => ({ ...prev, [targetUserId]: true }));
+    setFollowingState(prev => ({ ...prev, [targetUserId]: true }));
+    
+    try {
+      const res = await toggleFollowUser(targetUserId);
+      if (res.error) {
+        setFollowingState(prev => ({ ...prev, [targetUserId]: false }));
+        setAnimatingFollows(prev => ({ ...prev, [targetUserId]: false }));
+      } else {
+        setTimeout(() => {
+          setAnimatingFollows(prev => {
+            const next = { ...prev };
+            delete next[targetUserId];
+            return next;
+          });
+        }, 1500);
+      }
+    } catch (err) {
+      setFollowingState(prev => ({ ...prev, [targetUserId]: false }));
+      setAnimatingFollows(prev => ({ ...prev, [targetUserId]: false }));
+    }
+  };
 
   // Monitor vertical touch scrolling/snapping to update active post
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -336,18 +454,36 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
               <div className="absolute right-3 bottom-20 flex flex-col items-center gap-5 z-15">
                 {/* Avatar & Follow */}
                 <div className="relative mb-1">
-                  <img src={post.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-lg bg-zinc-800" alt="" />
-                  <button className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4.5 h-4.5 bg-pink-500 rounded-full flex items-center justify-center border border-black hover:scale-115 active:scale-90 transition-transform">
-                    <Plus className="w-2.5 h-2.5 text-white" />
-                  </button>
+                  <Link href={`/u/${post.username}`}>
+                    <img src={post.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-lg bg-zinc-800 hover:border-purple-500 transition-colors" alt="" />
+                  </Link>
+                  {post.userId && post.userId !== user?.id && (!(followingState[post.userId] || followedIds.includes(post.userId)) || animatingFollows[post.userId]) && (
+                    <button 
+                      onClick={() => handleFollow(post.userId)}
+                      className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4.5 h-4.5 rounded-full flex items-center justify-center transition-all duration-700 border border-black ${
+                        animatingFollows[post.userId]
+                          ? 'bg-green-500 scale-105 opacity-0 rotate-[360deg] pointer-events-none'
+                          : 'bg-pink-500 hover:scale-115 active:scale-90 cursor-pointer'
+                      }`}
+                    >
+                      {animatingFollows[post.userId] ? <span className="text-white text-[8px] font-bold">✓</span> : <Plus className="w-2.5 h-2.5 text-white" />}
+                    </button>
+                  )}
                 </div>
 
                 {/* Likes */}
-                <div className="flex flex-col items-center gap-1">
+                <div onClick={() => handleLike(post)} className="flex flex-col items-center gap-1 cursor-pointer">
                   <button className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center">
-                    <Heart className="w-5.5 h-5.5 text-white" />
+                    <Heart className={`w-5.5 h-5.5 transition-colors ${
+                      (likesState[post.id]?.liked ?? post.isLiked) ? 'text-pink-500 fill-pink-500' : 'text-white'
+                    }`} />
                   </button>
-                  <span className="text-[10px] font-bold shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{post.likes}</span>
+                  <span className="text-[10px] font-bold shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{
+                    (() => {
+                      const count = likesState[post.id]?.count ?? post.likesCount ?? 0;
+                      return typeof count === 'number' ? (count >= 1000 ? (count / 1000).toFixed(1) + 'K' : count.toString()) : (post.likes || '0');
+                    })()
+                  }</span>
                 </div>
 
                 {/* Comments */}
@@ -378,12 +514,25 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
               {/* Bottom Creator Info & Title Section */}
               <div className="absolute left-3 bottom-20 right-16 z-10 bg-gradient-to-t from-black/50 to-transparent p-2.5 rounded-xl">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <img src={post.avatar} className="w-7 h-7 rounded-full border border-white/30 bg-zinc-800" alt="" />
-                  <div className="flex items-center gap-0.5">
-                    <span className="font-black text-sm shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{post.username}</span>
-                    {post.verified && <BadgeCheck className="text-blue-400 w-3.5 h-3.5 drop-shadow-md" />}
-                  </div>
-                  <button className="px-2 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-[8px] font-black uppercase tracking-wider border border-white/10 ml-1.5">Seguir</button>
+                  <Link href={`/u/${post.username}`} className="flex items-center gap-2 group/author">
+                    <img src={post.avatar} className="w-7 h-7 rounded-full border border-white/30 bg-zinc-800 group-hover/author:border-purple-500 transition-colors" alt="" />
+                    <div className="flex items-center gap-0.5">
+                      <span className="font-black text-sm shadow-[0_2px_4px_rgba(0,0,0,0.8)] group-hover/author:text-purple-400 transition-colors">{post.username}</span>
+                      {post.verified && <BadgeCheck className="text-blue-400 w-3.5 h-3.5 drop-shadow-md" />}
+                    </div>
+                  </Link>
+                  {post.userId && post.userId !== user?.id && (!(followingState[post.userId] || followedIds.includes(post.userId)) || animatingFollows[post.userId]) && (
+                    <button 
+                      onClick={() => handleFollow(post.userId)}
+                      className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ml-1.5 transition-all duration-700 ${
+                        animatingFollows[post.userId]
+                          ? 'bg-green-500 text-white opacity-0 scale-95 pointer-events-none'
+                          : 'bg-white/20 backdrop-blur-md border border-white/10 hover:bg-white/30 text-white cursor-pointer'
+                      }`}
+                    >
+                      {animatingFollows[post.userId] ? 'Siguiendo ✓' : 'Seguir'}
+                    </button>
+                  )}
                 </div>
                 
                 <p className="text-xs text-zinc-100 font-semibold mb-2 leading-relaxed line-clamp-2">
