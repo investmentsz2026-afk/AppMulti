@@ -5,7 +5,7 @@ import {
   Home, Compass, Plus, MessageSquare, User, Search, Bell, Crown,
   BadgeCheck, Eye, Gamepad2, Mic2, Radio, Trophy, Coffee, Headphones,
   Monitor, Flame, ChevronRight, Play, ArrowLeft, Upload, Menu, Shield,
-  Heart, Image, Grid, Film, X, Sparkles, Smartphone, QrCode, LogOut, Edit3, Lock,
+  Heart, Image, Grid, Film, X, Sparkles, Smartphone, QrCode, LogOut, Edit3, Lock, Smile,
   MessageCircle, Trash2
 } from 'lucide-react';
 import { updateProfile } from '@/app/actions/profile';
@@ -1366,6 +1366,7 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                 {/* Write Comment Form */}
                 <form onSubmit={handleCreateComment} className="p-2 border-t border-white/5 bg-[#07070b] shrink-0">
                   <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-2.5 h-9 focus-within:border-purple-500 transition-colors gap-2">
+                    <Smile className="w-4.5 h-4.5 text-zinc-400 shrink-0" />
                     <input 
                       type="text" 
                       placeholder="Añadir comentario..." 
@@ -1381,6 +1382,23 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                     >
                       Publicar
                     </button>
+                  </div>
+
+                  {/* Emoji Quick Picker List */}
+                  <div className="flex items-center gap-2 mt-1.5 overflow-x-auto py-1 px-1 max-w-full custom-scrollbar">
+                    {['❤️', '🔥', '👏', '🙌', '😂', '😍', '😮', '🎉', '💡', '🎮', '⭐️'].map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNewCommentText(prev => prev + emoji);
+                        }}
+                        className="text-sm hover:scale-125 transition-transform"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
                   </div>
                 </form>
               </div>

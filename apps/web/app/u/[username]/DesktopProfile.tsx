@@ -5,7 +5,7 @@ import {
   Home, Play, Compass, Sword, Trophy, MessageSquare, Bell, User, Wallet,
   Plus, Search, Crown, LogOut, ChevronRight, BadgeCheck, Eye, Gift, Film,
   Share2, Heart, Edit3, Grid, List, Shield, Check, MessageCircle, AlertCircle, Trash2,
-  Settings, Smartphone, Sparkles, X, QrCode, Lock, Image as ImageIcon
+  Settings, Smartphone, Sparkles, X, QrCode, Lock, Image as ImageIcon, Smile
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
@@ -1566,6 +1566,7 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                   {/* Write Comment Form */}
                   <form onSubmit={handleCreateComment} className="p-3 border-t border-white/5 bg-[#07070b] shrink-0">
                     <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 h-10 focus-within:border-purple-500 transition-colors gap-2">
+                      <Smile className="w-4.5 h-4.5 text-zinc-400 shrink-0" />
                       <input 
                         type="text" 
                         placeholder="Añadir comentario..." 
@@ -1581,6 +1582,23 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                       >
                         Publicar
                       </button>
+                    </div>
+
+                    {/* Emoji Quick Picker List */}
+                    <div className="flex items-center gap-2 mt-2 overflow-x-auto py-1 px-1 max-w-full custom-scrollbar">
+                      {['❤️', '🔥', '👏', '🙌', '😂', '😍', '😮', '🎉', '💡', '🎮', '⭐️'].map(emoji => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNewCommentText(prev => prev + emoji);
+                          }}
+                          className="text-sm hover:scale-125 transition-transform"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
                     </div>
                   </form>
                 </div>

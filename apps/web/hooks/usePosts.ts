@@ -19,6 +19,7 @@ export interface DBPost {
   likesCount?: number;
   isLiked?: boolean;
   isSaved?: boolean;
+  commentsCount?: number;
 }
 
 export function usePublicPosts() {

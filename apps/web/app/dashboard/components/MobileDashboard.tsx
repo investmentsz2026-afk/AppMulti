@@ -4,14 +4,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, Compass, Plus, MessageSquare, User, 
   Search, Crown, Heart, MessageCircle, Share2, 
-  Gift, Play, BadgeCheck, Swords, Sword, Coins, X, Music, Volume2, VolumeX, Flame, Tv, Image, PlayCircle
+  Gift, Play, BadgeCheck, Swords, Sword, Coins, X, Music, Volume2, VolumeX, Flame, Tv, Image, PlayCircle,
+  Smile, Trash2, Sparkles
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts, DBPost } from '@/hooks/usePosts';
-import { toggleLikePost, toggleFollowUser, getFollowingUserIds } from '@/app/actions/social';
+import { toggleLikePost, toggleFollowUser, getFollowingUserIds, getPostComments, createComment, toggleLikeComment, deleteComment, sendDirectMessage, getConversations } from '@/app/actions/social';
 
 // Extremely premium mixed-media posts (Streams, Videos, Cosplay/Images, Live Battles)
 const FEED_POSTS = [
@@ -136,6 +137,27 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
   const [followedIds, setFollowedIds] = useState<string[]>([]);
   const [animatingFollows, setAnimatingFollows] = useState<Record<string, boolean>>({});
 
+  // Comments & share states
+  const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [commentsCountState, setCommentsCountState] = useState<Record<string, number>>({});
+
+  // Share states
+  const [activeSharePost, setActiveSharePost] = useState<any | null>(null);
+  const [friendsForShare, setFriendsForShare] = useState<any[]>([]);
+  const [sendingToUserIds, setSendingToUserIds] = useState<Record<string, boolean>>({});
+
+  // Toast states
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
   // Load followed users on mount
   useEffect(() => {
     async function loadFollows() {
@@ -192,7 +214,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
     music: `Publicación - ${p.user.username}`,
     likesCount: p.likesCount || 0,
     isLiked: p.isLiked || false,
-    comments: '12',
+    commentsCount: p.commentsCount || 0,
     shares: '4'
   }));
 
@@ -200,7 +222,149 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
     ...(userStream ? [userStream] : []),
     ...dbFeedPosts,
     ...(dbFeedPosts.length > 0 ? FEED_POSTS.filter(p => p.type === 'battle') : FEED_POSTS)
-  ];
+  ] as any[];
+
+  // Fetch comments for active post
+  useEffect(() => {
+    if (!activeCommentsPostId) return;
+    
+    const targetPost = activeFeedPosts.find(p => p.id === activeCommentsPostId);
+    if (!targetPost || !targetPost.dbId) return;
+
+    const dbId = targetPost.dbId;
+
+    async function fetchComments() {
+      setCommentsLoading(true);
+      try {
+        const data = await getPostComments(dbId);
+        setComments(data);
+      } catch (err) {
+        console.error('Error fetching For You comments in mobile:', err);
+      } finally {
+        setCommentsLoading(false);
+      }
+    }
+    fetchComments();
+  }, [activeCommentsPostId]);
+
+  // Load conversations when opening share modal
+  useEffect(() => {
+    if (!activeSharePost || !user) return;
+    async function loadConversations() {
+      try {
+        const chats = await getConversations();
+        setFriendsForShare(chats);
+      } catch (err) {
+        console.error('Error loading conversations for share in mobile:', err);
+      }
+    }
+    loadConversations();
+  }, [activeSharePost, user]);
+
+  const handleCreateCommentForYou = async (e: React.FormEvent, postId: string, dbId: string | null) => {
+    e.preventDefault();
+    if (!dbId || !newCommentText.trim()) return;
+
+    try {
+      const res = await createComment(dbId, newCommentText);
+      if (res.error) {
+        triggerToast(res.error);
+      } else if (res.success && res.comment) {
+        setComments(prev => [res.comment, ...prev]);
+        setNewCommentText('');
+        // Update local count
+        const currentCount = commentsCountState[postId] ?? activeFeedPosts.find(p => p.id === postId)?.commentsCount ?? 0;
+        setCommentsCountState(prev => ({
+          ...prev,
+          [postId]: currentCount + 1
+        }));
+      }
+    } catch (err) {
+      console.error('Error creating comment in mobile feed:', err);
+    }
+  };
+
+  const handleToggleLikeCommentForYou = async (commentId: string) => {
+    // Optimistic update
+    setComments(prev => prev.map(c => {
+      if (c.id === commentId) {
+        const newLiked = !c.isLiked;
+        return {
+          ...c,
+          isLiked: newLiked,
+          likesCount: newLiked ? c.likesCount + 1 : Math.max(0, c.likesCount - 1)
+        };
+      }
+      return c;
+    }));
+
+    try {
+      const res = await toggleLikeComment(commentId);
+      if (res.error) {
+        // Rollback
+        setComments(prev => prev.map(c => {
+          if (c.id === commentId) {
+            const newLiked = !c.isLiked;
+            return {
+              ...c,
+              isLiked: newLiked,
+              likesCount: newLiked ? c.likesCount + 1 : Math.max(0, c.likesCount - 1)
+            };
+          }
+          return c;
+        }));
+        triggerToast(res.error);
+      } else if (res.success) {
+        setComments(prev => prev.map(c => {
+          if (c.id === commentId) {
+            return { ...c, isLiked: res.liked, likesCount: res.count };
+          }
+          return c;
+        }));
+      }
+    } catch (err) {
+      console.error('Error toggling comment like in mobile:', err);
+    }
+  };
+
+  const handleDeleteCommentForYou = async (commentId: string, postId: string, dbId: string | null) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este comentario?')) return;
+    try {
+      const res = await deleteComment(commentId);
+      if (res.error) {
+        triggerToast(res.error);
+      } else if (res.success) {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        triggerToast('Comentario eliminado');
+        // Update local count
+        const currentCount = commentsCountState[postId] ?? activeFeedPosts.find(p => p.id === postId)?.commentsCount ?? 0;
+        setCommentsCountState(prev => ({
+          ...prev,
+          [postId]: Math.max(0, currentCount - 1)
+        }));
+      }
+    } catch (err) {
+      console.error('Error deleting comment in mobile:', err);
+    }
+  };
+
+  const handleShareToFriend = async (friendId: string, postUrl: string) => {
+    setSendingToUserIds(prev => ({ ...prev, [friendId]: true }));
+    try {
+      const messageText = `Te he compartido una publicación de @${activeSharePost.username} en LiveX: ${postUrl}`;
+      const res = await sendDirectMessage(friendId, messageText);
+      if (res.error) {
+        triggerToast(res.error);
+      } else {
+        triggerToast('¡Publicación compartida con éxito! ✉️');
+      }
+    } catch (err) {
+      console.error('Error sharing post inside app in mobile:', err);
+      triggerToast('Error al compartir.');
+    } finally {
+      setSendingToUserIds(prev => ({ ...prev, [friendId]: false }));
+    }
+  };
 
   // Handlers for follows and likes
   const handleLike = async (post: any) => {
@@ -487,11 +651,26 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
                 </div>
 
                 {/* Comments */}
-                <div className="flex flex-col items-center gap-1">
+                <div 
+                  onClick={() => {
+                    if (!user) {
+                      router.push('/login');
+                      return;
+                    }
+                    if (post.dbId) {
+                      setActiveCommentsPostId(activeCommentsPostId === post.id ? null : post.id);
+                    } else {
+                      triggerToast('Comentarios no disponibles en posts de demostración.');
+                    }
+                  }}
+                  className="flex flex-col items-center gap-1 cursor-pointer"
+                >
                   <button className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center">
                     <MessageCircle className="w-5.5 h-5.5 text-white" />
                   </button>
-                  <span className="text-[10px] font-bold shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{post.comments}</span>
+                  <span className="text-[10px] font-bold shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{
+                    commentsCountState[post.id] ?? post.commentsCount ?? (typeof post.comments === 'string' ? parseInt(post.comments.replace(/,/g, '')) : 0)
+                  }</span>
                 </div>
 
                 {/* Send Gift */}
@@ -503,11 +682,16 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
                 </div>
 
                 {/* Share */}
-                <div className="flex flex-col items-center gap-1">
+                <div 
+                  onClick={() => {
+                    setActiveSharePost(post);
+                  }}
+                  className="flex flex-col items-center gap-1 cursor-pointer"
+                >
                   <button className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center">
                     <Share2 className="w-5.5 h-5.5 text-white" />
                   </button>
-                  <span className="text-[10px] font-bold shadow-[0_2px_4px_rgba(0,0,0,0.8)]">Share</span>
+                  <span className="text-[10px] font-bold shadow-[0_2px_4px_rgba(0,0,0,0.8)]">Compartir</span>
                 </div>
               </div>
 
@@ -552,6 +736,148 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
                   <Music className="w-3 h-3 text-zinc-400 animate-spin" />
                   <span className="truncate whitespace-nowrap">{post.music}</span>
                 </div>
+              </div>
+
+              {/* Comments drawer backdrop for active card */}
+              {activeCommentsPostId === post.id && (
+                <div 
+                  className="absolute inset-0 bg-black/60 z-30 transition-opacity animate-in fade-in duration-200" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveCommentsPostId(null);
+                  }}
+                />
+              )}
+
+              {/* Bottom Sheet Drawer for Comments inside Card */}
+              <div 
+                className={`absolute bottom-0 left-0 right-0 h-[65%] bg-[#0b0b12]/95 backdrop-blur-md rounded-t-3xl border-t border-white/10 z-40 flex flex-col overflow-hidden transition-transform duration-300 ease-out ${
+                  activeCommentsPostId === post.id ? 'translate-y-0' : 'translate-y-full pointer-events-none'
+                }`}
+              >
+                {/* Drawer Header */}
+                <div className="p-3 border-b border-white/5 flex items-center justify-between shrink-0">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-purple-400">
+                    Comentarios ({comments.length})
+                  </span>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveCommentsPostId(null);
+                    }}
+                    className="text-zinc-500 hover:text-white transition-colors p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Comments List */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-3">
+                  {commentsLoading ? (
+                    <div className="flex flex-col items-center justify-center p-6 gap-2">
+                      <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[9px] text-zinc-500 font-bold">Cargando comentarios...</span>
+                    </div>
+                  ) : comments.length > 0 ? (
+                    comments.map((comment: any) => {
+                      const isCommentOwn = user && user.id === comment.userId;
+                      const isPostOwn = user && user.id === post.userId;
+                      const canDelete = isCommentOwn || isPostOwn;
+                      return (
+                        <div key={comment.id} className="flex gap-2 items-start text-xs group/item text-left">
+                          <img 
+                            src={comment.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`} 
+                            className="w-6 h-6 rounded-full border border-white/10 bg-zinc-800 shrink-0" 
+                            alt="" 
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="font-extrabold text-white text-[10px]">@{comment.user.username}</span>
+                              <span className="text-[7px] text-zinc-600 font-medium">
+                                {new Date(comment.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              </span>
+                            </div>
+                            <p className="text-zinc-300 break-words pr-2 leading-relaxed text-[10px]">{comment.content}</p>
+                          </div>
+
+                          {/* Actions on comment */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleLikeCommentForYou(comment.id);
+                              }}
+                              className="flex items-center gap-0.5 text-[9px] text-zinc-500 hover:text-pink-500 transition-colors"
+                            >
+                              <Heart className={`w-3 h-3 ${comment.isLiked ? 'fill-pink-500 text-pink-500' : ''}`} />
+                              <span className="text-[9px]">{comment.likesCount}</span>
+                            </button>
+                            {canDelete && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCommentForYou(comment.id, post.id, post.dbId);
+                                }}
+                                className="text-zinc-600 hover:text-red-500 transition-colors p-1"
+                                title="Eliminar comentario"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-6 text-center gap-1.5 mt-4">
+                      <MessageCircle className="w-6 h-6 text-zinc-700 animate-pulse" />
+                      <h4 className="text-[10px] font-bold text-zinc-500">Sin comentarios todavía</h4>
+                      <p className="text-[8px] text-zinc-600 max-w-[120px]">¡Sé el primero en comentar esta publicación!</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Write Comment Form */}
+                <form 
+                  onSubmit={(e) => handleCreateCommentForYou(e, post.id, post.dbId)} 
+                  className="p-2 border-t border-white/5 bg-[#07070b] shrink-0"
+                >
+                  <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-2.5 h-9 focus-within:border-purple-500 transition-colors gap-2">
+                    <Smile className="w-4.5 h-4.5 text-zinc-400 shrink-0" />
+                    <input 
+                      type="text" 
+                      placeholder="Añadir comentario..." 
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      className="bg-transparent border-none outline-none flex-1 text-[11px] text-white placeholder-zinc-500 font-medium w-full min-w-0"
+                      maxLength={300}
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={!newCommentText.trim()}
+                      className="text-[11px] font-black text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-40 shrink-0"
+                    >
+                      Publicar
+                    </button>
+                  </div>
+
+                  {/* Emoji Quick Picker List */}
+                  <div className="flex items-center gap-2 mt-1.5 overflow-x-auto py-1 px-1 max-w-full custom-scrollbar">
+                    {['❤️', '🔥', '👏', '🙌', '😂', '😍', '😮', '🎉', '💡', '🎮', '⭐️'].map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNewCommentText(prev => prev + emoji);
+                        }}
+                        className="text-sm hover:scale-125 transition-transform"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </form>
               </div>
 
             </div>
@@ -698,6 +1024,95 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
 
             <p className="text-[10px] text-zinc-500 text-center font-bold">LiveX Creator Hub © 2026</p>
           </div>
+        </div>
+      )}
+
+      {/* Premium Share Modal */}
+      {activeSharePost && (
+        <div className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setActiveSharePost(null)}>
+          <div 
+            className="bg-[#0b0b12] border border-purple-500/20 w-full max-w-sm rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(147,51,234,0.25)] p-5 text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Compartir publicación</h3>
+              <button onClick={() => setActiveSharePost(null)} className="text-zinc-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* External Share Buttons */}
+            <div className="grid grid-cols-2 gap-2.5 mb-5">
+              <a 
+                href={`https://api.whatsapp.com/send?text=${encodeURIComponent('Mira esta publicación de @' + activeSharePost.username + ' en LiveX: ' + (activeSharePost.dbId ? `${window.location.origin}/post/${activeSharePost.dbId}` : activeSharePost.mediaUrl))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2.5 px-3 bg-green-600/10 hover:bg-green-600/20 border border-green-500/30 rounded-xl text-green-400 text-[11px] font-bold transition-all cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5 fill-green-400 shrink-0" viewBox="0 0 24 24">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.968C16.638 1.982 14.19 1.953 12.01 1.953c-5.439 0-9.867 4.373-9.87 9.802-.001 1.761.472 3.478 1.371 5.011L2.453 21.67l5.228-1.374c-.035-.022-.035-.022 0 0z" />
+                </svg>
+                WhatsApp
+              </a>
+              <a 
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeSharePost.dbId ? `${window.location.origin}/post/${activeSharePost.dbId}` : activeSharePost.mediaUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2.5 px-3 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 rounded-xl text-blue-400 text-[11px] font-bold transition-all cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5 fill-blue-400 shrink-0" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                Facebook
+              </a>
+            </div>
+
+            {/* Send to App Friends */}
+            <div className="border-t border-white/5 pt-3.5">
+              <h4 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2.5">Enviar a amigos en LiveX</h4>
+              <div className="max-h-[160px] overflow-y-auto custom-scrollbar flex flex-col gap-2">
+                {friendsForShare.length > 0 ? (
+                  friendsForShare.map((chat: any) => {
+                    const isSending = sendingToUserIds[chat.userId] || false;
+                    const postUrl = activeSharePost.dbId 
+                      ? `${window.location.origin}/post/${activeSharePost.dbId}` 
+                      : activeSharePost.mediaUrl;
+                    return (
+                      <div key={chat.userId} className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 p-2 rounded-xl border border-white/5 transition-all">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img 
+                            src={chat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.username}`} 
+                            className="w-6.5 h-6.5 rounded-full border border-white/10 bg-zinc-800 shrink-0" 
+                            alt="" 
+                          />
+                          <span className="text-xs font-bold text-white truncate">@{chat.username}</span>
+                        </div>
+                        <button 
+                          onClick={() => handleShareToFriend(chat.userId, postUrl)}
+                          disabled={isSending}
+                          className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 active:scale-95 text-[8px] font-black uppercase rounded-full text-white tracking-wider transition-all disabled:opacity-50"
+                        >
+                          {isSending ? 'Enviando...' : 'Enviar'}
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-3 text-[10px] text-zinc-500 font-bold">
+                    No tienes chats activos para compartir.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-24 right-4 z-[150] bg-[#0e0c1f] border border-purple-500/50 text-white rounded-xl px-4 py-2.5 shadow-[0_0_20px_rgba(168,85,247,0.35)] flex items-center gap-2 transition-all animate-bounce">
+          <Sparkles className="w-4 h-4 text-yellow-400 shrink-0" />
+          <span className="text-[11px] font-bold">{toastMessage}</span>
         </div>
       )}
     </div>
