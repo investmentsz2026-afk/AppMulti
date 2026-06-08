@@ -4,13 +4,13 @@ import Link from 'next/link';
 import {
   Home, Play, Compass, Sword, Trophy, MessageSquare, Bell, User, Wallet,
   Plus, Search, Crown, LogOut, ChevronRight, BadgeCheck, Eye, Gift, Film,
-  Share2, Heart, Edit3, Grid, List, Shield, Check, MessageCircle, AlertCircle,
+  Share2, Heart, Edit3, Grid, List, Shield, Check, MessageCircle, AlertCircle, Trash2,
   Settings, Smartphone, Sparkles, X, QrCode, Lock, Image as ImageIcon
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { updateProfile } from '@/app/actions/profile';
-import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus } from '@/app/actions/social';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment } from '@/app/actions/social';
 import { useRouter } from 'next/navigation';
 
 // TikTok Custom SVG Icon
@@ -57,6 +57,55 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   
   const router = useRouter();
+  const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
+
+
+  const handleLikePostInModal = async (postId: string) => {
+    if (!sessionUser) {
+      router.push('/login');
+      return;
+    }
+    setTabPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        const newLiked = !p.isLiked;
+        return {
+          ...p,
+          isLiked: newLiked,
+          likesCount: newLiked ? p.likesCount + 1 : Math.max(0, p.likesCount - 1)
+        };
+      }
+      return p;
+    }));
+    try {
+      const res = await toggleLikePost(postId);
+      if (res.error) {
+        setTabPosts(prev => prev.map(p => {
+          if (p.id === postId) {
+            const newLiked = !p.isLiked;
+            return {
+              ...p,
+              isLiked: newLiked,
+              likesCount: newLiked ? p.likesCount + 1 : Math.max(0, p.likesCount - 1)
+            };
+          }
+          return p;
+        }));
+      } else if (res.success) {
+        setTabPosts(prev => prev.map(p => {
+          if (p.id === postId) {
+            return {
+              ...p,
+              isLiked: res.liked,
+              likesCount: res.count
+            };
+          }
+          return p;
+        }));
+      }
+    } catch (err) {
+      console.error('Error liking post in modal:', err);
+    }
+  };
 
   // Real stats & follow states
   const [stats, setStats] = useState({ followers: 0, following: 0, likes: 0 });
@@ -65,6 +114,126 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   // Real tab posts states
   const [tabPosts, setTabPosts] = useState<any[]>([]);
   const [tabLoading, setTabLoading] = useState(true);
+
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
+
+  // Fetch comments when modal is open and showComments is active
+  useEffect(() => {
+    if (activeMediaIndex === null || !showComments) return;
+    const post = tabPosts[activeMediaIndex];
+    if (!post) return;
+
+    async function fetchComments() {
+      setCommentsLoading(true);
+      try {
+        const data = await getPostComments(post.id);
+        setComments(data);
+      } catch (err) {
+        console.error('Error fetching comments:', err);
+      } finally {
+        setCommentsLoading(false);
+      }
+    }
+    fetchComments();
+  }, [activeMediaIndex, showComments, tabPosts]);
+
+  const handleCreateComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeMediaIndex === null) return;
+    const post = tabPosts[activeMediaIndex];
+    if (!post || !newCommentText.trim()) return;
+
+    try {
+      const res = await createComment(post.id, newCommentText);
+      if (res.error) {
+        triggerToast(res.error);
+      } else if (res.success && res.comment) {
+        setComments(prev => [res.comment, ...prev]);
+        setNewCommentText('');
+        // Update commentsCount in the current post
+        setTabPosts(prev => prev.map(p => {
+          if (p.id === post.id) {
+            return { ...p, commentsCount: (p.commentsCount || 0) + 1 };
+          }
+          return p;
+        }));
+      }
+    } catch (err) {
+      console.error('Error creating comment:', err);
+    }
+  };
+
+  const handleToggleLikeComment = async (commentId: string) => {
+    // Optimistic update
+    setComments(prev => prev.map(c => {
+      if (c.id === commentId) {
+        const newLiked = !c.isLiked;
+        return {
+          ...c,
+          isLiked: newLiked,
+          likesCount: newLiked ? c.likesCount + 1 : Math.max(0, c.likesCount - 1)
+        };
+      }
+      return c;
+    }));
+
+    try {
+      const res = await toggleLikeComment(commentId);
+      if (res.error) {
+        // Rollback
+        setComments(prev => prev.map(c => {
+          if (c.id === commentId) {
+            const newLiked = !c.isLiked;
+            return {
+              ...c,
+              isLiked: newLiked,
+              likesCount: newLiked ? c.likesCount + 1 : Math.max(0, c.likesCount - 1)
+            };
+          }
+          return c;
+        }));
+        triggerToast(res.error);
+      } else if (res.success) {
+        // Settle with server value
+        setComments(prev => prev.map(c => {
+          if (c.id === commentId) {
+            return { ...c, isLiked: res.liked, likesCount: res.count };
+          }
+          return c;
+        }));
+      }
+    } catch (err) {
+      console.error('Error toggling comment like:', err);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este comentario?')) return;
+    try {
+      const res = await deleteComment(commentId);
+      if (res.error) {
+        triggerToast(res.error);
+      } else if (res.success) {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        triggerToast('Comentario eliminado');
+        if (activeMediaIndex !== null) {
+          const post = tabPosts[activeMediaIndex];
+          setTabPosts(prev => prev.map(p => {
+            if (p.id === post.id) {
+              return { ...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1) };
+            }
+            return p;
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+    }
+  };
+
 
   // Load stats
   useEffect(() => {
@@ -725,8 +894,8 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                 </div>
               ))
             ) : tabPosts.length > 0 ? (
-              tabPosts.map((post: any) => (
-                <div key={post.id} className="group cursor-pointer block">
+              tabPosts.map((post: any, index: number) => (
+                <div key={post.id} className="group cursor-pointer block" onClick={() => setActiveMediaIndex(index)}>
                   <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5 group-hover:border-purple-500/30 transition-all shadow-md">
                     {post.isStream ? (
                       <>
@@ -742,8 +911,20 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                     ) : (
                       <img src={post.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={post.title} />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
                     
+                    {/* Stats overlay */}
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3 text-[10px] font-bold text-white z-10 pointer-events-none">
+                      <div className="flex items-center gap-1">
+                        <Heart className="w-3.5 h-3.5 fill-pink-500 text-pink-500 shrink-0" />
+                        <span>{formatStat(post.likesCount || 0)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MessageCircle className="w-3.5 h-3.5 fill-purple-500 text-purple-500 shrink-0" />
+                        <span>{formatStat(post.commentsCount || 0)}</span>
+                      </div>
+                    </div>
+
                     {/* Private badge */}
                     {post.isPrivate && (
                       <div className="absolute top-3 left-3">
@@ -1135,6 +1316,280 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
           <span className="text-xs font-bold">{toastMessage}</span>
         </div>
       )}
+
+      {/* Fullscreen TikTok-like Media Player Modal */}
+      {activeMediaIndex !== null && tabPosts[activeMediaIndex] && (() => {
+        const post = tabPosts[activeMediaIndex];
+        
+        const handlePrev = (e?: React.MouseEvent) => {
+          e?.stopPropagation();
+          setActiveMediaIndex(prev => {
+            if (prev === null) return null;
+            return prev === 0 ? tabPosts.length - 1 : prev - 1;
+          });
+        };
+
+        const handleNext = (e?: React.MouseEvent) => {
+          e?.stopPropagation();
+          setActiveMediaIndex(prev => {
+            if (prev === null) return null;
+            return prev === tabPosts.length - 1 ? 0 : prev + 1;
+          });
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/98 flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-200">
+            {/* Backdrop click to close */}
+            <div className="absolute inset-0 cursor-pointer" onClick={() => setActiveMediaIndex(null)} />
+
+            {/* Viewport-fixed Close Button */}
+            <button 
+              type="button"
+              onClick={() => setActiveMediaIndex(null)}
+              className="absolute top-4 right-4 md:top-6 md:right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center transition-all z-50 border border-white/10 shadow-lg backdrop-blur-md"
+              title="Cerrar"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Navigation Left Arrow */}
+            {tabPosts.length > 1 && (
+              <button 
+                type="button"
+                onClick={handlePrev}
+                className="absolute left-4 md:left-8 w-12 h-12 rounded-full bg-white/5 hover:bg-white/15 active:scale-90 text-white flex items-center justify-center transition-all z-30 border border-white/5 hover:border-white/20 shadow-md backdrop-blur-sm"
+                title="Anterior"
+              >
+                <ChevronRight className="w-6 h-6 rotate-180" />
+              </button>
+            )}
+
+            {/* Navigation Right Arrow */}
+            {tabPosts.length > 1 && (
+              <button 
+                type="button"
+                onClick={handleNext}
+                className="absolute right-4 md:right-8 w-12 h-12 rounded-full bg-white/5 hover:bg-white/15 active:scale-90 text-white flex items-center justify-center transition-all z-30 border border-white/5 hover:border-white/20 shadow-md backdrop-blur-sm"
+                title="Siguiente"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+
+            {/* Main Immersive Phone-style Player Container */}
+            <div className={`relative bg-[#09090e] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row z-10 pointer-events-auto transition-all duration-300 ${showComments ? 'max-w-[800px] w-full h-[80vh] md:h-[85vh]' : 'max-w-[420px] w-full h-[80vh] md:h-[85vh]'}`}>
+              
+              {/* Left Player Pane */}
+              <div className={`relative h-full flex flex-col bg-black transition-all duration-300 ${showComments ? 'w-full md:w-[420px] shrink-0' : 'w-full'}`}>
+                {/* Media Content */}
+                <div className="w-full h-full flex items-center justify-center bg-black">
+                  {post.type === 'VIDEO' ? (
+                    <video 
+                      key={post.id}
+                      src={post.url} 
+                      className="w-full h-full object-contain" 
+                      controls 
+                      autoPlay 
+                      loop 
+                      playsInline
+                    />
+                  ) : (
+                    <img 
+                      src={post.url} 
+                      className="w-full h-full object-contain" 
+                      alt={post.title} 
+                    />
+                  )}
+                </div>
+
+                {/* Top gradient overlay */}
+                <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+
+                {/* Bottom gradient overlay */}
+                <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+
+                {/* Creator Info & Like Actions Overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-5 flex flex-col gap-3.5 z-20">
+                  {/* Creator Identity Row */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={targetUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.username}`} 
+                        className="w-10 h-10 rounded-full border border-white/15 bg-zinc-800 shrink-0" 
+                        alt="" 
+                      />
+                      <div className="text-left">
+                        <div className="text-sm font-bold flex items-center gap-1">
+                          {targetUser.username}
+                          <BadgeCheck className="w-4 h-4 text-blue-400 fill-transparent shrink-0" />
+                        </div>
+                        <span className="text-[10px] text-zinc-400">Post de {activeTab}</span>
+                      </div>
+                    </div>
+
+                    {/* Follow status inside player */}
+                    {!isOwnProfile && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleProfileFollowToggle();
+                        }}
+                        className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all shadow-md ${
+                          isFollowingTargetUser 
+                            ? 'bg-white/10 text-white border border-white/10' 
+                            : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:scale-105'
+                        }`}
+                      >
+                        {isFollowingTargetUser ? 'Siguiendo' : 'Seguir'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Title and Description */}
+                  <p className="text-xs text-zinc-200 text-left line-clamp-2 leading-relaxed font-medium">
+                    {post.title}
+                  </p>
+
+                  {/* Interaction icons bar */}
+                  <div className="flex items-center gap-4 border-t border-white/10 pt-3">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLikePostInModal(post.id);
+                      }}
+                      className="flex items-center gap-1.5 text-zinc-300 hover:text-pink-500 transition-colors"
+                    >
+                      <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-pink-500 text-pink-500' : ''}`} />
+                      <span className="text-xs font-bold">{formatStat(post.likesCount || 0)}</span>
+                    </button>
+
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowComments(!showComments);
+                      }}
+                      className="flex items-center gap-1.5 text-zinc-300 hover:text-purple-400 transition-colors"
+                    >
+                      <MessageCircle className={`w-5 h-5 ${showComments ? 'fill-purple-500 text-purple-500' : ''}`} />
+                      <span className="text-xs font-bold">{formatStat(post.commentsCount || 0)}</span>
+                    </button>
+
+                    <div className="text-[10px] text-zinc-500 font-bold ml-auto uppercase tracking-wider">
+                      {new Date(post.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Comments Pane */}
+              {showComments && (
+                <div className="w-full md:w-[380px] shrink-0 border-t md:border-t-0 md:border-l border-white/10 flex flex-col bg-[#0b0b12] h-full overflow-hidden">
+                  {/* Comments Header */}
+                  <div className="p-4 border-b border-white/5 flex items-center justify-between shrink-0">
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-400">
+                      Comentarios ({comments.length})
+                    </span>
+                    <button 
+                      onClick={() => setShowComments(false)}
+                      className="text-zinc-500 hover:text-white transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Comments List */}
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
+                    {commentsLoading ? (
+                      <div className="flex flex-col items-center justify-center p-8 gap-2">
+                        <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[10px] text-zinc-500 font-bold">Cargando comentarios...</span>
+                      </div>
+                    ) : comments.length > 0 ? (
+                      comments.map((comment: any) => {
+                        const isCommentOwn = sessionUser && sessionUser.id === comment.userId;
+                        const isPostOwn = sessionUser && sessionUser.id === post.userId;
+                        const canDelete = isCommentOwn || isPostOwn;
+                        return (
+                          <div key={comment.id} className="flex gap-2.5 items-start text-xs group/item">
+                            <img 
+                              src={comment.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`} 
+                              className="w-7 h-7 rounded-full border border-white/10 bg-zinc-800 shrink-0" 
+                              alt="" 
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="font-extrabold text-white text-[11px]">@{comment.user.username}</span>
+                                <span className="text-[8px] text-zinc-600 font-medium">
+                                  {new Date(comment.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                </span>
+                              </div>
+                              <p className="text-zinc-300 break-words pr-2 leading-relaxed text-[11px]">{comment.content}</p>
+                            </div>
+
+                            {/* Actions on comment */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleLikeComment(comment.id);
+                                }}
+                                className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-pink-500 transition-colors"
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${comment.isLiked ? 'fill-pink-500 text-pink-500' : ''}`} />
+                                <span className="text-[10px]">{comment.likesCount}</span>
+                              </button>
+                              {canDelete && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteComment(comment.id);
+                                  }}
+                                  className="text-zinc-600 hover:text-red-500 transition-colors opacity-0 group-hover/item:opacity-100"
+                                  title="Eliminar comentario"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-8 text-center gap-1.5 mt-8">
+                        <MessageCircle className="w-8 h-8 text-zinc-700 animate-pulse" />
+                        <h4 className="text-[11px] font-bold text-zinc-500">Sin comentarios todavía</h4>
+                        <p className="text-[9px] text-zinc-600 max-w-[150px]">¡Sé el primero en comentar esta publicación!</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Write Comment Form */}
+                  <form onSubmit={handleCreateComment} className="p-3 border-t border-white/5 bg-[#07070b] shrink-0">
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 h-10 focus-within:border-purple-500 transition-colors gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Añadir comentario..." 
+                        value={newCommentText}
+                        onChange={(e) => setNewCommentText(e.target.value)}
+                        className="bg-transparent border-none outline-none flex-1 text-xs text-white placeholder-zinc-500 font-medium w-full min-w-0"
+                        maxLength={300}
+                      />
+                      <button 
+                        type="submit" 
+                        disabled={!newCommentText.trim()}
+                        className="text-xs font-black text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-40 shrink-0"
+                      >
+                        Publicar
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

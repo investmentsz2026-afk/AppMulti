@@ -70,17 +70,22 @@ export async function getPublicPosts() {
       },
       savedBy: {
         select: { userId: true }
+      },
+      comments: {
+        select: { id: true }
       }
     }
   });
 
   return posts.map(post => {
     const likesCount = post.likes.length;
+    const commentsCount = post.comments.length;
     const isLiked = userId ? post.likes.some(l => l.userId === userId) : false;
     const isSaved = userId ? post.savedBy.some(s => s.userId === userId) : false;
     return {
       ...post,
       likesCount,
+      commentsCount,
       isLiked,
       isSaved
     };
@@ -108,17 +113,22 @@ export async function getUserPosts(username: string, viewerId?: string) {
       },
       savedBy: {
         select: { userId: true }
+      },
+      comments: {
+        select: { id: true }
       }
     }
   });
 
   return posts.map(post => {
     const likesCount = post.likes.length;
+    const commentsCount = post.comments.length;
     const isLiked = viewerId ? post.likes.some(l => l.userId === viewerId) : false;
     const isSaved = viewerId ? post.savedBy.some(s => s.userId === viewerId) : false;
     return {
       ...post,
       likesCount,
+      commentsCount,
       isLiked,
       isSaved
     };

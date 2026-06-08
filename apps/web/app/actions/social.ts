@@ -332,12 +332,14 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
         include: {
           user: { select: { id: true, username: true, avatar: true } },
           likes: { select: { userId: true } },
-          savedBy: { select: { userId: true } }
+          savedBy: { select: { userId: true } },
+          comments: { select: { id: true } }
         }
       });
       return posts.map(p => ({
         ...p,
         likesCount: p.likes.length,
+        commentsCount: p.comments.length,
         isLiked: viewerId ? p.likes.some(l => l.userId === viewerId) : false,
         isSaved: viewerId ? p.savedBy.some(s => s.userId === viewerId) : false
       }));
@@ -358,12 +360,14 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
         include: {
           user: { select: { id: true, username: true, avatar: true } },
           likes: { select: { userId: true } },
-          savedBy: { select: { userId: true } }
+          savedBy: { select: { userId: true } },
+          comments: { select: { id: true } }
         }
       });
       return posts.map(p => ({
         ...p,
         likesCount: p.likes.length,
+        commentsCount: p.comments.length,
         isLiked: viewerId ? p.likes.some(l => l.userId === viewerId) : false,
         isSaved: viewerId ? p.savedBy.some(s => s.userId === viewerId) : false
       }));
@@ -380,12 +384,14 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
         include: {
           user: { select: { id: true, username: true, avatar: true } },
           likes: { select: { userId: true } },
-          savedBy: { select: { userId: true } }
+          savedBy: { select: { userId: true } },
+          comments: { select: { id: true } }
         }
       });
       return posts.map(p => ({
         ...p,
         likesCount: p.likes.length,
+        commentsCount: p.comments.length,
         isLiked: viewerId ? p.likes.some(l => l.userId === viewerId) : false,
         isSaved: viewerId ? p.savedBy.some(s => s.userId === viewerId) : false
       }));
@@ -408,7 +414,9 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
         userId: s.userId,
         createdAt: s.createdAt,
         user: s.user,
-        isStream: true
+        isStream: true,
+        likesCount: 0,
+        commentsCount: 0
       }));
     }
 
@@ -422,7 +430,8 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
             include: {
               user: { select: { id: true, username: true, avatar: true } },
               likes: { select: { userId: true } },
-              savedBy: { select: { userId: true } }
+              savedBy: { select: { userId: true } },
+              comments: { select: { id: true } }
             }
           }
         }
@@ -430,6 +439,7 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
       return saved.map(s => s.post).filter(Boolean).map(p => ({
         ...p,
         likesCount: p.likes.length,
+        commentsCount: p.comments.length,
         isLiked: viewerId ? p.likes.some(l => l.userId === viewerId) : false,
         isSaved: viewerId ? p.savedBy.some(s => s.userId === viewerId) : false
       }));
@@ -444,7 +454,8 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
             include: {
               user: { select: { id: true, username: true, avatar: true } },
               likes: { select: { userId: true } },
-              savedBy: { select: { userId: true } }
+              savedBy: { select: { userId: true } },
+              comments: { select: { id: true } }
             }
           }
         }
@@ -452,6 +463,7 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
       return liked.map(l => l.post).filter(Boolean).map(p => ({
         ...p,
         likesCount: p.likes.length,
+        commentsCount: p.comments.length,
         isLiked: viewerId ? p.likes.some(l => l.userId === viewerId) : false,
         isSaved: viewerId ? p.savedBy.some(s => s.userId === viewerId) : false
       }));
@@ -605,5 +617,156 @@ export async function getUserByUsername(username: string) {
     });
   } catch (err) {
     return null;
+  }
+}
+
+// ================= COMMENTS ACTIONS =================
+
+export async function getPostComments(postId: string) {
+  const session = await getSession();
+  const userId = session?.id as string | undefined;
+
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { postId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: { id: true, username: true, avatar: true }
+        },
+        likes: {
+          select: { userId: true }
+        }
+      }
+    });
+
+    return comments.map(c => {
+      const likesCount = c.likes.length;
+      const isLiked = userId ? c.likes.some(l => l.userId === userId) : false;
+      return {
+        id: c.id,
+        content: c.content,
+        postId: c.postId,
+        userId: c.userId,
+        createdAt: c.createdAt,
+        user: c.user,
+        likesCount,
+        isLiked
+      };
+    });
+  } catch (err) {
+    console.error('Error fetching comments:', err);
+    return [];
+  }
+}
+
+export async function createComment(postId: string, content: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  const userId = session.id as string;
+  const trimmed = content.trim();
+  if (!trimmed) return { error: 'El comentario no puede estar vacío' };
+
+  try {
+    const comment = await prisma.comment.create({
+      data: {
+        content: trimmed,
+        postId,
+        userId
+      },
+      include: {
+        user: {
+          select: { id: true, username: true, avatar: true }
+        }
+      }
+    });
+
+    return {
+      success: true,
+      comment: {
+        ...comment,
+        likesCount: 0,
+        isLiked: false
+      }
+    };
+  } catch (err: any) {
+    console.error('Error creating comment:', err);
+    return { error: err.message || 'Error al comentar' };
+  }
+}
+
+export async function toggleLikeComment(commentId: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  const userId = session.id as string;
+
+  try {
+    const existing = await prisma.commentLike.findUnique({
+      where: {
+        userId_commentId: { userId, commentId }
+      }
+    });
+
+    let liked = false;
+    if (existing) {
+      await prisma.commentLike.delete({
+        where: {
+          userId_commentId: { userId, commentId }
+        }
+      });
+      liked = false;
+    } else {
+      await prisma.commentLike.create({
+        data: { userId, commentId }
+      });
+      liked = true;
+    }
+
+    const count = await prisma.commentLike.count({
+      where: { commentId }
+    });
+
+    return { success: true, liked, count };
+  } catch (err: any) {
+    console.error('Error toggling comment like:', err);
+    return { error: err.message || 'Error al dar me gusta al comentario' };
+  }
+}
+
+export async function deleteComment(commentId: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  const userId = session.id as string;
+
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: {
+        post: {
+          select: { userId: true }
+        }
+      }
+    });
+
+    if (!comment) return { error: 'Comentario no encontrado' };
+
+    const isCommentAuthor = comment.userId === userId;
+    const isPostOwner = comment.post.userId === userId;
+
+    if (!isCommentAuthor && !isPostOwner) {
+      return { error: 'No tienes permiso para eliminar este comentario' };
+    }
+
+    await prisma.comment.delete({
+      where: { id: commentId }
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error deleting comment:', err);
+    return { error: err.message || 'Error al eliminar comentario' };
   }
 }

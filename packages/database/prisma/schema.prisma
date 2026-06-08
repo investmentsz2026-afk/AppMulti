@@ -56,6 +56,8 @@ model User {
   savedPosts    SavedPost[]
   sentDMs       DirectMessage[] @relation("SentDirectMessages")
   receivedDMs   DirectMessage[] @relation("ReceivedDirectMessages")
+  comments      Comment[]
+  commentLikes  CommentLike[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -81,6 +83,7 @@ model Post {
 
   likes       PostLike[]
   savedBy     SavedPost[]
+  comments    Comment[]
 }
 
 model Wallet {
@@ -300,4 +303,27 @@ model DirectMessage {
 
   sender     User     @relation("SentDirectMessages", fields: [senderId], references: [id], onDelete: Cascade)
   receiver   User     @relation("ReceivedDirectMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes     CommentLike[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
 }
