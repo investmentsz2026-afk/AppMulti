@@ -1511,14 +1511,18 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                         const canDelete = isCommentOwn || isPostOwn;
                         return (
                           <div key={comment.id} className="flex gap-2.5 items-start text-xs group/item">
-                            <img 
-                              src={comment.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`} 
-                              className="w-7 h-7 rounded-full border border-white/10 bg-zinc-800 shrink-0" 
-                              alt="" 
-                            />
+                            <Link href={`/u/${comment.user.username}`}>
+                              <img 
+                                src={comment.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`} 
+                                className="w-7 h-7 rounded-full border border-white/10 bg-zinc-800 shrink-0 hover:border-purple-500 transition-colors cursor-pointer" 
+                                alt="" 
+                              />
+                            </Link>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 mb-0.5">
-                                <span className="font-extrabold text-white text-[11px]">@{comment.user.username}</span>
+                                <Link href={`/u/${comment.user.username}`}>
+                                  <span className="font-extrabold text-white text-[11px] hover:text-purple-400 transition-colors cursor-pointer">@{comment.user.username}</span>
+                                </Link>
                                 <span className="text-[8px] text-zinc-600 font-medium">
                                   {new Date(comment.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                 </span>
