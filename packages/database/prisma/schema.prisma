@@ -3,6 +3,8 @@
 
 generator client {
   provider      = "prisma-client-js"
+  output        = "../src/generated/client"
+  engineType    = "binary"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
@@ -58,6 +60,9 @@ model User {
   receivedDMs   DirectMessage[] @relation("ReceivedDirectMessages")
   comments      Comment[]
   commentLikes  CommentLike[]
+  
+  tournamentsCreated       Tournament[]
+  tournamentParticipations TournamentParticipant[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -104,6 +109,8 @@ enum TransactionType {
   WITHDRAWAL
   GIFT_SENT
   GIFT_RECEIVED
+  TOURNAMENT_FEE
+  TOURNAMENT_PRIZE
 }
 
 model Transaction {
@@ -326,4 +333,47 @@ model CommentLike {
   createdAt DateTime @default(now())
 
   @@unique([userId, commentId])
+}
+
+model Tournament {
+  id            String   @id @default(cuid())
+  title         String
+  game          String   @default("Free Fire")
+  format        String   @default("BO3") // "BO3" (Best of 3 PvP) | "BR" (Battle Royale)
+  prize         Int
+  entryFee      Int      @default(0)
+  maxTeams      Int      @default(16)
+  status        String   @default("UPCOMING") // "UPCOMING" | "ONGOING" | "FINISHED"
+  roomCode      String?
+  roomPassword  String?
+  
+  creatorId     String
+  creator       User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  participants  TournamentParticipant[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model TournamentParticipant {
+  id                String   @id @default(cuid())
+  tournamentId      String
+  tournament        Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  freeFireId        String?
+  freeFireName      String?
+  
+  winScreenshot     String?  // Match 1
+  match2Screenshot  String?  // Match 2
+  match3Screenshot  String?  // Match 3
+  profileScreenshot String?
+  submittedWin      Boolean  @default(false)
+  isWinner          Boolean  @default(false)
+  
+  createdAt         DateTime @default(now())
+
+  @@unique([tournamentId, userId])
 }
