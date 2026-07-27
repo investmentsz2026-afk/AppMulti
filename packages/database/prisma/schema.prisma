@@ -61,6 +61,8 @@ model User {
   
   tournamentsCreated       Tournament[]
   tournamentParticipations TournamentParticipant[]
+  createdRooms             GameRoom[]              @relation("CreatedRooms")
+  joinedRooms              GameRoom[]              @relation("JoinedRooms")
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -374,4 +376,27 @@ model TournamentParticipant {
   createdAt         DateTime @default(now())
 
   @@unique([tournamentId, userId])
+}
+
+model GameRoom {
+  id            String   @id @default(cuid())
+  title         String   // ¿Para qué es el PvP? (Pase, evolutiva, etc.)
+  game          String   @default("Free Fire")
+  wager         Int      @default(0) // Apuesta en monedas
+  roomCode      String   // ID de Sala (oculto hasta pagar)
+  roomPassword  String   // Contraseña de Sala (oculta hasta pagar)
+  status        String   @default("WAITING") // "WAITING" | "PLAYING" | "FINISHED" | "APPROVED"
+  
+  creatorId     String
+  creator       User     @relation("CreatedRooms", fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  opponentId    String?
+  opponent      User?    @relation("JoinedRooms", fields: [opponentId], references: [id], onDelete: Cascade)
+  
+  winnerId      String?  // ID del ganador reportado
+  winScreenshot String?  // Captura de pantalla de victoria
+  submittedWin  Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

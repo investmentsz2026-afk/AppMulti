@@ -6,7 +6,7 @@ import {
   Home, Play, Compass, Swords, Trophy, MessageSquare, 
   Bell, User, Wallet, Plus, Search, Crown, LogOut, 
   ChevronRight, BadgeCheck, Heart, Gift, Eye,
-  Sparkles, Flame, Send, X, Coins, Sparkle, Clock, Award
+  Sparkles, Flame, Send, X, Coins, Sparkle, Clock, Award, Lock
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
@@ -26,6 +26,7 @@ import {
   addWalletCoins,
   checkUserIsLive
 } from '@/app/actions/battle';
+import { getGameRoomsAction, joinGameRoomAction, submitRoomWinAction } from '@/app/actions/gameroom';
 
 interface GiftType {
   id: string;
@@ -50,7 +51,7 @@ export default function BattleClient({ user }: { user: any }) {
   const [userIsLive, setUserIsLive] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'envivo' | 'proximas' | 'historial'>('envivo');
+  const [activeTab, setActiveTab] = useState<'envivo' | 'proximas' | 'historial' | 'salas'>('envivo');
 
   // Database-backed Listings
   const [ongoingBattles, setOngoingBattles] = useState<any[]>([]);
@@ -87,6 +88,13 @@ export default function BattleClient({ user }: { user: any }) {
   // Winner overlay state
   const [winnerInfo, setWinnerInfo] = useState<any | null>(null);
 
+  // PvP Wager Game Rooms states
+  const [gameRooms, setGameRooms] = useState<any[]>([]);
+  const [activeGameRoom, setActiveGameRoom] = useState<any | null>(null);
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string>('');
+  const [isSubmittingWin, setIsSubmittingWin] = useState(false);
+  const [showWagerConfirm, setShowWagerConfirm] = useState<any | null>(null);
+
   // Chat scroll anchor refs
   const leftChatRef = useRef<HTMLDivElement>(null);
   const rightChatRef = useRef<HTMLDivElement>(null);
@@ -119,6 +127,9 @@ export default function BattleClient({ user }: { user: any }) {
 
         const history = await getBattleHistory();
         setBattleHistory(history);
+
+        const rooms = await getGameRoomsAction();
+        setGameRooms(rooms);
 
         // Auto reconnect current user to their ongoing battle if they are streaming
         const myOngoing = ongoing.find(
@@ -155,6 +166,13 @@ export default function BattleClient({ user }: { user: any }) {
         } else if (activeTab === 'historial') {
           const history = await getBattleHistory();
           setBattleHistory(history);
+        } else if (activeTab === 'salas') {
+          const rooms = await getGameRoomsAction();
+          setGameRooms(rooms);
+          if (activeGameRoom) {
+            const current = rooms.find((r: any) => r.id === activeGameRoom.id);
+            if (current) setActiveGameRoom(current);
+          }
         }
 
         // Poll incoming challenges if not currently playing/viewing an ongoing battle
@@ -657,6 +675,12 @@ export default function BattleClient({ user }: { user: any }) {
                 >
                   Historial
                 </button>
+                <button 
+                  onClick={() => { setActiveTab('salas'); setActiveBattleId(null); setActiveBattle(null); setWinnerInfo(null); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${activeTab === 'salas' ? 'bg-[#181330] text-pink-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  Salas PvP
+                </button>
               </div>
 
               <button 
@@ -1126,6 +1150,290 @@ export default function BattleClient({ user }: { user: any }) {
                   </div>
                 )}
 
+                {/* 4. SALAS PVP TAB (Game rooms with wagers, proof of win, deep link setup) */}
+                {activeTab === 'salas' && (
+                  <div className="flex flex-col gap-5">
+                    {activeGameRoom ? (
+                      /* ACTIVE / DETAILED ROOM VIEW */
+                      <div className="bg-[#0b0a12]/95 border-2 border-purple-500/20 rounded-3xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 blur-3xl rounded-full" />
+                        
+                        {/* Header */}
+                        <div className="flex justify-between items-center pb-4 border-b border-white/5">
+                          <div>
+                            <button 
+                              onClick={() => { setActiveGameRoom(null); setSelectedScreenshot(''); }}
+                              className="text-xs font-black text-purple-400 hover:text-purple-300 flex items-center gap-1 mb-1"
+                            >
+                              &larr; Volver a salas
+                            </button>
+                            <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
+                              🕹️ Sala PvP: {activeGameRoom.title}
+                            </h3>
+                          </div>
+                          <span className={`px-2.5 py-1 text-[9px] font-black rounded-full uppercase tracking-wider ${
+                            activeGameRoom.status === 'WAITING' ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20' :
+                            activeGameRoom.status === 'PLAYING' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse' :
+                            activeGameRoom.status === 'FINISHED' ? 'bg-zinc-500/15 text-zinc-400 border border-white/5' :
+                            'bg-green-500/10 text-green-400 border border-green-500/20'
+                          }`}>
+                            {activeGameRoom.status === 'WAITING' ? 'Esperando rival' :
+                             activeGameRoom.status === 'PLAYING' ? 'En juego' :
+                             activeGameRoom.status === 'FINISHED' ? 'Esperando revisión' :
+                             'Finalizado'}
+                          </span>
+                        </div>
+
+                        {/* Versus details */}
+                        <div className="grid grid-cols-3 items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+                          {/* Creator */}
+                          <div className="flex flex-col items-center gap-1.5 text-center">
+                            <img src={activeGameRoom.creator.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeGameRoom.creator.username}`} className="w-12 h-12 rounded-full border border-purple-500" alt="" />
+                            <span className="text-xs font-bold text-white truncate max-w-full">@{activeGameRoom.creator.username}</span>
+                            <span className="text-[9px] text-zinc-500 uppercase font-black">Creador</span>
+                          </div>
+
+                          {/* VS / WAGER */}
+                          <div className="flex flex-col items-center justify-center text-center">
+                            <span className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1">VS</span>
+                            <div className="flex items-center gap-1 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 px-3 py-1 rounded-xl text-xs font-black">
+                              <Coins className="w-3.5 h-3.5" />
+                              {activeGameRoom.wager} pts
+                            </div>
+                            <span className="text-[8px] text-zinc-500 font-bold mt-1 uppercase tracking-wide">Apuesta mutua</span>
+                          </div>
+
+                          {/* Opponent */}
+                          <div className="flex flex-col items-center gap-1.5 text-center">
+                            {activeGameRoom.opponent ? (
+                              <>
+                                <img src={activeGameRoom.opponent.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeGameRoom.opponent.username}`} className="w-12 h-12 rounded-full border border-pink-500" alt="" />
+                                <span className="text-xs font-bold text-white truncate max-w-full">@{activeGameRoom.opponent.username}</span>
+                                <span className="text-[9px] text-zinc-500 uppercase font-black">Retador</span>
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1 text-zinc-600">
+                                <div className="w-12 h-12 rounded-full bg-white/5 border border-dashed border-white/10 flex items-center justify-center text-lg">?</div>
+                                <span className="text-[10px] font-bold italic">Esperando...</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Room Credentials (visible only if playing or finished and user is creator/opponent) */}
+                        {(activeGameRoom.status === 'PLAYING' || activeGameRoom.status === 'FINISHED' || activeGameRoom.status === 'APPROVED') &&
+                         (user.id === activeGameRoom.creatorId || user.id === activeGameRoom.opponentId) ? (
+                          <div className="space-y-4">
+                            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4">
+                              <h4 className="text-xs font-black text-yellow-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                🔑 Credenciales de Acceso a la Sala (Privado)
+                              </h4>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <span className="text-[9px] text-zinc-500 font-bold uppercase block mb-0.5">ID de la Sala</span>
+                                  <span className="text-sm font-mono font-black text-white select-all">{activeGameRoom.roomCode}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-zinc-500 font-bold uppercase block mb-0.5">Contraseña</span>
+                                  <span className="text-sm font-mono font-black text-white select-all">{activeGameRoom.roomPassword}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Deep link button to launch Free Fire */}
+                            <a 
+                              href="freefire://"
+                              onClick={() => triggerToast('🎮 Lanzando Free Fire... ¡Buena suerte!')}
+                              className="w-full py-3 bg-[#e76f51] hover:bg-[#f4a261] text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10"
+                            >
+                              🎮 Ingresar a Free Fire ahora
+                            </a>
+
+                            {/* Win submission area */}
+                            {activeGameRoom.status === 'PLAYING' && (
+                              <div className="border-t border-white/5 pt-4 mt-2 space-y-3">
+                                <div>
+                                  <h4 className="text-xs font-black text-white uppercase tracking-wider">Reportar Victoria</h4>
+                                  <p className="text-[10px] text-zinc-400 leading-relaxed mt-0.5">
+                                    Si ganaste el PvP, toma una captura de pantalla del marcador final de Free Fire (o tu perfil de ID) y súbela aquí.
+                                  </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <input 
+                                    type="file" 
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                          setSelectedScreenshot(reader.result as string);
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                    className="hidden" 
+                                    id="win-ss-upload" 
+                                  />
+                                  <label 
+                                    htmlFor="win-ss-upload"
+                                    className="w-full py-3 border-2 border-dashed border-white/10 hover:border-purple-500/30 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer text-zinc-500 hover:text-white transition-all bg-white/5"
+                                  >
+                                    <span className="text-lg">📸</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider">Seleccionar captura de galería</span>
+                                  </label>
+
+                                  {selectedScreenshot && (
+                                    <div className="relative rounded-xl overflow-hidden border border-white/10 max-h-48 flex justify-center bg-black">
+                                      <img src={selectedScreenshot} className="object-contain max-h-48" alt="Captura" />
+                                      <button 
+                                        type="button"
+                                        onClick={() => setSelectedScreenshot('')}
+                                        className="absolute top-2 right-2 w-6 h-6 bg-black/80 rounded-full flex items-center justify-center text-white"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {selectedScreenshot && (
+                                    <button
+                                      type="button"
+                                      disabled={isSubmittingWin}
+                                      onClick={async () => {
+                                        setIsSubmittingWin(true);
+                                        const res = await submitRoomWinAction({
+                                          roomId: activeGameRoom.id,
+                                          winScreenshot: selectedScreenshot
+                                        });
+                                        setIsSubmittingWin(false);
+                                        if (res.error) {
+                                          triggerToast(`❌ Error: ${res.error}`);
+                                        } else if (res.success) {
+                                          triggerToast('🎉 ¡Captura de victoria enviada con éxito! Esperando revisión del admin.');
+                                          setSelectedScreenshot('');
+                                          if (res.room) setActiveGameRoom(res.room);
+                                        }
+                                      }}
+                                      className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                    >
+                                      {isSubmittingWin ? 'Enviando...' : 'Confirmar Reporte de Victoria'}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {activeGameRoom.status === 'FINISHED' && (
+                              <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 text-center">
+                                <Clock className="w-8 h-8 text-yellow-500 animate-pulse mx-auto mb-2" />
+                                <h5 className="text-xs font-black text-white uppercase tracking-wider">Victoria Reportada</h5>
+                                <p className="text-[10px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                                  Has reportado tu victoria y subido la prueba. Un administrador verificará la captura y acreditará el pozo acumulado de <span className="text-yellow-500 font-bold">{activeGameRoom.wager * 2} monedas</span> en tu wallet.
+                                </p>
+                              </div>
+                            )}
+
+                            {activeGameRoom.status === 'APPROVED' && (
+                              <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-4 text-center">
+                                <Award className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                                <h5 className="text-xs font-black text-green-400 uppercase tracking-wider">Premio Acreditado</h5>
+                                <p className="text-[10px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                                  El administrador aprobó el resultado de esta sala. Las monedas del pozo ({activeGameRoom.wager * 2}) ya se transfirieron a la wallet del ganador.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="bg-zinc-950/60 border border-white/5 rounded-2xl p-4 text-center space-y-1">
+                            <Lock className="w-6 h-6 text-zinc-600 mx-auto mb-1" />
+                            <h4 className="text-xs font-bold text-zinc-400">Credenciales ocultas</h4>
+                            <p className="text-[10px] text-zinc-500">
+                              Debes ser participante (creador o retador) y el retador debe haber pagado la apuesta para poder ver el ID y contraseña de esta sala.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* ROOM LISTING VIEW */
+                      <div className="flex flex-col gap-4">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-zinc-500">
+                            <Swords className="w-4 h-4 text-purple-400" /> Salas PvP de Apuesta Activas
+                          </div>
+                        </div>
+
+                        {gameRooms.filter(r => r.status === 'WAITING' || (r.status !== 'APPROVED' && (user.id === r.creatorId || user.id === r.opponentId))).length === 0 ? (
+                          <div className="bg-[#0b0a12]/50 border border-white/5 rounded-3xl p-10 text-center flex flex-col items-center gap-4 animate-in fade-in">
+                            <Swords className="w-12 h-12 text-zinc-700 animate-pulse" />
+                            <h4 className="text-sm font-black text-white uppercase tracking-wider">No hay salas PvP en este momento</h4>
+                            <p className="text-xs text-zinc-500 max-w-sm">Haz click en el botón "+ Crear sala" abajo o en el Creator Studio para iniciar tu propio PvP con apuestas.</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {gameRooms
+                              .filter(r => r.status === 'WAITING' || (r.status !== 'APPROVED' && (user.id === r.creatorId || user.id === r.opponentId)))
+                              .map(room => {
+                                const isOwnRoom = user.id === room.creatorId;
+                                const isParticipant = user.id === room.creatorId || user.id === room.opponentId;
+
+                                return (
+                                  <div 
+                                    key={room.id}
+                                    className="bg-[#0b0a12]/75 border border-white/5 hover:border-purple-500/20 rounded-2xl p-4 flex flex-col justify-between gap-4 transition-all"
+                                  >
+                                    <div className="flex justify-between items-start gap-4">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className="relative shrink-0">
+                                          <img src={room.creator.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.creator.username}`} className="w-10 h-10 rounded-full object-cover border border-purple-500/30" alt="" />
+                                          <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border border-[#0b0a12]" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <span className="text-[8px] bg-yellow-500/10 text-yellow-400 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                            {room.game}
+                                          </span>
+                                          <h4 className="text-xs font-bold text-white truncate mt-1">
+                                            {room.title}
+                                          </h4>
+                                          <p className="text-[10px] text-zinc-400 mt-0.5 truncate">Creador: @{room.creator.username}</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex flex-col items-end">
+                                        <div className="flex items-center gap-1 text-xs font-black text-yellow-500 bg-yellow-500/5 px-2.5 py-1 rounded-lg border border-yellow-500/10">
+                                          <Coins className="w-3.5 h-3.5" />
+                                          {room.wager} pts
+                                        </div>
+                                        <span className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">Apuesta</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Action button */}
+                                    {isParticipant ? (
+                                      <button 
+                                        onClick={() => setActiveGameRoom(room)}
+                                        className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all"
+                                      >
+                                        Ingresar a la Sala 🎮
+                                      </button>
+                                    ) : (
+                                      <button 
+                                        onClick={() => setShowWagerConfirm(room)}
+                                        className="w-full py-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-black text-[10px] font-black uppercase tracking-wider rounded-xl hover:scale-[1.01] transition-transform"
+                                      >
+                                        Participar (Apostar {room.wager} monedas)
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* COLUMN 3: GLOBAL SIDEBAR RULES & REGULATION */}
@@ -1401,6 +1709,58 @@ export default function BattleClient({ user }: { user: any }) {
             >
               Salir de la arena
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- WAGER PARTICIPATE CONFIRM MODAL ----------------- */}
+      {showWagerConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#0b0a12] border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-200">
+            <button 
+              onClick={() => setShowWagerConfirm(null)}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center py-4 flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 text-xl font-bold animate-bounce">
+                🪙
+              </div>
+              <h3 className="text-base font-black uppercase tracking-wider">Confirmar Participación</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Ingresar al PvP de <span className="text-white font-bold">@{showWagerConfirm.creator.username}</span> te costará <span className="text-yellow-500 font-bold">{showWagerConfirm.wager} monedas</span>. 
+                <br /><br />
+                Estas monedas se descontarán de tu saldo para igualar la apuesta. Si ganas, el pozo completo de <span className="text-yellow-500 font-bold">{showWagerConfirm.wager * 2} monedas</span> se acreditará en tu wallet tras la validación.
+              </p>
+
+              <div className="flex gap-3 w-full mt-4">
+                <button 
+                  onClick={() => setShowWagerConfirm(null)}
+                  className="flex-1 py-3 border border-white/10 rounded-xl text-xs font-bold hover:bg-white/5"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={async () => {
+                    const roomToJoin = showWagerConfirm;
+                    setShowWagerConfirm(null);
+                    triggerToast('⌛ Procesando transacción de apuesta...');
+                    const res = await joinGameRoomAction(roomToJoin.id);
+                    if (res.error) {
+                      triggerToast(`❌ Error: ${res.error}`);
+                    } else if (res.success && res.room) {
+                      triggerToast('🎮 ¡Te has unido al PvP con éxito! Sala desbloqueada.');
+                      setActiveGameRoom(res.room);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-black text-xs font-black rounded-xl hover:scale-105 transition-transform"
+                >
+                  Confirmar Apuesta
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

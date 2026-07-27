@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { createPost } from '@/app/actions/posts';
+import { createGameRoomAction } from '@/app/actions/gameroom';
 
 type ActiveTab = 'menu' | 'upload' | 'room' | 'coins';
 
@@ -38,6 +39,11 @@ export default function CreatorModal() {
   const [roomMode, setRoomMode] = useState('1v1');
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [roomCreated, setRoomCreated] = useState(false);
+  const [roomType, setRoomType] = useState<'transmission' | 'pvp'>('transmission');
+  const [pvpTitle, setPvpTitle] = useState('Por el Pase Elite');
+  const [roomWager, setRoomWager] = useState(100);
+  const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [roomPasswordInput, setRoomPasswordInput] = useState('');
 
   // Recargar monedas state
   const [selectedPack, setSelectedPack] = useState<{ id: number; coins: number; price: string } | null>(null);
@@ -64,6 +70,11 @@ export default function CreatorModal() {
     setRoomMode('1v1');
     setIsCreatingRoom(false);
     setRoomCreated(false);
+    setRoomType('transmission');
+    setPvpTitle('Por el Pase Elite');
+    setRoomWager(100);
+    setRoomCodeInput('');
+    setRoomPasswordInput('');
 
     setSelectedPack(null);
     setIsProcessingPayment(false);
@@ -131,15 +142,52 @@ export default function CreatorModal() {
     }
   };
 
-  // 2. Simulación de creación de sala
-  const startRoomCreationSim = (e: React.FormEvent) => {
+  // 2. Creación de sala real en la base de datos
+  const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (roomType === 'transmission') {
+      close();
+      router.push('/transmitir');
+      return;
+    }
+
+    if (!pvpTitle.trim()) {
+      toast.error('Por favor escribe para qué es el pvp.');
+      return;
+    }
+    if (!roomCodeInput.trim() || !roomPasswordInput.trim()) {
+      toast.error('Por favor escribe el ID y la contraseña de la sala.');
+      return;
+    }
+    if (roomWager < 0) {
+      toast.error('La apuesta no puede ser negativa.');
+      return;
+    }
+
     setIsCreatingRoom(true);
-    setTimeout(() => {
+    try {
+      const res = await createGameRoomAction({
+        title: pvpTitle,
+        game: selectedGame,
+        wager: roomWager,
+        roomCode: roomCodeInput,
+        roomPassword: roomPasswordInput
+      });
+
+      if (res.error) {
+        toast.error(res.error);
+        setIsCreatingRoom(false);
+        return;
+      }
+
       setIsCreatingRoom(false);
       setRoomCreated(true);
-      toast.success(`¡Sala de ${selectedGame} creada! 🎮`);
-    }, 1500);
+      toast.success(`¡Sala PvP de ${selectedGame} creada! 🎮`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al crear la sala.');
+      setIsCreatingRoom(false);
+    }
   };
 
   // 3. Simulación de recarga de monedas
@@ -413,68 +461,129 @@ export default function CreatorModal() {
               <button onClick={handleBack} className="text-xs font-bold text-zinc-400 hover:text-white mb-4">&larr; Volver al menú</button>
 
               {!roomCreated ? (
-                <form onSubmit={startRoomCreationSim} className="flex flex-col gap-4">
-                  <h4 className="text-md font-bold text-white">Configurar Sala PvP</h4>
+                <form onSubmit={handleCreateRoom} className="flex flex-col gap-4">
+                  <h4 className="text-md font-black text-white">Configurar Sala de Juego</h4>
 
+                  {/* Mode Selector */}
                   <div>
-                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest block mb-1.5">Seleccionar Videojuego</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { name: 'Free Fire', icon: Gamepad2 },
-                        { name: 'Valorant', icon: Laptop }
-                      ].map(g => (
-                        <button
-                          key={g.name}
-                          type="button"
-                          onClick={() => setSelectedGame(g.name)}
-                          className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all ${selectedGame === g.name ? 'border-purple-500 bg-purple-500/10 text-white' : 'border-white/5 bg-white/5 text-zinc-400'}`}
-                        >
-                          <g.icon className="w-4 h-4" /> {g.name}
-                        </button>
-                      ))}
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mb-1.5">Tipo de Sala</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRoomType('transmission')}
+                        className={`py-2.5 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 ${roomType === 'transmission' ? 'border-purple-500 bg-purple-500/10 text-white' : 'border-white/5 bg-white/5 text-zinc-400'}`}
+                      >
+                        <Play className="w-4 h-4 fill-current" /> Transmisión
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRoomType('pvp')}
+                        className={`py-2.5 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 ${roomType === 'pvp' ? 'border-purple-500 bg-purple-500/10 text-white' : 'border-white/5 bg-white/5 text-zinc-400'}`}
+                      >
+                        <Swords className="w-4 h-4" /> Sala PVP
+                      </button>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest block mb-1">Nombre de la Sala</label>
-                    <input 
-                      type="text" 
-                      value={roomName}
-                      onChange={(e) => setRoomName(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-purple-500 transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-black text-zinc-400 uppercase tracking-widest block mb-1.5">Modo de Combate</label>
-                    <div className="flex gap-2">
-                      {['1v1', '2v2', '4v4 (Escuadras)'].map(mode => (
-                        <button
-                          key={mode}
-                          type="button"
-                          onClick={() => setRoomMode(mode)}
-                          className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${roomMode === mode ? 'border-purple-500 bg-purple-500/10 text-white' : 'border-white/5 bg-white/5 text-zinc-400'}`}
-                        >
-                          {mode}
-                        </button>
-                      ))}
+                  {roomType === 'transmission' ? (
+                    <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col gap-3">
+                      <p className="text-xs text-zinc-400 leading-relaxed">
+                        Crea una sala de transmisión en vivo pública en LiveX para transmitir tus partidas y interactuar con tus espectadores en directo.
+                      </p>
+                      <button
+                        type="submit"
+                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-black text-xs hover:scale-[1.01] transition-transform"
+                      >
+                        Iniciar Transmisión Ahora
+                      </button>
                     </div>
-                  </div>
-
-                  {isCreatingRoom ? (
-                    <button 
-                      disabled
-                      className="w-full mt-2 py-3 bg-purple-600/50 rounded-xl font-bold flex items-center justify-center gap-2 cursor-wait"
-                    >
-                      <Loader2 className="w-4 h-4 animate-spin text-white" /> Creando servidor privado...
-                    </button>
                   ) : (
-                    <button 
-                      type="submit"
-                      className="w-full mt-2 py-3 bg-gradient-to-br from-yellow-500 to-amber-500 rounded-xl text-black font-black hover:scale-[1.02] active:scale-95 transition-transform shadow-[0_0_15px_rgba(234,179,8,0.2)]"
-                    >
-                      Crear Sala Ahora
-                    </button>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mb-1.5">Seleccionar Videojuego</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {['Free Fire', 'Valorant'].map(g => (
+                            <button
+                              key={g}
+                              type="button"
+                              onClick={() => setSelectedGame(g)}
+                              className={`py-2.5 rounded-xl border text-xs font-black transition-all ${selectedGame === g ? 'border-yellow-500 bg-yellow-500/10 text-white' : 'border-white/5 bg-white/5 text-zinc-400'}`}
+                            >
+                              {g}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mb-1">¿Para qué es el PvP? (Pase, evolutiva, etc.)</label>
+                        <input
+                          type="text"
+                          required
+                          value={pvpTitle}
+                          onChange={(e) => setPvpTitle(e.target.value)}
+                          placeholder="Ej. Por el Pase Elite, Evolutiva, o Apuesta"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-yellow-500 transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mb-1">Apuesta (Monedas)</label>
+                        <input
+                          type="number"
+                          required
+                          min={0}
+                          value={roomWager}
+                          onChange={(e) => setRoomWager(Number(e.target.value))}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-yellow-500 transition-colors font-bold text-yellow-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mb-1">ID de Sala (Oculto)</label>
+                          <input
+                            type="text"
+                            required
+                            value={roomCodeInput}
+                            onChange={(e) => setRoomCodeInput(e.target.value)}
+                            placeholder="ID de partida"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-yellow-500 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mb-1">Contraseña (Oculta)</label>
+                          <input
+                            type="text"
+                            required
+                            value={roomPasswordInput}
+                            onChange={(e) => setRoomPasswordInput(e.target.value)}
+                            placeholder="Contraseña"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-yellow-500 transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-zinc-500 font-bold bg-white/5 p-3 rounded-xl leading-relaxed">
+                        ⚠️ Al crear la sala se te cobrará el valor de la apuesta ({roomWager} monedas) para garantizar el premio. La sala quedará visible para todos. El retador tendrá que pagar el mismo valor para entrar.
+                      </p>
+
+                      {isCreatingRoom ? (
+                        <button
+                          disabled
+                          className="w-full py-3 bg-yellow-500/50 text-black font-black text-xs rounded-xl flex items-center justify-center gap-2 cursor-wait"
+                        >
+                          <Loader2 className="w-4 h-4 animate-spin text-black" /> Creando Sala PvP...
+                        </button>
+                      ) : (
+                        <button
+                          type="submit"
+                          className="w-full py-3 bg-gradient-to-br from-yellow-500 to-amber-500 rounded-xl text-black font-black text-xs hover:scale-[1.01] active:scale-95 transition-transform shadow-[0_0_15px_rgba(234,179,8,0.2)]"
+                        >
+                          Crear Sala PVP Ahora
+                        </button>
+                      )}
+                    </div>
                   )}
                 </form>
               ) : (
@@ -482,13 +591,15 @@ export default function CreatorModal() {
                   <div className="w-16 h-16 bg-yellow-500/20 border border-yellow-500/30 rounded-full flex items-center justify-center text-yellow-500 mb-4 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
-                  <h4 className="text-lg font-black text-white mb-1">¡Sala Privada Creada!</h4>
-                  <p className="text-xs text-zinc-400 max-w-xs leading-relaxed mb-6">ID de Sala: <span className="font-mono text-white font-bold bg-white/5 px-2 py-1 rounded">LX-98242</span>. Compártelo con tu rival e invitados.</p>
-                  <button 
+                  <h4 className="text-lg font-black text-white mb-1">¡Sala PvP Creada con Éxito!</h4>
+                  <p className="text-xs text-zinc-400 max-w-xs leading-relaxed mb-6">
+                    Tu sala ha sido publicada. Los detalles de acceso (ID y Contraseña) están ocultos y se revelarán únicamente al contrincante que acepte el reto pagando la apuesta de <span className="text-yellow-500 font-bold">{roomWager} monedas</span>.
+                  </p>
+                  <button
                     onClick={handleBack}
                     className="px-6 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold border border-white/5 transition-colors"
                   >
-                    Crear otra sala
+                    Volver
                   </button>
                 </div>
               )}
