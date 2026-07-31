@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Home, Play, Compass, Sword, Trophy, MessageSquare, 
   Bell, User, Wallet, Plus, Search, Crown, LogOut, 
@@ -12,11 +12,34 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
+import { getUpcomingStreamers, getOngoingBattles, getTopDonators } from '@/app/actions/battle';
 
 export default function MobileInicio({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const router = useRouter();
   const [showQuickActions, setShowQuickActions] = useState(false);
   const { isLive, streamTitle, viewers } = useLiveStore();
+
+  const [liveStreamers, setLiveStreamers] = useState<any[]>([]);
+  const [activeBattles, setActiveBattles] = useState<any[]>([]);
+  const [topUsers, setTopUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadRealData() {
+      try {
+        const streamers = await getUpcomingStreamers();
+        setLiveStreamers(streamers);
+
+        const battles = await getOngoingBattles();
+        setActiveBattles(battles);
+
+        const donators = await getTopDonators();
+        setTopUsers(donators);
+      } catch (err) {
+        console.error('Error loading dashboard data:', err);
+      }
+    }
+    loadRealData();
+  }, []);
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-[#05050a] text-white overflow-hidden">
@@ -107,71 +130,80 @@ export default function MobileInicio({ user, setTab, tab }: { user: any, setTab:
             </div>
           )}
 
-          {[
-            { id: 1, name: 'AndrésGG', viewers: '12.5K', desc: 'Rankeds de noche 🌙', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600' },
-            { id: 2, name: 'SofiLive', viewers: '8.7K', desc: 'Charlando con ustedes...', img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=600' },
-            { id: 3, name: 'DiegoStream', viewers: '25.5K', desc: 'Batalla épica 🔥', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600&flip=1' },
-          ].map((stream) => (
-            <div key={stream.id} className="snap-start shrink-0 w-[240px] group relative bg-white/5 rounded-2xl overflow-hidden border border-white/5 hover:border-white/20 transition-all cursor-pointer">
-              <Link href={`/live/${stream.name}`}>
+          {liveStreamers.map((streamer) => (
+            <div key={streamer.id} className="snap-start shrink-0 w-[240px] group relative bg-white/5 rounded-2xl overflow-hidden border border-white/5 hover:border-white/20 transition-all cursor-pointer">
+              <Link href={`/live/${streamer.username}`}>
                 <div className="aspect-[3/4] relative">
-                  <img src={stream.img} className="w-full h-full object-cover" alt="Stream thumbnail" />
+                  <img src={streamer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`} className="w-full h-full object-cover" alt="Stream thumbnail" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
                   
                   {/* Top Badges */}
                   <div className="absolute top-3 left-3 flex gap-2">
                     <span className="px-1.5 py-0.5 bg-red-600 text-[10px] font-black rounded uppercase tracking-wider flex items-center gap-1">
-                      <span className="w-1 h-1 bg-white rounded-full animate-pulse" /> EN VIVO
+                      <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" /> EN VIVO
                     </span>
                     <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md text-[10px] font-black rounded flex items-center gap-1 border border-white/10">
-                      <Eye className="w-3 h-3 text-zinc-300" /> {stream.viewers}
+                      <Eye className="w-3 h-3 text-zinc-300" /> {Math.floor(Math.random() * 200 + 10)}
                     </span>
                   </div>
                   
                   {/* Bottom Info */}
                   <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
-                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${stream.name}`} className="w-8 h-8 rounded-full border border-white/20 bg-zinc-800" />
+                    <img src={streamer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`} className="w-8 h-8 rounded-full border border-white/20 bg-zinc-800" />
                     <div className="overflow-hidden">
                       <div className="flex items-center gap-1">
-                        <h3 className="font-bold text-sm truncate">{stream.name}</h3>
+                        <h3 className="font-bold text-sm truncate">{streamer.username}</h3>
                         <BadgeCheck className="w-3 h-3 text-blue-400 shrink-0" />
                       </div>
-                      <p className="text-[10px] text-zinc-300 truncate">{stream.desc}</p>
+                      <p className="text-[10px] text-zinc-300 truncate">{streamer.stream?.title || 'Gaming'}</p>
                     </div>
                   </div>
                 </div>
               </Link>
             </div>
           ))}
+          {liveStreamers.length === 0 && (
+            <div className="snap-start shrink-0 w-full text-center text-xs text-zinc-500 py-10 bg-white/5 rounded-2xl border border-dashed border-white/10">
+              No hay transmisiones en vivo disponibles ahora.
+            </div>
+          )}
         </div>
 
         {/* Batallas Destacadas */}
         <div className="mt-8">
           <h2 className="text-xl font-bold mb-4">Batallas destacadas</h2>
-          <div className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 border border-purple-500/20 rounded-2xl p-4 relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 blur-3xl rounded-full" />
-             <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full" />
-             
-             <div className="relative z-10 flex items-center justify-between">
-                <div className="flex flex-col items-center">
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alpha" className="w-12 h-12 rounded-full border-2 border-purple-500" />
-                  <span className="text-xs font-bold mt-1">TEAM ALPHA</span>
-                </div>
-                
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">VS</span>
-                  <span className="text-[10px] bg-red-600 px-2 py-0.5 rounded text-white font-bold mt-1 animate-pulse">AHORA</span>
-                </div>
-                
-                <div className="flex flex-col items-center">
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Omega" className="w-12 h-12 rounded-full border-2 border-pink-500" />
-                  <span className="text-xs font-bold mt-1">TEAM OMEGA</span>
-                </div>
-             </div>
-             <button className="w-full mt-4 py-2 bg-white/10 hover:bg-white/20 transition-colors rounded-xl text-sm font-bold border border-white/5">
-                Ver Batalla
-             </button>
-          </div>
+          {activeBattles.length === 0 ? (
+            <div className="bg-[#0b0a12]/50 border border-white/5 rounded-2xl p-6 text-center text-xs text-zinc-500">
+              No hay batallas PvP activas en este momento.
+            </div>
+          ) : (
+            activeBattles.map(battle => (
+              <div key={battle.id} className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 border border-purple-500/20 rounded-2xl p-4 relative overflow-hidden mb-3">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 blur-3xl rounded-full" />
+                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full" />
+                 
+                 <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex flex-col items-center">
+                      <img src={battle.stream1?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=1`} className="w-12 h-12 rounded-full border-2 border-purple-500" />
+                      <span className="text-xs font-bold mt-1">@{battle.stream1?.user?.username}</span>
+                    </div>
+                    
+                    <div className="flex flex-col items-center">
+                      <span className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">VS</span>
+                      <span className="text-[10px] bg-red-600 px-2 py-0.5 rounded text-white font-bold mt-1 animate-pulse">AHORA</span>
+                    </div>
+                    
+                    <div className="flex flex-col items-center">
+                      <img src={battle.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=2`} className="w-12 h-12 rounded-full border-2 border-pink-500" />
+                      <span className="text-xs font-bold mt-1">@{battle.stream2?.user?.username}</span>
+                    </div>
+                 </div>
+                 <Link href="/batallas" className="w-full mt-4 py-2 bg-white/10 hover:bg-white/20 transition-colors rounded-xl text-sm font-bold border border-white/5 flex items-center justify-center">
+                    Ver Batalla
+                 </Link>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Top Donadores */}
@@ -181,23 +213,23 @@ export default function MobileInicio({ user, setTab, tab }: { user: any, setTab:
             <Link href="/ranking" className="text-xs text-zinc-400 hover:text-white">Ver ranking &rarr;</Link>
           </div>
           <div className="flex flex-col gap-3 bg-white/5 p-4 rounded-2xl border border-white/5">
-            {[
-              { pos: 1, name: 'DiegoStream', coins: '125,430', color: 'text-yellow-400' },
-              { pos: 2, name: 'AndrésGG', coins: '98,760', color: 'text-zinc-300' },
-              { pos: 3, name: 'CamiLove', coins: '76,540', color: 'text-amber-600' }
-            ].map(user => (
-              <div key={user.pos} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className={`font-black w-4 text-center ${user.color}`}>{user.pos}</span>
-                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`} className="w-8 h-8 rounded-full bg-zinc-800" />
-                  <span className="font-bold text-sm">{user.name}</span>
+            {topUsers.length === 0 ? (
+              <div className="text-center text-xs text-zinc-500 italic py-2">Sin donadores registrados.</div>
+            ) : (
+              topUsers.map(u => (
+                <div key={u.pos} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`font-black w-4 text-center ${u.pos === 1 ? 'text-yellow-400' : u.pos === 2 ? 'text-zinc-300' : 'text-amber-600'}`}>{u.pos}</span>
+                    <img src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}`} className="w-8 h-8 rounded-full bg-zinc-800" />
+                    <span className="font-bold text-sm">@{u.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-yellow-500/10 px-2 py-1 rounded-lg border border-yellow-500/20">
+                    <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                    <span className="font-bold text-yellow-500 text-xs">{u.coins.toLocaleString()}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 bg-yellow-500/10 px-2 py-1 rounded-lg border border-yellow-500/20">
-                  <span className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center text-[8px] font-black text-black">C</span>
-                  <span className="font-bold text-yellow-500 text-xs">{user.coins}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

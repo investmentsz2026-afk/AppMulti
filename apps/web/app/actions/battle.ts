@@ -618,4 +618,27 @@ export async function checkUserIsLive() {
   }
 }
 
+// 15. Get top users based on wallet balance
+export async function getTopDonators() {
+  try {
+    const wallets = await prisma.wallet.findMany({
+      orderBy: { balance: 'desc' },
+      take: 5,
+      include: {
+        user: { select: { username: true, avatar: true, role: true } }
+      }
+    });
+    return wallets.map((w, idx) => ({
+      pos: idx + 1,
+      name: w.user.username,
+      avatar: w.user.avatar,
+      coins: w.balance,
+      verified: w.user.role === 'STREAMER' || w.user.role === 'ADMIN'
+    }));
+  } catch (error) {
+    console.error('Error fetching top donadores:', error);
+    return [];
+  }
+}
+
 

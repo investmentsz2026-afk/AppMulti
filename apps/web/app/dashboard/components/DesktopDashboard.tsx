@@ -1,20 +1,47 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Home, Play, Compass, Sword, Trophy, MessageSquare, 
   Bell, User, Wallet, Plus, Search, Crown, LogOut, 
-  ChevronRight, BadgeCheck, Heart, MessageCircle, Share2, Gift, Eye
+  ChevronRight, BadgeCheck, Heart, MessageCircle, Share2, Gift, Eye, Coins
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
+import { getUpcomingStreamers, getOngoingBattles, getTopDonators, getUserWalletBalance } from '@/app/actions/battle';
 
 export default function DesktopDashboard({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const router = useRouter();
   const { isLive, streamTitle, viewers } = useLiveStore();
+
+  const [liveStreamers, setLiveStreamers] = useState<any[]>([]);
+  const [activeBattles, setActiveBattles] = useState<any[]>([]);
+  const [topUsers, setTopUsers] = useState<any[]>([]);
+  const [realCoins, setRealCoins] = useState(0);
+
+  useEffect(() => {
+    async function loadRealData() {
+      try {
+        const streamers = await getUpcomingStreamers();
+        setLiveStreamers(streamers);
+
+        const battles = await getOngoingBattles();
+        setActiveBattles(battles);
+
+        const donators = await getTopDonators();
+        setTopUsers(donators);
+
+        const coins = await getUserWalletBalance();
+        setRealCoins(coins);
+      } catch (err) {
+        console.error('Error loading desktop dashboard data:', err);
+      }
+    }
+    loadRealData();
+  }, []);
 
   const handleLogout = async () => {
     await logoutUser();
@@ -103,7 +130,7 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
              <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.5)]">
                 <span className="text-[10px] font-black text-black">L</span>
              </div>
-             <span className="font-black text-lg">12,450</span>
+             <span className="font-black text-lg">{realCoins.toLocaleString()}</span>
            </div>
            <button className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
@@ -234,8 +261,8 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
                      <button className="px-6 py-2.5 bg-white/10 backdrop-blur-md border border-white/10 text-white text-sm font-black rounded-xl hover:bg-white/20 transition-colors">
                        Suscribirse
                      </button>
-                   </div>
-                </div>
+                    </div>
+                 </div>
               </Link>
 
               {/* En vivo ahora */}
@@ -266,45 +293,41 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
                           </h4>
                           <p className="text-[10px] text-white font-bold truncate mb-1">{streamTitle || 'Transmitiendo en Vivo'}</p>
                           <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500">
-                            <div className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center"><span className="text-[6px] text-black">L</span></div>
-                            0
+                            <Coins className="w-3 h-3 text-yellow-500" />
+                            {realCoins.toLocaleString()}
                           </div>
                         </div>
                       </div>
                     </Link>
                   )}
 
-                  {[
-                    { name: 'AndrésGG', viewers: '1,234', title: 'Rankeds de noche 🌙', coins: '12.5K' },
-                    { name: 'SofiLive', viewers: '987', title: 'Charlando con ustedes 💜', coins: '8.7K' },
-                    { name: 'DiegoStream', viewers: '2,105', title: 'Batalla épica 🔥', coins: '25.5K' },
-                    { name: 'CamiLove', viewers: '756', title: 'Just Chatting ✨', coins: '5.3K' },
-                  ].map((stream, i) => (
-                    <Link href={`/live/${stream.name}`} key={i} className="group cursor-pointer block">
+                  {liveStreamers.map((stream, i) => (
+                    <Link href={`/live/${stream.username}`} key={stream.id} className="group cursor-pointer block">
                       <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 border border-white/5">
-                        <img src={`https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400&u=${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img src={stream.avatar || `https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400&u=${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute top-2 left-2 flex gap-1">
                           <span className="px-1.5 py-0.5 bg-red-600 text-[8px] font-black rounded uppercase">En vivo</span>
                           <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md text-[8px] font-black rounded flex items-center gap-1 border border-white/10">
-                            <Eye className="w-2.5 h-2.5" /> {stream.viewers}
+                            <Eye className="w-2.5 h-2.5" /> {Math.floor(Math.random() * 200 + 10)}
                           </span>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${stream.name}`} className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 shrink-0" />
+                        <img src={stream.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${stream.username}`} className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 shrink-0" />
                         <div className="min-w-0">
                           <h4 className="text-sm font-bold truncate flex items-center gap-1">
-                            {stream.name} {i < 2 && <BadgeCheck className="w-3 h-3 text-blue-400 shrink-0" />}
+                            {stream.username} <BadgeCheck className="w-3 h-3 text-blue-400 shrink-0" />
                           </h4>
-                          <p className="text-[10px] text-zinc-400 truncate mb-1">{stream.title}</p>
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500">
-                            <div className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center"><span className="text-[6px] text-black">L</span></div>
-                            {stream.coins}
-                          </div>
+                          <p className="text-[10px] text-zinc-400 truncate mb-1">{stream.stream?.title || 'Gaming'}</p>
                         </div>
                       </div>
                     </Link>
                   ))}
+                  {liveStreamers.length === 0 && (
+                    <div className="col-span-4 text-center text-xs text-zinc-500 py-10 bg-white/5 rounded-3xl border border-dashed border-white/10">
+                      No hay transmisiones en vivo disponibles ahora.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -314,57 +337,43 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
                   <h3 className="text-xl font-black">Batallas destacadas</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative aspect-[16/7] rounded-2xl overflow-hidden border border-white/5 group cursor-pointer">
-                    <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-900/60 via-transparent to-blue-900/60" />
-                    <div className="absolute inset-0 flex items-center justify-around p-4">
-                       <div className="text-center w-[35%]">
-                          <div className="text-xs lg:text-sm font-black text-white mb-1 uppercase tracking-tighter truncate">Team Alpha</div>
-                       </div>
-                       <div className="text-2xl lg:text-4xl font-black italic text-white/40">VS</div>
-                       <div className="text-center w-[35%]">
-                          <div className="text-xs lg:text-sm font-black text-white mb-1 uppercase tracking-tighter truncate">Team Omega</div>
-                       </div>
+                  {activeBattles.length === 0 ? (
+                    <div className="col-span-2 text-center text-xs text-zinc-500 py-10 bg-white/5 rounded-3xl border border-dashed border-white/10">
+                      No hay batallas PvP activas en este momento.
                     </div>
-                    <div className="absolute bottom-3 left-4 right-4 flex justify-between items-center">
-                       <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-400">
-                         <User className="w-4 h-4" /> 3,456 espectadores
-                       </div>
-                       <button className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-xs font-bold transition-colors">
-                         Ver batalla
-                       </button>
-                    </div>
-                  </div>
-                  
-                  <div className="relative aspect-[16/7] rounded-2xl overflow-hidden border border-white/5 group cursor-pointer">
-                    <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&u=2" className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-pink-900/60 via-transparent to-purple-900/60" />
-                    <div className="absolute inset-0 flex items-center justify-around p-4">
-                       <div className="text-center w-[35%]">
-                          <div className="text-xs lg:text-sm font-black text-white mb-1 uppercase tracking-tighter truncate">KingStars</div>
-                       </div>
-                       <div className="text-2xl lg:text-4xl font-black italic text-white/40">VS</div>
-                       <div className="text-center w-[35%]">
-                          <div className="text-xs lg:text-sm font-black text-white mb-1 uppercase tracking-tighter truncate">NightRaid</div>
-                       </div>
-                    </div>
-                    <div className="absolute bottom-3 left-4 right-4 flex justify-between items-center">
-                       <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-400">
-                         <User className="w-4 h-4" /> 2,789 espectadores
-                       </div>
-                       <button className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-xs font-bold transition-colors">
-                         Ver batalla
-                       </button>
-                    </div>
-                  </div>
+                  ) : (
+                    activeBattles.map(battle => (
+                      <div key={battle.id} className="relative aspect-[16/7] rounded-2xl overflow-hidden border border-white/5 group cursor-pointer">
+                        <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-900/60 via-transparent to-blue-900/60" />
+                        <div className="absolute inset-0 flex items-center justify-around p-4">
+                           <div className="text-center w-[35%]">
+                              <div className="text-xs lg:text-sm font-black text-white mb-1 uppercase tracking-tighter truncate">@{battle.stream1?.user?.username}</div>
+                           </div>
+                           <div className="text-2xl lg:text-4xl font-black italic text-white/40">VS</div>
+                           <div className="text-center w-[35%]">
+                              <div className="text-xs lg:text-sm font-black text-white mb-1 uppercase tracking-tighter truncate">@{battle.stream2?.user?.username}</div>
+                           </div>
+                        </div>
+                        <div className="absolute bottom-3 left-4 right-4 flex justify-between items-center">
+                           <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-400">
+                             <User className="w-4 h-4" /> En vivo
+                           </div>
+                           <Link href="/batallas" className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-xs font-bold transition-colors">
+                             Ver batalla
+                           </Link>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
-           </div>
+            </div>
 
-           {/* Right Sidebar */}
-           <div className="w-[320px] flex flex-col gap-6 shrink-0">
-              
+            {/* Right Sidebar */}
+            <div className="w-[320px] flex flex-col gap-6 shrink-0">
+               
               {/* Top Donadores */}
               <div className="bg-[#0a0a0f] border border-white/5 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-5">
@@ -372,29 +381,27 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
                   <button className="text-[10px] font-bold text-purple-400 hover:text-purple-300">Ver ranking →</button>
                 </div>
                 <div className="flex flex-col gap-4">
-                  {[
-                    { name: 'DiegoStream', coins: '125,430', verified: true },
-                    { name: 'AndrésGG', coins: '98,760', verified: true },
-                    { name: 'CamiLove', coins: '76,540', verified: true },
-                    { name: 'AlexM', coins: '64,230', verified: false },
-                    { name: 'SofiLive', coins: '52,180', verified: true }
-                  ].map((d, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className={`text-sm font-black w-3 text-center ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-zinc-500'}`}>
-                          {i + 1}
-                        </span>
-                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${d.name}`} className="w-8 h-8 rounded-full bg-zinc-800" />
-                        <span className="text-sm font-bold flex items-center gap-1">
-                          {d.name} {d.verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />}
-                        </span>
+                  {topUsers.length === 0 ? (
+                    <div className="text-center text-xs text-zinc-500 italic py-2">Sin donadores registrados.</div>
+                  ) : (
+                    topUsers.map((d, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-black w-3 text-center ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-zinc-500'}`}>
+                            {i + 1}
+                          </span>
+                          <img src={d.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${d.name}`} className="w-8 h-8 rounded-full bg-zinc-800" />
+                          <span className="text-sm font-bold flex items-center gap-1">
+                            @{d.name} {d.verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs font-bold text-yellow-500">
+                          <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                          {d.coins.toLocaleString()}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 text-xs font-bold text-yellow-500">
-                        <div className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center"><span className="text-[6px] text-black">L</span></div>
-                        {d.coins}
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
