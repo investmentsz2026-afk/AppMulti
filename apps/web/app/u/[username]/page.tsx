@@ -10,8 +10,13 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
   const { username } = await params;
   const cleanUsername = decodeURIComponent(username).replace('@', '');
 
-  const targetUser = await prisma.user.findUnique({
-    where: { username: cleanUsername },
+  const targetUser = await prisma.user.findFirst({
+    where: {
+      username: {
+        equals: cleanUsername,
+        mode: 'insensitive'
+      }
+    },
     select: {
       id: true,
       username: true,
