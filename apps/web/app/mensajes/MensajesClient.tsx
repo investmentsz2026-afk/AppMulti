@@ -445,7 +445,7 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#05050a] text-white relative">
+    <div className="flex h-[100dvh] w-full bg-[#05050a] text-white relative">
       
       {/* 1. LEFT SIDEBAR NAVIGATION */}
       <aside className="hidden lg:flex w-[260px] border-r border-white/5 bg-[#0a0a0f] flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar">

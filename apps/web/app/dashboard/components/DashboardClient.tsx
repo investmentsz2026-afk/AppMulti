@@ -9,7 +9,7 @@ import DesktopFollowing from './DesktopFollowing';
 import MobileFollowing from './MobileFollowing';
 
 export default function DashboardClient({ user }: { user: any }) {
-  const [tab, setTab] = useState<'inicio' | 'parati' | 'siguiendo'>('inicio');
+  const [tab, setTab] = useState<'inicio' | 'parati' | 'siguiendo'>('parati');
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
