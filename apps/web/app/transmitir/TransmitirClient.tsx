@@ -78,6 +78,11 @@ export default function TransmitirClient({ user }: { user: any }) {
       await handleDeviceChange(selectedDeviceId);
       setIsScreenSharing(false);
     } else {
+      if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        toast.error('Compartir pantalla solo es compatible con computadoras (PC/Laptop). En celulares se utiliza la cámara.');
+        return;
+      }
+
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
@@ -120,7 +125,7 @@ export default function TransmitirClient({ user }: { user: any }) {
         toast.success('Compartiendo pantalla.');
       } catch (err) {
         console.error('Error al compartir pantalla:', err);
-        toast.error('No se pudo compartir la pantalla.');
+        toast.error('No se pudo compartir la pantalla. Verifica los permisos de tu navegador o sistema.');
       }
     }
   };
