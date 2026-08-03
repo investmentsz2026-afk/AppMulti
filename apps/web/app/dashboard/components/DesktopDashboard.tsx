@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { getUpcomingStreamers, getOngoingBattles, getTopDonators, getUserWalletBalance } from '@/app/actions/battle';
+import { getUnreadNotificationsCount } from '@/app/actions/social';
 
 export default function DesktopDashboard({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
   const [activeBattles, setActiveBattles] = useState<any[]>([]);
   const [topUsers, setTopUsers] = useState<any[]>([]);
   const [realCoins, setRealCoins] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     async function loadRealData() {
@@ -36,6 +38,9 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
 
         const coins = await getUserWalletBalance();
         setRealCoins(coins);
+
+        const count = await getUnreadNotificationsCount();
+        setUnreadNotifications(count);
       } catch (err) {
         console.error('Error loading desktop dashboard data:', err);
       }
@@ -104,7 +109,9 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
           </Link>
           <Link href="/notificaciones" className="flex items-center justify-between px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
             <div className="flex items-center gap-3"><Bell className="w-5 h-5" /> Notificaciones</div>
-            <span className="bg-pink-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">8</span>
+            {unreadNotifications > 0 && (
+              <span className="bg-pink-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{unreadNotifications}</span>
+            )}
           </Link>
           <Link href={`/u/${user.username}`} className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
             <User className="w-5 h-5" /> Perfil

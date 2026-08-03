@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { updateStreamStatus } from '@/app/actions/stream';
+import { updateStreamStatus, keepStreamAliveAction } from '@/app/actions/stream';
 
 interface HeartAnimation {
   id: number;
@@ -39,6 +39,18 @@ export default function TransmitirClient({ user }: { user: any }) {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+
+  // Send stream heartbeats while live to prevent stream from becoming stale
+  useEffect(() => {
+    if (!isLive) return;
+    keepStreamAliveAction();
+    const interval = setInterval(() => {
+      keepStreamAliveAction();
+    }, 25000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isLive]);
   
   // Setup view state
   const [title, setTitle] = useState('');

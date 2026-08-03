@@ -168,6 +168,22 @@ export async function toggleLikePost(postId: string) {
         data: { userId, postId }
       });
       liked = true;
+
+      // Create notification
+      const post = await prisma.post.findUnique({
+        where: { id: postId },
+        select: { userId: true, title: true }
+      });
+      if (post && post.userId !== userId) {
+        await prisma.notification.create({
+          data: {
+            userId: post.userId,
+            type: 'SYSTEM',
+            content: `${session.username}|${session.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.username}`}|le dio me gusta a tu video: "${post.title.substring(0, 30)}..."`,
+            link: `/dashboard?tab=parati&postId=${postId}`
+          }
+        });
+      }
     }
 
     const count = await prisma.postLike.count({
@@ -246,6 +262,16 @@ export async function toggleFollowUser(targetUserId: string) {
         data: { followerId, followingId: targetUserId }
       });
       following = true;
+
+      // Create notification
+      await prisma.notification.create({
+        data: {
+          userId: targetUserId,
+          type: 'NEW_FOLLOWER',
+          content: `${session.username}|${session.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.username}`}|comenzó a seguirte.`,
+          link: `/u/${session.username}`
+        }
+      });
     }
 
     return { success: true, following };
@@ -682,6 +708,22 @@ export async function createComment(postId: string, content: string) {
       }
     });
 
+    // Create notification
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { userId: true, title: true }
+    });
+    if (post && post.userId !== userId) {
+      await prisma.notification.create({
+        data: {
+          userId: post.userId,
+          type: 'SYSTEM',
+          content: `${session.username}|${session.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.username}`}|comentó en tu video: "${trimmed.substring(0, 30)}..."`,
+          link: `/dashboard?tab=parati&postId=${postId}`
+        }
+      });
+    }
+
     return {
       success: true,
       comment: {
@@ -768,5 +810,71 @@ export async function deleteComment(commentId: string) {
   } catch (err: any) {
     console.error('Error deleting comment:', err);
     return { error: err.message || 'Error al eliminar comentario' };
+  }
+}
+
+export async function getNotifications() {
+  const session = await getSession();
+  if (!session) return [];
+
+  const userId = session.id as string;
+
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    return notifications;
+  } catch (err) {
+    console.error('Error getting notifications:', err);
+    return [];
+  }
+}
+
+export async function markNotificationRead(notificationId: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  try {
+    await prisma.notification.update({
+      where: { id: notificationId },
+      data: { isRead: true }
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function markAllNotificationsRead() {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  const userId = session.id as string;
+
+  try {
+    await prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true }
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function getUnreadNotificationsCount() {
+  const session = await getSession();
+  if (!session) return 0;
+
+  const userId = session.id as string;
+
+  try {
+    const count = await prisma.notification.count({
+      where: { userId, isRead: false }
+    });
+    return count;
+  } catch (err) {
+    return 0;
   }
 }

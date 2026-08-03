@@ -98,3 +98,17 @@ export async function checkStreamStatus(streamerUsername: string) {
     return { isLive: false };
   }
 }
+
+export async function keepStreamAliveAction() {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+  try {
+    await prisma.stream.update({
+      where: { userId: session.id },
+      data: { updatedAt: new Date() }
+    });
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
