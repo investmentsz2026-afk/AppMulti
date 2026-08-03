@@ -11,6 +11,8 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
+import { getUpcomingStreamers, getUserWalletBalance } from '@/app/actions/battle';
+import { getUnreadNotificationsCount } from '@/app/actions/social';
 
 export default function GamingClient({ user }: { user: any }) {
   const router = useRouter();
@@ -18,7 +20,9 @@ export default function GamingClient({ user }: { user: any }) {
   const [showQuickActions, setShowQuickActions] = useState(false);
   
   // Game Center state
-  const [userCoins, setUserCoins] = useState(12450);
+  const [userCoins, setUserCoins] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [realLiveStreamers, setRealLiveStreamers] = useState<any[]>([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   
@@ -53,6 +57,24 @@ export default function GamingClient({ user }: { user: any }) {
       });
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    async function loadRealData() {
+      try {
+        const streamers = await getUpcomingStreamers();
+        setRealLiveStreamers(streamers);
+        
+        const balance = await getUserWalletBalance();
+        setUserCoins(balance);
+
+        const count = await getUnreadNotificationsCount();
+        setUnreadNotifications(count);
+      } catch (err) {
+        console.error('Error loading real data in gaming:', err);
+      }
+    }
+    loadRealData();
   }, []);
 
   const formatCountdown = (seconds: number) => {
@@ -91,13 +113,16 @@ export default function GamingClient({ user }: { user: any }) {
 
   const { isLive, streamTitle, viewers, streamCategory } = useLiveStore();
 
-  const liveStreamers = [
-    { id: 1, name: 'NobruFF', avatar: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=150', category: 'Clasificatoria Heroico', views: '15.4K', preview: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400' },
-    { id: 2, name: 'A3FF_Gamer', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', category: 'Salas 4vs4 Apostado', views: '8.2K', preview: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400&u=1' },
-    { id: 3, name: 'Sura_FF', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', category: 'PvP Apostado $100', views: '6.7K', preview: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=400' },
-    { id: 4, name: 'DonatoPlay', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', category: 'Torneo Semanal FF', views: '22.3K', preview: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=400' },
-    { id: 5, name: 'SofiLive', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', category: 'Jugando con Seguidores', views: '4.1K', preview: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=400' },
-  ];
+  const mappedLiveStreamers = realLiveStreamers.map((s, i) => ({
+    id: s.id,
+    name: s.username,
+    avatar: s.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.username}`,
+    category: s.stream?.category || 'Free Fire Arena',
+    views: '128',
+    preview: s.avatar || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400',
+    title: s.stream?.title || '¡Transmitiendo en vivo!',
+    isOwn: false
+  }));
 
   const userStreamer = isLive && user ? {
     id: 9999,
@@ -109,7 +134,7 @@ export default function GamingClient({ user }: { user: any }) {
     isOwn: true
   } : null;
 
-  const activeLiveStreamers = userStreamer ? [userStreamer, ...liveStreamers] : liveStreamers;
+  const activeLiveStreamers = userStreamer ? [userStreamer, ...mappedLiveStreamers] : mappedLiveStreamers;
 
   const pvpRooms = [
     { id: 1, name: 'PvP Apostado 4vs4', mode: 'Escuadra vs Escuadra', players: '6/8', fee: '50 Monedas', prize: '800 Monedas', roomID: '2287910', online: true },
@@ -123,11 +148,17 @@ export default function GamingClient({ user }: { user: any }) {
     { id: 3, name: 'A3FF_Gamer', level: 'Nivel 48', followers: '1.8M', wins: '8,420', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', rank: '#3', glowColor: 'rgba(234, 179, 8, 0.4)' },
   ];
 
-  const mainFeedItems = [
-    { id: 1, streamerId: 1, name: 'NobruFF', avatar: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=150', views: '15.4K', title: '💥 PvP INVASIÓN HEROICA CON TODO MI CLAN! Apostando 2000 monedas 💥', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600', category: 'Free Fire · Salas PvP', pvpID: '2287910' },
-    { id: 2, streamerId: 3, name: 'Sura_FF', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', views: '6.7K', title: '¿Quién contra mí en 1vs1? M1014 tiro a la cabeza solamente. 🔥', img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=600', category: 'Free Fire · Retos', pvpID: '8876295' },
-    { id: 3, streamerId: 4, name: 'DonatoPlay', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', views: '22.3K', title: 'Torneo Relámpago Free Fire! Entrando con los espectadores en vivo 🏆', img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=600', category: 'Free Fire · Torneo' },
-  ];
+  const mappedFeedItems = mappedLiveStreamers.map(s => ({
+    id: s.id,
+    streamerId: s.id,
+    name: s.name,
+    avatar: s.avatar,
+    views: s.views,
+    title: s.title,
+    img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800',
+    category: s.category,
+    isOwn: false
+  }));
 
   const userFeedItem = isLive && user ? {
     id: 9999,
@@ -141,10 +172,10 @@ export default function GamingClient({ user }: { user: any }) {
     isOwn: true
   } : null;
 
-  const activeFeedItems = userFeedItem ? [userFeedItem, ...mainFeedItems] : mainFeedItems;
+  const activeFeedItems = userFeedItem ? [userFeedItem, ...mappedFeedItems] : mappedFeedItems;
 
   return (
-    <div className="flex h-screen w-full bg-[#040408] text-white overflow-hidden relative">
+    <div className="flex h-[100dvh] w-full bg-[#040408] text-white overflow-hidden relative">
       
       {/* ----------------- DESKTOP SIDEBAR (Perfectly cohesive with following sidebar!) ----------------- */}
       <aside className="w-[260px] border-r border-white/5 bg-[#0a0a0f] flex flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar hidden lg:flex">
@@ -317,11 +348,7 @@ export default function GamingClient({ user }: { user: any }) {
 
                   <button 
                     onClick={() => {
-                      if (streamer.isOwn) {
-                        router.push(`/live/${streamer.name}`);
-                      } else {
-                        setMobileFullscreenStream(streamer);
-                      }
+                      router.push(`/live/${streamer.name}`);
                     }} 
                     className="w-full py-1.5 bg-pink-600 hover:bg-pink-700 text-[10px] font-black rounded-xl uppercase tracking-wider transition-colors shadow-md shadow-pink-600/10"
                   >
@@ -378,11 +405,7 @@ export default function GamingClient({ user }: { user: any }) {
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 z-10">
                       <button 
                         onClick={() => {
-                          if (item.isOwn) {
-                            router.push(`/live/${item.name}`);
-                          } else {
-                            setMobileFullscreenStream(item);
-                          }
+                          router.push(`/live/${item.name}`);
                         }} 
                         className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-xs font-black rounded-full shadow-lg shadow-pink-500/20 uppercase tracking-widest hover:scale-105 transition-transform"
                       >
@@ -452,11 +475,7 @@ export default function GamingClient({ user }: { user: any }) {
                         )}
                         <button 
                           onClick={() => {
-                            if (item.isOwn) {
-                              router.push(`/live/${item.name}`);
-                            } else {
-                              setMobileFullscreenStream(item);
-                            }
+                            router.push(`/live/${item.name}`);
                           }} 
                           className="px-2.5 sm:px-3.5 py-1.5 bg-[#171333] border border-purple-500/20 text-purple-300 text-[9px] sm:text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-[#1f1a44] transition-colors"
                         >
