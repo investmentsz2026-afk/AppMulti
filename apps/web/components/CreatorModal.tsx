@@ -212,14 +212,14 @@ export default function CreatorModal() {
       <div className="absolute inset-0" onClick={handleClose} />
       
       {/* Modal Container */}
-      <div className="relative w-full max-w-lg bg-[#0c0b18]/95 border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.3)] transform transition-transform animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg bg-[#0c0b18]/95 border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.3)] transform transition-transform animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] mx-4">
         
         {/* Glow Effects */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-purple-600/30 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-pink-600/30 rounded-full blur-3xl" />
 
         {/* Modal Header */}
-        <div className="relative z-10 px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#090812]/90">
+        <div className="relative z-10 px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#090812]/90 shrink-0">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-purple-400">Creator Hub</span>
             <h3 className="text-lg font-black text-white flex items-center gap-1.5 mt-0.5">
@@ -235,7 +235,7 @@ export default function CreatorModal() {
         </div>
 
         {/* Modal Body */}
-        <div className="relative z-10 p-6 min-h-[320px]">
+        <div className="relative z-10 p-6 overflow-y-auto custom-scrollbar flex-1">
           
           {/* TAB 1: MENU PRINCIPAL */}
           {activeTab === 'menu' && (
