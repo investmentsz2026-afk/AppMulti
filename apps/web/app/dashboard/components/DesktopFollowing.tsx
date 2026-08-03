@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Home, Play, Compass, Sword, Trophy, MessageSquare, 
@@ -9,38 +9,29 @@ import {
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
+import { getFollowingFeedData } from '@/app/actions/social';
 
 export default function DesktopFollowing({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const [activeFilter, setActiveFilter] = useState('Todo');
   const [activeSort, setActiveSort] = useState('Más recientes');
 
-  const followingCount = 128;
+  const [followingCount, setFollowingCount] = useState(0);
+  const [liveStreamers, setLiveStreamers] = useState<any[]>([]);
+  const [feedItems, setFeedItems] = useState<any[]>([]);
 
-  // Lives carousel data
-  const liveStreamers = [
-    { id: 1, name: 'SofiLive', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', category: 'Just Chatting', views: '2.2K', preview: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=300' },
-    { id: 2, name: 'AndrésGG', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', category: 'Warzone', views: '1.2K', preview: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=300' },
-    { id: 3, name: 'CamiLove', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=150', category: 'Charlando', views: '987', preview: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=300' },
-    { id: 4, name: 'MartinCV', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', category: 'Fortnite', views: '854', preview: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=300' },
-    { id: 5, name: 'NickyPlay', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', category: 'Música', views: '320', preview: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=300' },
-    { id: 6, name: 'Zeta', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=150', category: 'Apex Legends', views: '150', preview: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=300&u=12' },
-  ];
-
-  // Feed items
-  const feedItems = [
-    { id: 1, type: 'live', name: 'SofiLive', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', title: 'Charlando con ustedes 💜 ven a pasar el rato!', views: '2.2K', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400' },
-    { id: 2, type: 'video', name: 'AndrésGG', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', title: 'Así se ve el nuevo mapa 😍🔥', duration: '00:15', img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400' },
-    { id: 3, type: 'video', name: 'CamiLove', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=150', title: 'Storytime: Lo que nadie sabe de mí 🙊', duration: '00:32', img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=400' },
-    { id: 4, type: 'short', name: 'MartinCV', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', title: 'Partida épica en ranked 🎮🔥', duration: '01:00', img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=400' },
-    { id: 5, type: 'live', name: 'NickyPlay', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', title: 'Batalla de escuadras VS NickyPlay 🏆', views: '320', img: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=400' },
-    { id: 6, type: 'video', name: 'Zeta', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=150', title: 'Nuevo setup del estudio 🛠️✨', duration: '00:15', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400&u=9' },
-    { id: 7, type: 'live', name: 'AlexM', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', title: 'Probando juegos nuevos 🕹️👾', views: '1.7K', img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400&u=3' },
-    { id: 8, type: 'video', name: 'SofiLive', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', title: 'Día de fotos en el bosque 🌲📷', duration: '00:28', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400&u=10' },
-    { id: 9, type: 'live', name: 'MartinCV', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', title: 'Torneo de streamers LiveX 🏆🎮', views: '854', img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=400&u=11' },
-    { id: 10, type: 'photo', name: 'CamiLove', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=150', title: 'Mi nueva mascota 🐱🤍', duration: '00:09', img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=400' },
-    { id: 11, type: 'video', name: 'AndrésGG', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', title: 'Vlog: Un día conmigo 🎬🍿', duration: '01:32', img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=400&u=13' },
-    { id: 12, type: 'live', name: 'NickyPlay', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', title: 'Cantando en vivo 🎤💜', views: '1.1K', img: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=400&u=14' },
-  ];
+  useEffect(() => {
+    async function loadFollowingData() {
+      try {
+        const data = await getFollowingFeedData();
+        setFollowingCount(data.followingCount);
+        setLiveStreamers(data.liveStreamers);
+        setFeedItems(data.feedItems);
+      } catch (err) {
+        console.error('Error loading following data:', err);
+      }
+    }
+    loadFollowingData();
+  }, []);
 
   return (
     <div className="flex h-screen w-full bg-[#05050a] text-white">

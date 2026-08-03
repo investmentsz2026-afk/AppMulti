@@ -112,3 +112,61 @@ export async function keepStreamAliveAction() {
     return { error: error.message };
   }
 }
+
+export async function sendStreamChatMessage(streamerUsername: string, content: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  try {
+    const streamer = await prisma.user.findUnique({
+      where: { username: streamerUsername },
+      include: { stream: true }
+    });
+
+    if (!streamer || !streamer.stream) {
+      return { error: 'Streamer offline o no encontrado' };
+    }
+
+    const message = await prisma.message.create({
+      data: {
+        content: content.trim(),
+        userId: session.id,
+        streamId: streamer.stream.id
+      },
+      include: {
+        user: { select: { id: true, username: true, avatar: true } }
+      }
+    });
+
+    return { success: true, message };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+export async function getStreamChatMessages(streamerUsername: string) {
+  try {
+    const streamer = await prisma.user.findUnique({
+      where: { username: streamerUsername },
+      include: { stream: true }
+    });
+
+    if (!streamer || !streamer.stream) {
+      return [];
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { streamId: streamer.stream.id },
+      orderBy: { createdAt: 'asc' },
+      take: 50,
+      include: {
+        user: { select: { id: true, username: true, avatar: true } }
+      }
+    });
+
+    return messages;
+  } catch (error) {
+    console.error('Error fetching stream messages:', error);
+    return [];
+  }
+}

@@ -878,3 +878,92 @@ export async function getUnreadNotificationsCount() {
     return 0;
   }
 }
+
+export async function getFollowingFeedData() {
+  const session = await getSession();
+  if (!session) return { followingCount: 0, liveStreamers: [], feedItems: [] };
+
+  const userId = session.id as string;
+
+  try {
+    // 1. Get user IDs that this user is following
+    const follows = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true }
+    });
+
+    const followedUserIds = follows.map(f => f.followingId);
+
+    // 2. Count following
+    const followingCount = followedUserIds.length;
+
+    if (followingCount === 0) {
+      return { followingCount: 0, liveStreamers: [], feedItems: [] };
+    }
+
+    // 3. Get actual live streams of followed users
+    const liveStreams = await prisma.stream.findMany({
+      where: {
+        userId: { in: followedUserIds },
+        isLive: true
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true
+          }
+        }
+      }
+    });
+
+    const liveStreamers = liveStreams.map(stream => ({
+      id: stream.user.id,
+      name: stream.user.username,
+      avatar: stream.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${stream.user.username}`,
+      category: stream.category,
+      views: '150', // We can show a default count or calculate
+      preview: stream.user.avatar || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=300'
+    }));
+
+    // 4. Get posts of followed users
+    const posts = await prisma.post.findMany({
+      where: {
+        userId: { in: followedUserIds }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true
+          }
+        }
+      }
+    });
+
+    const feedItems = posts.map(post => ({
+      id: post.id,
+      type: post.type === 'VIDEO' ? 'video' : 'photo',
+      name: post.user.username,
+      avatar: post.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user.username}`,
+      title: post.title,
+      duration: post.type === 'VIDEO' ? '00:15' : undefined,
+      views: post.type === 'VIDEO' ? '1.2K' : undefined,
+      img: post.url
+    }));
+
+    return {
+      followingCount,
+      liveStreamers,
+      feedItems
+    };
+  } catch (err) {
+    console.error('Error fetching following feed:', err);
+    return { followingCount: 0, liveStreamers: [], feedItems: [] };
+  }
+}

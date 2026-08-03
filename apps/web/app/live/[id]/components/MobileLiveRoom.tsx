@@ -5,7 +5,7 @@ import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Fl
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
-import { checkStreamStatus } from '@/app/actions/stream';
+import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage } from '@/app/actions/stream';
 
 const MOCK_REC_POSTS = [
   {
@@ -43,20 +43,28 @@ const MOCK_REC_POSTS = [
 ];
 
 export default function MobileLiveRoom({ user, streamerName }: { user: any, streamerName: string }) {
-  const { isLive, streamTitle, viewers, likes, comments, addComment } = useLiveStore();
+  const { isLive, streamTitle, viewers, likes } = useLiveStore();
   const { posts: dbPosts } = usePublicPosts();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [inputMessage, setInputMessage] = useState('');
   const [isStreamActive, setIsStreamActive] = useState(true);
   const [streamTitleState, setStreamTitleState] = useState(streamTitle);
-  const [localChatMessages, setLocalChatMessages] = useState([
-    { id: 1, user: 'MoNito', badge: 'N.º 1', text: 'bro das codigo de nuevo no me deja entrar', color: 'text-zinc-300' },
-    { id: 2, user: 'sigo a muertos...', text: 'pasa código mano', color: 'text-zinc-300' },
-    { id: 3, user: 'sigo a muertos...', text: 'pasa código de equipo', color: 'text-zinc-300' },
-    { id: 4, user: 'Dënnïs', text: 'cuanto x esa cuenta', color: 'text-zinc-300' },
-    { id: 5, user: 'Dënnïs', badge: 'N.º 3', text: 'dolares o que', color: 'text-zinc-300' },
-  ]);
+  const [dbChatMessages, setDbChatMessages] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadChatMessages() {
+      try {
+        const msgs = await getStreamChatMessages(streamerName);
+        setDbChatMessages(msgs || []);
+      } catch (err) {
+        console.error('Error loading chat messages:', err);
+      }
+    }
+    loadChatMessages();
+    const interval = setInterval(loadChatMessages, 3000);
+    return () => clearInterval(interval);
+  }, [streamerName]);
 
   useEffect(() => {
     let activeStream: MediaStream | null = null;
@@ -151,29 +159,17 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     };
   }, [streamerName]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
-    if (isLive && streamerName === user?.username) {
-      addComment({
-        id: Math.random().toString(),
-        user: user?.username || 'Creador',
-        text: inputMessage,
-        badge: 'Creador',
-        color: 'text-pink-400'
-      });
-    } else {
-      setLocalChatMessages(prev => [
-        ...prev,
-        {
-          id: Math.random(),
-          user: user?.username || 'Invitado',
-          badge: '',
-          text: inputMessage,
-          color: 'text-zinc-300'
-        }
-      ]);
+    try {
+      const res = await sendStreamChatMessage(streamerName, inputMessage);
+      if (res.success && res.message) {
+        setDbChatMessages(prev => [...prev, res.message]);
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
     }
     setInputMessage('');
   };
@@ -360,16 +356,15 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
             ¡Bienvenido a LiveX! Protegemos a nuestra comunidad. Se amable.
           </div>
           
-          {/* Messages */}
-          {(isLive && streamerName === user?.username ? comments : localChatMessages).map(msg => (
+          {dbChatMessages.map(msg => (
             <div key={msg.id} className="flex gap-2 items-start text-sm drop-shadow-md">
-              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user}`} className="w-6 h-6 rounded-full border border-white/10 bg-zinc-800 shrink-0" />
+              <img src={msg.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username}`} className="w-6 h-6 rounded-full border border-white/10 bg-zinc-800 shrink-0" />
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-zinc-400 text-xs font-bold">{msg.user}</span>
-                  {msg.badge && <span className="text-[8px] bg-red-600 px-1 py-0.5 rounded uppercase font-black">{msg.badge}</span>}
+                  <span className="text-zinc-400 text-xs font-bold">@{msg.user?.username}</span>
+                  {msg.user?.username === streamerName && <span className="text-[8px] bg-purple-600 px-1 py-0.5 rounded uppercase font-black">STREAMER</span>}
                 </div>
-                <p className="font-medium text-white">{msg.text}</p>
+                <p className="font-medium text-white">{msg.content}</p>
               </div>
             </div>
           ))}

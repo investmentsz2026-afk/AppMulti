@@ -1,8 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCreatorStore } from '@/store/useCreatorStore';
+import { getFollowingFeedData } from '@/app/actions/social';
 import { 
   Home, Compass, Plus, MessageSquare, User, 
   Search, Crown, Heart, MessageCircle, Share2, 
@@ -15,26 +16,23 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [activeFilter, setActiveFilter] = useState('Todo');
 
-  const followingCount = 128;
+  const [followingCount, setFollowingCount] = useState(0);
+  const [liveStreamers, setLiveStreamers] = useState<any[]>([]);
+  const [feedItems, setFeedItems] = useState<any[]>([]);
 
-  // Lives horizontal avatars
-  const liveStreamers = [
-    { id: 1, name: 'SofiLive', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', category: 'Chatting', views: '2.3K' },
-    { id: 2, name: 'AndrésGG', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', category: 'Warzone', views: '1.2K' },
-    { id: 3, name: 'CamiLove', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=150', category: 'Charlando', views: '987' },
-    { id: 4, name: 'MartinCV', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', category: 'Fortnite', views: '854' },
-    { id: 5, name: 'NickyPlay', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', category: 'Música', views: '320' },
-  ];
-
-  // Feed items
-  const feedItems = [
-    { id: 1, type: 'live', name: 'SofiLive', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', title: 'Charlando con ustedes 💜 ven a pasar el rato!', views: '2.3K', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=300' },
-    { id: 2, type: 'video', name: 'AndrésGG', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', title: 'Así se ve el nuevo mapa 😍🔥', duration: '00:15', img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=300' },
-    { id: 3, type: 'video', name: 'CamiLove', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=150', title: 'Storytime: Lo que nadie sabe de mí 🙊', duration: '00:32', img: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=300' },
-    { id: 4, type: 'short', name: 'MartinCV', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', title: 'Partida épica en ranked 🎮🔥', duration: '01:00', img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=300' },
-    { id: 5, type: 'live', name: 'NickyPlay', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', title: 'Batalla de escuadras VS NickyPlay 🏆', views: '320', img: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&q=80&w=300' },
-    { id: 6, type: 'video', name: 'Zeta', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=150', title: 'Nuevo setup del estudio 🛠️✨', duration: '00:15', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=300&u=9' },
-  ];
+  useEffect(() => {
+    async function loadFollowingData() {
+      try {
+        const data = await getFollowingFeedData();
+        setFollowingCount(data.followingCount);
+        setLiveStreamers(data.liveStreamers);
+        setFeedItems(data.feedItems);
+      } catch (err) {
+        console.error('Error loading following data:', err);
+      }
+    }
+    loadFollowingData();
+  }, []);
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-[#05050a] text-white overflow-hidden relative">
