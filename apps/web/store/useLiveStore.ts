@@ -19,7 +19,9 @@ interface LiveState {
   startLive: (title: string, category: string) => void;
   stopLive: () => void;
   addLike: () => void;
+  setLikes: (likes: number) => void;
   addComment: (comment: ChatComment) => void;
+  setComments: (comments: ChatComment[]) => void;
   setViewers: (viewers: number) => void;
   resetStream: () => void;
 }
@@ -37,7 +39,7 @@ export const useLiveStore = create<LiveState>()(
         isLive: true,
         streamTitle: title || '¡Transmisión en Vivo de LiveX! 🎮',
         streamCategory: category || 'Gaming',
-        viewers: Math.floor(Math.random() * 50) + 80,
+        viewers: 0,
         likes: 0,
         comments: [
           { id: 'welcome', user: 'System', text: '¡Tu transmisión en vivo ha comenzado! Comparte con tus espectadores.', badge: 'LiveX', color: 'text-pink-400' }
@@ -52,9 +54,11 @@ export const useLiveStore = create<LiveState>()(
         comments: []
       }),
       addLike: () => set((state) => ({ likes: state.likes + 1 })),
+      setLikes: (likes) => set({ likes }),
       addComment: (comment) => set((state) => ({
         comments: [...state.comments.slice(-49), comment] // Keep last 50 comments
       })),
+      setComments: (comments) => set({ comments }),
       setViewers: (viewers) => set({ viewers }),
       resetStream: () => set({
         isLive: false,

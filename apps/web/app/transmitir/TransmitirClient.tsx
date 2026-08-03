@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { updateStreamStatus, keepStreamAliveAction } from '@/app/actions/stream';
+import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage } from '@/app/actions/stream';
 
 interface HeartAnimation {
   id: number;
@@ -21,7 +21,7 @@ interface HeartAnimation {
 
 export default function TransmitirClient({ user }: { user: any }) {
   const router = useRouter();
-  const { isLive, streamTitle, streamCategory, viewers, likes, comments, startLive, stopLive, addLike, addComment, setViewers } = useLiveStore();
+  const { isLive, streamTitle, streamCategory, viewers, likes, comments, startLive, stopLive, addLike, addComment, setComments, setViewers } = useLiveStore();
   
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -64,7 +64,8 @@ export default function TransmitirClient({ user }: { user: any }) {
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [cameraActive, setCameraActive] = useState(true);
   const [micActive, setMicActive] = useState(true);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   // Auto fill title/category from room creation query parameters
@@ -75,7 +76,11 @@ export default function TransmitirClient({ user }: { user: any }) {
 
   const toggleScreenShare = async () => {
     if (isScreenSharing) {
-      await handleDeviceChange(selectedDeviceId);
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      setScreenStream(null);
+      screenStreamRef.current = null;
       setIsScreenSharing(false);
     } else {
       if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
@@ -84,43 +89,25 @@ export default function TransmitirClient({ user }: { user: any }) {
       }
 
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        const stream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
           audio: true
         });
         
-        const activeStream = localStreamRef.current || localStream;
-        if (activeStream) {
-          activeStream.getVideoTracks().forEach(track => track.stop());
-        }
-
-        const screenTrack = screenStream.getVideoTracks()[0];
+        const screenTrack = stream.getVideoTracks()[0];
         if (!screenTrack) {
           toast.error('No se detectó ningún track de video de pantalla.');
           return;
         }
         
         screenTrack.onended = () => {
-          handleDeviceChange(selectedDeviceId);
+          setScreenStream(null);
+          screenStreamRef.current = null;
           setIsScreenSharing(false);
         };
 
-        const audioTrack = activeStream?.getAudioTracks()[0];
-        const tracks: MediaStreamTrack[] = [screenTrack, audioTrack].filter((t): t is MediaStreamTrack => !!t);
-        const combinedStream = new MediaStream(tracks);
-
-        setLocalStream(combinedStream);
-        localStreamRef.current = combinedStream;
-        
-        if (previewVideoRef.current) {
-          previewVideoRef.current.srcObject = combinedStream;
-          previewVideoRef.current.play().catch(() => {});
-        }
-        if (liveVideoRef.current) {
-          liveVideoRef.current.srcObject = combinedStream;
-          liveVideoRef.current.play().catch(() => {});
-        }
-
+        setScreenStream(stream);
+        screenStreamRef.current = stream;
         setIsScreenSharing(true);
         toast.success('Compartiendo pantalla.');
       } catch (err) {
@@ -132,10 +119,10 @@ export default function TransmitirClient({ user }: { user: any }) {
 
   // Auto screen-share on mount if query parameter is set
   useEffect(() => {
-    if (autoShareScreen && localStream && !isScreenSharing) {
+    if (autoShareScreen && cameraStream && !isScreenSharing) {
       toggleScreenShare();
     }
-  }, [autoShareScreen, localStream]);
+  }, [autoShareScreen, cameraStream]);
   
   // Floating hearts
   const [floatingHearts, setFloatingHearts] = useState<HeartAnimation[]>([]);
@@ -145,11 +132,15 @@ export default function TransmitirClient({ user }: { user: any }) {
   const [chatInput, setChatInput] = useState('');
   
   // Refs
-  const previewVideoRef = useRef<HTMLVideoElement>(null);
-  const liveVideoRef = useRef<HTMLVideoElement>(null);
+  const previewCameraVideoRef = useRef<HTMLVideoElement>(null);
+  const previewScreenVideoRef = useRef<HTMLVideoElement>(null);
+  const liveCameraVideoRef = useRef<HTMLVideoElement>(null);
+  const liveScreenVideoRef = useRef<HTMLVideoElement>(null);
   const desktopChatEndRef = useRef<HTMLDivElement>(null);
   const mobileChatEndRef = useRef<HTMLDivElement>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
+  
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   
   // Auto-scroll chat comments
   useEffect(() => {
@@ -211,11 +202,8 @@ export default function TransmitirClient({ user }: { user: any }) {
       }
 
       if (stream) {
-        setLocalStream(stream);
-        localStreamRef.current = stream;
-        if (previewVideoRef.current) {
-          previewVideoRef.current.srcObject = stream;
-        }
+        setCameraStream(stream);
+        cameraStreamRef.current = stream;
 
         try {
           // List video output devices
@@ -237,46 +225,43 @@ export default function TransmitirClient({ user }: { user: any }) {
 
     return () => {
       // Clean up track streams on unmount if setup screen is closed
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 1.5. Synchronize localStream with the active video element
+  // 1.5. Synchronize streams with the active video elements
   useEffect(() => {
-    const activeStream = localStreamRef.current || localStream;
-    if (!activeStream) return;
-
-    const playVideo = async (videoElement: HTMLVideoElement) => {
-      if (videoElement.srcObject !== activeStream) {
-        videoElement.srcObject = activeStream;
-      }
-      try {
-        await videoElement.play();
-      } catch (err) {
-        console.warn('Failed to play stream on video element:', err);
+    const bindStream = (videoRef: React.RefObject<HTMLVideoElement | null>, stream: MediaStream | null) => {
+      if (videoRef.current) {
+        if (videoRef.current.srcObject !== stream) {
+          videoRef.current.srcObject = stream;
+        }
+        if (stream) {
+          videoRef.current.play().catch(() => {});
+        }
       }
     };
 
-    if (isLive) {
-      if (liveVideoRef.current) {
-        playVideo(liveVideoRef.current);
-      }
+    if (!isLive) {
+      bindStream(previewCameraVideoRef, cameraStream);
+      bindStream(previewScreenVideoRef, screenStream);
     } else {
-      if (previewVideoRef.current) {
-        playVideo(previewVideoRef.current);
-      }
+      bindStream(liveCameraVideoRef, cameraStream);
+      bindStream(liveScreenVideoRef, screenStream);
     }
-  }, [isLive, localStream]);
+  }, [isLive, cameraStream, screenStream, cameraActive, isScreenSharing]);
 
   // 2. Handle switching cameras
   const handleDeviceChange = async (deviceId: string) => {
     setSelectedDeviceId(deviceId);
-    const activeStream = localStreamRef.current || localStream;
-    if (activeStream) {
-      activeStream.getTracks().forEach(track => track.stop());
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach(track => track.stop());
     }
 
     try {
@@ -284,22 +269,16 @@ export default function TransmitirClient({ user }: { user: any }) {
         video: { deviceId: { exact: deviceId } },
         audio: micActive
       });
-      setLocalStream(stream);
-      localStreamRef.current = stream;
-      if (previewVideoRef.current) {
-        previewVideoRef.current.srcObject = stream;
-      }
+      setCameraStream(stream);
+      cameraStreamRef.current = stream;
     } catch (e) {
       console.warn('Failed to switch camera with audio, trying video only:', e);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { deviceId: { exact: deviceId } }
         });
-        setLocalStream(stream);
-        localStreamRef.current = stream;
-        if (previewVideoRef.current) {
-          previewVideoRef.current.srcObject = stream;
-        }
+        setCameraStream(stream);
+        cameraStreamRef.current = stream;
         setMicActive(false);
       } catch (videoErr) {
         toast.error('Error al cambiar de cámara');
@@ -328,9 +307,10 @@ export default function TransmitirClient({ user }: { user: any }) {
   };
 
   // 3. Toggle camera stream
+  // 3. Toggle camera stream
   const toggleCamera = () => {
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
+    if (cameraStream) {
+      const videoTrack = cameraStream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setCameraActive(videoTrack.enabled);
@@ -340,8 +320,8 @@ export default function TransmitirClient({ user }: { user: any }) {
 
   // 4. Toggle microphone
   const toggleMic = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
+    if (cameraStream) {
+      const audioTrack = cameraStream.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setMicActive(audioTrack.enabled);
@@ -378,12 +358,19 @@ export default function TransmitirClient({ user }: { user: any }) {
     
     setFloatingHearts([]);
     stopLive();
-    const activeStream = localStreamRef.current || localStream;
-    if (activeStream) {
-      activeStream.getTracks().forEach(track => track.stop());
+    
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach(track => track.stop());
     }
-    setLocalStream(null);
-    localStreamRef.current = null;
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    
+    setCameraStream(null);
+    setScreenStream(null);
+    cameraStreamRef.current = null;
+    screenStreamRef.current = null;
+    setIsScreenSharing(false);
     setCameraActive(true);
     setMicActive(true);
     toast.success('Transmisión finalizada.');
@@ -414,79 +401,36 @@ export default function TransmitirClient({ user }: { user: any }) {
       }
 
       if (stream) {
-        setLocalStream(stream);
-        localStreamRef.current = stream;
-        if (previewVideoRef.current) {
-          previewVideoRef.current.srcObject = stream;
-        }
+        setCameraStream(stream);
+        cameraStreamRef.current = stream;
       }
     }, 500);
   };
 
-  // 7. Simulating Viewers, Likes and Live Comments
+  // 7. Polling Real database Live comments
   useEffect(() => {
-    if (isLive) {
-      const MOCK_COMMENTS = [
-        '¡Buena transmisión crack! 🔥',
-        '¡Saludos desde Perú! 🇵🇪',
-        '¡Qué buen setup!',
-        '¿Haces PvP contra seguidores? ⚔️',
-        '¡Apoyando con todo!',
-        '¡Te sigo desde ya! 🙌',
-        'Espectacular gameplay',
-        '¡Hola! Te mando una rosa 🌹',
-        '¿Cuál es tu sensibilidad de juego?',
-        '¡Agrega para jugar! 🎮',
-        '¡Vaya proaso! 😲',
-        'Mandame un saludo porfa'
-      ];
-      
-      const MOCK_USERS = [
-        'AndrésGG', 'SofiLive', 'DiegoStream', 'Joel', 'Ander_live', 
-        'Jimmy', 'Fercho_', 'CamiLove', 'MartinCV', 'NickyPlay'
-      ];
+    if (!isLive || !user?.username) return;
 
-      const COLORS = ['text-purple-400', 'text-pink-400', 'text-blue-400', 'text-yellow-400', 'text-green-400', 'text-orange-400'];
-
-      simulationInterval.current = setInterval(() => {
-        // Randomly simulate viewers fluctuate
-        const randomFluctuate = Math.floor(Math.random() * 7) - 3;
-        const newViewers = Math.max(10, viewers + randomFluctuate);
-        setViewers(newViewers);
-
-        // Randomly add comments
-        if (Math.random() > 0.4) {
-          const userStr = MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)] || 'Espectador';
-          const textStr = MOCK_COMMENTS[Math.floor(Math.random() * MOCK_COMMENTS.length)] || '¡Hola!';
-          const randColor = COLORS[Math.floor(Math.random() * COLORS.length)] || 'text-purple-400';
-          
-          addComment({
-            id: String(Date.now()),
-            user: userStr,
-            text: textStr,
-            badge: Math.random() > 0.7 ? 'Seguidor' : undefined,
-            color: randColor
-          });
-        }
-
-        // Randomly generate automatic likes (simulate viewers clicking hearts)
-        if (Math.random() > 0.6) {
-          addLike();
-          triggerFloatingHeartSim();
-        }
-      }, 2500);
-    } else {
-      if (simulationInterval.current) {
-        clearInterval(simulationInterval.current);
-      }
-    }
-
-    return () => {
-      if (simulationInterval.current) {
-        clearInterval(simulationInterval.current);
+    const fetchRealChat = async () => {
+      try {
+        const msgs = await getStreamChatMessages(user.username);
+        const formatted = msgs.map((m: any) => ({
+          id: m.id,
+          user: m.user.username,
+          text: m.content,
+          badge: m.user.username === user.username ? 'Creador' : undefined,
+          color: m.user.username === user.username ? 'text-red-400' : 'text-purple-400'
+        }));
+        setComments(formatted);
+      } catch (err) {
+        console.error('Error polling stream messages:', err);
       }
     };
-  }, [isLive, viewers]);
+
+    fetchRealChat();
+    const interval = setInterval(fetchRealChat, 3000);
+    return () => clearInterval(interval);
+  }, [isLive, user?.username]);
 
   // 8. Trigger floating hearts animations
   const triggerFloatingHeart = () => {
@@ -510,18 +454,26 @@ export default function TransmitirClient({ user }: { user: any }) {
   };
 
   // 9. Send Chat message manually as streamer
-  const handleSendChat = (e: React.FormEvent) => {
+  const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    const content = chatInput.trim();
+    if (!content || !user?.username) return;
 
-    addComment({
-      id: String(Date.now()),
-      user: user.username || 'Creador',
-      text: chatInput.trim(),
-      badge: 'Creador',
-      color: 'text-red-400'
-    });
     setChatInput('');
+    try {
+      await sendStreamChatMessage(user.username, content);
+      const msgs = await getStreamChatMessages(user.username);
+      const formatted = msgs.map((m: any) => ({
+        id: m.id,
+        user: m.user.username,
+        text: m.content,
+        badge: m.user.username === user.username ? 'Creador' : undefined,
+        color: m.user.username === user.username ? 'text-red-400' : 'text-purple-400'
+      }));
+      setComments(formatted);
+    } catch (err) {
+      console.error('Error sending chat message:', err);
+    }
   };
 
   if (!hasMounted) {
@@ -552,24 +504,50 @@ export default function TransmitirClient({ user }: { user: any }) {
               </Link>
             </div>
 
-            {/* Camera Preview Area */}
+            {/* Camera/Screen Preview Area */}
             <div className="relative w-full max-w-[90%] sm:max-w-md lg:max-w-xl aspect-video lg:aspect-[9/16] max-h-[30vh] sm:max-h-[40vh] lg:max-h-[80vh] rounded-2xl lg:rounded-[32px] overflow-hidden border border-white/10 bg-[#09090e] shadow-2xl flex items-center justify-center">
               
-              <video 
-                ref={previewVideoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className="w-full h-full object-cover scale-x-[-1]"
-              />
+              <div className={`w-full h-full grid ${cameraActive && isScreenSharing ? 'grid-rows-2 lg:grid-cols-1 lg:grid-rows-2' : 'grid-cols-1'} bg-black`}>
+                {/* Camera preview */}
+                {cameraActive && (
+                  <div className="relative w-full h-full bg-[#09090e] overflow-hidden flex items-center justify-center border border-white/5">
+                    <video 
+                      ref={previewCameraVideoRef} 
+                      autoPlay 
+                      playsInline 
+                      muted 
+                      className="w-full h-full object-cover scale-x-[-1]"
+                    />
+                    <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
+                      CÁMARA
+                    </div>
+                  </div>
+                )}
 
-              {/* Black overlay if camera disabled */}
-              {!cameraActive && (
-                <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-10 gap-3">
-                  <VideoOff className="w-16 h-16 text-zinc-600 animate-pulse" />
-                  <span className="text-sm font-bold text-zinc-400">Cámara apagada</span>
-                </div>
-              )}
+                {/* Screen preview */}
+                {isScreenSharing && (
+                  <div className="relative w-full h-full bg-[#050508] overflow-hidden flex items-center justify-center border border-white/5">
+                    <video 
+                      ref={previewScreenVideoRef} 
+                      autoPlay 
+                      playsInline 
+                      muted 
+                      className="w-full h-full object-contain"
+                    />
+                    <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
+                      PANTALLA
+                    </div>
+                  </div>
+                )}
+
+                {/* Black overlay if both disabled */}
+                {!cameraActive && !isScreenSharing && (
+                  <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-10 gap-3">
+                    <VideoOff className="w-16 h-16 text-zinc-600 animate-pulse" />
+                    <span className="text-sm font-bold text-zinc-400">Sin video ni pantalla</span>
+                  </div>
+                )}
+              </div>
 
               {/* Watermark/Live Tag */}
               <div className="absolute top-4 right-4 z-10 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
@@ -705,21 +683,47 @@ export default function TransmitirClient({ user }: { user: any }) {
           {/* Main broadcast video canvas */}
           <div className="absolute inset-0 lg:relative lg:flex-1 w-full h-full lg:h-auto flex items-center justify-center bg-black overflow-hidden group z-0 lg:z-10">
             
-            <video 
-              ref={liveVideoRef} 
-              autoPlay 
-              playsInline 
-              muted 
-              className="w-full h-full object-cover scale-x-[-1]"
-            />
+            <div className={`w-full h-full grid ${cameraActive && isScreenSharing ? 'grid-rows-2 lg:grid-cols-1 lg:grid-rows-2' : 'grid-cols-1'} bg-black`}>
+              {/* Camera view */}
+              {cameraActive && (
+                <div className="relative w-full h-full bg-[#09090e] overflow-hidden flex items-center justify-center border border-white/5">
+                  <video 
+                    ref={liveCameraVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted 
+                    className="w-full h-full object-cover scale-x-[-1]"
+                  />
+                  <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
+                    CÁMARA
+                  </div>
+                </div>
+              )}
 
-            {/* Black overlay if camera disabled during live */}
-            {!cameraActive && (
-              <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-10 gap-3">
-                <VideoOff className="w-16 h-16 text-zinc-700 animate-pulse" />
-                <span className="text-md font-black text-zinc-400">Cámara Apagada en Transmisión</span>
-              </div>
-            )}
+              {/* Screen share view */}
+              {isScreenSharing && (
+                <div className="relative w-full h-full bg-[#050508] overflow-hidden flex items-center justify-center border border-white/5">
+                  <video 
+                    ref={liveScreenVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted 
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
+                    PANTALLA COMPARTIDA
+                  </div>
+                </div>
+              )}
+
+              {/* Black overlay if both disabled */}
+              {!cameraActive && !isScreenSharing && (
+                <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-10 gap-3">
+                  <VideoOff className="w-16 h-16 text-zinc-700 animate-pulse" />
+                  <span className="text-md font-black text-zinc-400">Transmisión de Video Apagada</span>
+                </div>
+              )}
+            </div>
 
             {/* Live Stats floating overlays inside the stream area */}
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
