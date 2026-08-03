@@ -541,7 +541,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
         {activeFeedPosts.map((post: any, idx) => {
           const isActive = idx === activeIndex;
           return (
-            <div key={post.id} className="h-full w-full snap-start relative flex flex-col justify-between overflow-hidden bg-black">
+            <div key={post.id} className="h-full w-full snap-start snap-always relative flex flex-col justify-between overflow-hidden bg-black">
               
               {/* 1. MEDIA RENDERING */}
               {post.type === 'stream' && (
