@@ -197,7 +197,7 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
       </div>
 
       {/* Bottom Navigation */}
-      <div className="absolute bottom-0 left-0 right-0 h-[70px] bg-[#05050a] flex items-center justify-around z-20 px-2 pb-2 pt-1 border-t border-white/5">
+      <div className="fixed bottom-0 left-0 right-0 h-[70px] bg-[#05050a] flex items-center justify-around z-30 px-2 pb-2 pt-1 border-t border-white/5">
         <button onClick={() => setTab('inicio')} className="flex flex-col items-center gap-1 text-pink-500">
           <Home className="w-6 h-6" />
           <span className="text-[10px] font-bold">Inicio</span>
