@@ -44,6 +44,7 @@ export default function CreatorModal() {
   const [roomWager, setRoomWager] = useState(100);
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [roomPasswordInput, setRoomPasswordInput] = useState('');
+  const [startLiveWithRoom, setStartLiveWithRoom] = useState(true);
 
   // Recargar monedas state
   const [selectedPack, setSelectedPack] = useState<{ id: number; coins: number; price: string } | null>(null);
@@ -183,6 +184,11 @@ export default function CreatorModal() {
       setIsCreatingRoom(false);
       setRoomCreated(true);
       toast.success(`¡Sala PvP de ${selectedGame} creada! 🎮`);
+
+      if (startLiveWithRoom) {
+        close();
+        router.push(`/transmitir?roomTitle=${encodeURIComponent(pvpTitle)}&roomCategory=${encodeURIComponent(selectedGame)}&shareScreen=true`);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Error al crear la sala.');
@@ -563,6 +569,19 @@ export default function CreatorModal() {
                           />
                         </div>
                       </div>
+
+                      <label className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 p-3 rounded-xl cursor-pointer hover:bg-purple-500/20 transition-all select-none">
+                        <input
+                          type="checkbox"
+                          checked={startLiveWithRoom}
+                          onChange={(e) => setStartLiveWithRoom(e.target.checked)}
+                          className="w-4 h-4 rounded border-white/10 text-purple-600 focus:ring-purple-500 bg-zinc-950"
+                        />
+                        <div className="text-left">
+                          <span className="text-[11px] font-black text-white block">🔴 Transmitir en vivo (Compartir pantalla)</span>
+                          <span className="text-[9px] text-zinc-400 block font-bold leading-none mt-0.5">Permite a los espectadores ver tu partida en la sección Gaming.</span>
+                        </div>
+                      </label>
 
                       <p className="text-[10px] text-zinc-500 font-bold bg-white/5 p-3 rounded-xl leading-relaxed">
                         ⚠️ Al crear la sala se te cobrará el valor de la apuesta ({roomWager} monedas) para garantizar el premio. La sala quedará visible para todos. El retador tendrá que pagar el mismo valor para entrar.

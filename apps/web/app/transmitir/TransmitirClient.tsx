@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLiveStore } from '@/store/useLiveStore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   ArrowLeft, Camera, Settings, Play, Video, VideoOff, 
   MessageSquare, Heart, Eye, Users, Shield, Award, 
-  Gamepad2, Music, Sparkles, Swords, Send, X, Mic, MicOff, RefreshCw
+  Gamepad2, Music, Sparkles, Swords, Send, X, Mic, MicOff, RefreshCw, Laptop
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -52,6 +52,11 @@ export default function TransmitirClient({ user }: { user: any }) {
     };
   }, [isLive]);
   
+  const searchParams = useSearchParams();
+  const roomTitle = searchParams.get('roomTitle');
+  const roomCategory = searchParams.get('roomCategory');
+  const autoShareScreen = searchParams.get('shareScreen') === 'true';
+
   // Setup view state
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Gaming');
@@ -60,6 +65,72 @@ export default function TransmitirClient({ user }: { user: any }) {
   const [cameraActive, setCameraActive] = useState(true);
   const [micActive, setMicActive] = useState(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+
+  // Auto fill title/category from room creation query parameters
+  useEffect(() => {
+    if (roomTitle) setTitle(decodeURIComponent(roomTitle));
+    if (roomCategory) setCategory(decodeURIComponent(roomCategory));
+  }, [roomTitle, roomCategory]);
+
+  const toggleScreenShare = async () => {
+    if (isScreenSharing) {
+      await handleDeviceChange(selectedDeviceId);
+      setIsScreenSharing(false);
+    } else {
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+        
+        const activeStream = localStreamRef.current || localStream;
+        if (activeStream) {
+          activeStream.getVideoTracks().forEach(track => track.stop());
+        }
+
+        const screenTrack = screenStream.getVideoTracks()[0];
+        if (!screenTrack) {
+          toast.error('No se detectó ningún track de video de pantalla.');
+          return;
+        }
+        
+        screenTrack.onended = () => {
+          handleDeviceChange(selectedDeviceId);
+          setIsScreenSharing(false);
+        };
+
+        const audioTrack = activeStream?.getAudioTracks()[0];
+        const tracks: MediaStreamTrack[] = [screenTrack, audioTrack].filter((t): t is MediaStreamTrack => !!t);
+        const combinedStream = new MediaStream(tracks);
+
+        setLocalStream(combinedStream);
+        localStreamRef.current = combinedStream;
+        
+        if (previewVideoRef.current) {
+          previewVideoRef.current.srcObject = combinedStream;
+          previewVideoRef.current.play().catch(() => {});
+        }
+        if (liveVideoRef.current) {
+          liveVideoRef.current.srcObject = combinedStream;
+          liveVideoRef.current.play().catch(() => {});
+        }
+
+        setIsScreenSharing(true);
+        toast.success('Compartiendo pantalla.');
+      } catch (err) {
+        console.error('Error al compartir pantalla:', err);
+        toast.error('No se pudo compartir la pantalla.');
+      }
+    }
+  };
+
+  // Auto screen-share on mount if query parameter is set
+  useEffect(() => {
+    if (autoShareScreen && localStream && !isScreenSharing) {
+      toggleScreenShare();
+    }
+  }, [autoShareScreen, localStream]);
   
   // Floating hearts
   const [floatingHearts, setFloatingHearts] = useState<HeartAnimation[]>([]);
@@ -510,6 +581,13 @@ export default function TransmitirClient({ user }: { user: any }) {
                   {cameraActive ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
                 </button>
                 <button 
+                  onClick={toggleScreenShare} 
+                  className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all ${isScreenSharing ? 'bg-purple-600 border-purple-500 text-white' : 'bg-white/10 border-white/20 text-white hover:bg-white/20'}`}
+                  title={isScreenSharing ? 'Detener compartir pantalla' : 'Compartir pantalla'}
+                >
+                  <Laptop className="w-4 h-4" />
+                </button>
+                <button 
                   onClick={toggleMic} 
                   className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all ${micActive ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' : 'bg-red-600/20 border-red-500/40 text-red-500'}`}
                   title={micActive ? 'Apagar micrófono' : 'Encender micrófono'}
@@ -709,6 +787,14 @@ export default function TransmitirClient({ user }: { user: any }) {
                 className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border transition-all ${cameraActive ? 'bg-black/60 border-white/10 text-white hover:bg-black/80' : 'bg-red-600/30 border-red-500/40 text-red-500'}`}
               >
                 {cameraActive ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
+              </button>
+
+              <button 
+                onClick={toggleScreenShare}
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border transition-all ${isScreenSharing ? 'bg-purple-600 border-purple-500 text-white' : 'bg-black/60 border-white/10 text-white hover:bg-black/80'}`}
+                title={isScreenSharing ? 'Detener compartir pantalla' : 'Compartir pantalla'}
+              >
+                <Laptop className="w-4.5 h-4.5" />
               </button>
 
               <button 
