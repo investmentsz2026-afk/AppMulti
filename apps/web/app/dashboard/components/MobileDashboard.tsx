@@ -130,7 +130,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
 
   const { isLive, streamTitle, viewers, likes } = useLiveStore();
   const { posts: dbPosts } = usePublicPosts();
-
+  const feedContainerRef = useRef<HTMLDivElement>(null);
   // Social & interactions states
   const [likesState, setLikesState] = useState<Record<string, { count: number; liked: boolean }>>({});
   const [followingState, setFollowingState] = useState<Record<string, boolean>>({});
@@ -223,6 +223,31 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
     ...dbFeedPosts,
     ...(dbFeedPosts.length > 0 ? FEED_POSTS.filter(p => p.type === 'battle') : FEED_POSTS)
   ] as any[];
+
+  // Scroll to active postId on For You feed mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && activeFeedPosts.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const postId = params.get('postId');
+      if (postId) {
+        const foundIndex = activeFeedPosts.findIndex(
+          p => p.dbId === postId || String(p.id) === postId || p.id === `db-${postId}`
+        );
+        if (foundIndex !== -1) {
+          setActiveIndex(foundIndex);
+          setTimeout(() => {
+            if (feedContainerRef.current) {
+              const clientHeight = feedContainerRef.current.clientHeight || window.innerHeight;
+              feedContainerRef.current.scrollTo({
+                top: foundIndex * clientHeight,
+                behavior: 'smooth'
+              });
+            }
+          }, 200);
+        }
+      }
+    }
+  }, [activeFeedPosts.length]);
 
   // Fetch comments for active post
   useEffect(() => {
@@ -509,6 +534,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
 
       {/* Snap Scrollable Feed Area */}
       <div 
+        ref={feedContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto snap-y snap-mandatory scrollbar-none bg-black relative"
       >

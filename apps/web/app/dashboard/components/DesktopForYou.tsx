@@ -159,7 +159,6 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
-
   // Load followed users on mount
   useEffect(() => {
     async function loadFollows() {
@@ -225,6 +224,22 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
     ...dbFeedPosts,
     ...(dbFeedPosts.length > 0 ? FEED_POSTS.filter(p => p.type === 'battle') : FEED_POSTS)
   ] as any[];
+
+  // Scroll to active postId on For You feed mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && activeFeedPosts.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const postId = params.get('postId');
+      if (postId) {
+        const foundIndex = activeFeedPosts.findIndex(
+          p => p.dbId === postId || String(p.id) === postId || p.id === `db-${postId}`
+        );
+        if (foundIndex !== -1) {
+          setActiveIndex(foundIndex);
+        }
+      }
+    }
+  }, [activeFeedPosts.length]);
 
   // Fetch comments for active post
   useEffect(() => {

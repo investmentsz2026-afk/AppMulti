@@ -238,9 +238,10 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                 mediaUrl: p.mediaUrl,
               }))
             ].slice(0, 8).map((item) => (
-              <div 
+              <Link 
                 key={item.id} 
-                className="group bg-[#0c0c14] border border-white/5 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between"
+                href={`/dashboard?tab=parati&postId=${item.id}`}
+                className="group bg-[#0c0c14] border border-white/5 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between cursor-pointer"
               >
                 {/* Media Thumbnail */}
                 <div className="relative aspect-video w-full bg-black overflow-hidden flex items-center justify-center">
@@ -278,7 +279,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                   </div>
                 </div>
 
-              </div>
+              </Link>
             ))}
           </div>
 
