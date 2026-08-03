@@ -1089,7 +1089,7 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
               {/* External Share Buttons */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <a 
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent('Mira esta publicación de @' + activeSharePost.username + ' en LiveX: ' + (activeSharePost.dbId ? `${window.location.origin}/post/${activeSharePost.dbId}` : activeSharePost.mediaUrl))}`}
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent('Mira esta publicación de @' + activeSharePost.username + ' en LiveX: ' + (activeSharePost.dbId ? `${window.location.origin}/dashboard?tab=parati&postId=${activeSharePost.dbId}` : activeSharePost.mediaUrl))}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2.5 py-3 px-4 bg-green-600/10 hover:bg-green-600/20 border border-green-500/30 rounded-2xl text-green-400 text-xs font-bold transition-all cursor-pointer"
@@ -1100,7 +1100,7 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
                   WhatsApp
                 </a>
                 <a 
-                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeSharePost.dbId ? `${window.location.origin}/post/${activeSharePost.dbId}` : activeSharePost.mediaUrl)}`}
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeSharePost.dbId ? `${window.location.origin}/dashboard?tab=parati&postId=${activeSharePost.dbId}` : activeSharePost.mediaUrl)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2.5 py-3 px-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 rounded-2xl text-blue-400 text-xs font-bold transition-all cursor-pointer"
@@ -1118,22 +1118,22 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
                 <div className="max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col gap-2">
                   {friendsForShare.length > 0 ? (
                     friendsForShare.map((chat: any) => {
-                      const isSending = sendingToUserIds[chat.userId] || false;
+                      const isSending = sendingToUserIds[chat.user.id] || false;
                       const postUrl = activeSharePost.dbId 
-                        ? `${window.location.origin}/post/${activeSharePost.dbId}` 
+                        ? `${window.location.origin}/dashboard?tab=parati&postId=${activeSharePost.dbId}` 
                         : activeSharePost.mediaUrl;
                       return (
-                        <div key={chat.userId} className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 p-2 rounded-2xl border border-white/5 transition-all">
+                        <div key={chat.user.id} className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 p-2 rounded-2xl border border-white/5 transition-all">
                           <div className="flex items-center gap-2 min-w-0">
                             <img 
-                              src={chat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.username}`} 
+                              src={chat.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.user.username}`} 
                               className="w-7 h-7 rounded-full border border-white/10 bg-zinc-800 shrink-0" 
                               alt="" 
                             />
-                            <span className="text-xs font-bold text-white truncate">@{chat.username}</span>
+                            <span className="text-xs font-bold text-white truncate">@{chat.user.username}</span>
                           </div>
                           <button 
-                            onClick={() => handleShareToFriend(chat.userId, postUrl)}
+                            onClick={() => handleShareToFriend(chat.user.id, postUrl)}
                             disabled={isSending}
                             className="px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 active:scale-95 text-[9px] font-black uppercase rounded-full text-white tracking-wider transition-all disabled:opacity-50"
                           >
