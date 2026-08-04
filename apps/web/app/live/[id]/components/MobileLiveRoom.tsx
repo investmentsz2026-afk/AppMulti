@@ -548,7 +548,16 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
         </div>
         
         {/* Quick Action Buttons */}
-        <button type="button" className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform">
+        <button 
+          type="button" 
+          onClick={async () => {
+            const res = await likeStreamAction(streamerName);
+            if (res.likes !== undefined) {
+              setDbLikes(res.likes);
+            }
+          }}
+          className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+        >
            <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.5)]">
              <Heart className="w-4 h-4 fill-white text-white" />
            </div>

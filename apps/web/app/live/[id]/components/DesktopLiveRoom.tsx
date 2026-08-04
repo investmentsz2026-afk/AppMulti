@@ -535,6 +535,19 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
              ))}
           </div>
           
+          <button 
+            onClick={async () => {
+              const res = await likeStreamAction(streamerName);
+              if (res.likes !== undefined) {
+                setDbLikes(res.likes);
+              }
+            }}
+            className="px-5 h-[72px] bg-gradient-to-br from-pink-500 to-rose-500 hover:opacity-90 rounded-xl text-white font-black text-sm transition-opacity flex flex-col items-center justify-center shrink-0 shadow-lg shadow-pink-500/20 active:scale-95 transition-transform gap-0.5"
+          >
+             <Heart className="w-5 h-5 fill-white animate-pulse" />
+             <span className="text-[10px] tracking-wider uppercase">Dar Like</span>
+          </button>
+
           <button className="px-6 h-[72px] bg-gradient-to-br from-yellow-500 to-orange-500 hover:opacity-90 rounded-xl text-black font-black text-sm transition-opacity flex flex-col items-center justify-center shrink-0">
              <span>Recargar</span>
              <span className="text-[10px] opacity-80">Saldo: 0</span>

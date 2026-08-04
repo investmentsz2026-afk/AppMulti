@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage } from '@/app/actions/stream';
+import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage, checkStreamStatus } from '@/app/actions/stream';
 import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
 
 interface HeartAnimation {
@@ -34,6 +34,22 @@ export default function TransmitirClient({ user }: { user: any }) {
     opponentAvatar: string;
   } | null>(null);
   const [wagerUnblocked, setWagerUnblocked] = useState(false);
+  const [dbViewers, setDbViewers] = useState(0);
+  const [dbLikes, setDbLikes] = useState(0);
+
+  // Poll database viewers and likes while live
+  useEffect(() => {
+    if (!isLive || !user?.username) return;
+
+    async function loadStats() {
+      const res = await checkStreamStatus(user.username);
+      if (res.viewers !== undefined) setDbViewers(res.viewers);
+      if (res.likes !== undefined) setDbLikes(res.likes);
+    }
+    loadStats();
+    const interval = setInterval(loadStats, 4000);
+    return () => clearInterval(interval);
+  }, [isLive, user?.username]);
 
   useEffect(() => {
     async function checkPvp() {
@@ -970,7 +986,7 @@ export default function TransmitirClient({ user }: { user: any }) {
                     <span className="w-1 h-1 bg-white rounded-full animate-ping" /> LIVE
                   </span>
                   <span className="px-2 py-0.5 bg-black/45 backdrop-blur-md text-[8px] sm:text-[9px] font-black rounded flex items-center gap-1 border border-white/10 shadow-lg">
-                    <Eye className="w-3 h-3 sm:w-3.5 h-3.5 text-zinc-300 animate-pulse" /> {viewers}
+                    <Eye className="w-3 h-3 sm:w-3.5 h-3.5 text-zinc-300 animate-pulse" /> {dbViewers}
                   </span>
                 </div>
               </div>
@@ -1036,7 +1052,7 @@ export default function TransmitirClient({ user }: { user: any }) {
               </button>
 
               <div className="bg-black/50 backdrop-blur-md px-1.5 py-0.5 rounded-lg border border-white/10 text-[8px] sm:text-[9px] font-black text-pink-400 shadow-md mt-1">
-                ❤️ {likes.toLocaleString()}
+                ❤️ {dbLikes.toLocaleString()}
               </div>
 
             </div>
