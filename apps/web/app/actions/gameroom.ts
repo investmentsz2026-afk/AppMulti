@@ -313,30 +313,37 @@ export async function checkUserActiveWagerStatusAction() {
   };
 
   try {
-    const activeWaitingRoom = await prisma.gameRoom.findFirst({
+    const mostRecentActiveRoom = await prisma.gameRoom.findFirst({
       where: {
         creatorId: session.id,
-        status: 'WAITING'
-      }
-    });
-
-    const activePlayingRoom = await prisma.gameRoom.findFirst({
-      where: {
-        creatorId: session.id,
-        status: 'PLAYING'
+        status: { in: ['WAITING', 'PLAYING'] }
+      },
+      orderBy: {
+        createdAt: 'desc'
       },
       include: {
         opponent: { select: { username: true, avatar: true } }
       }
     });
 
-    return { 
-      isWaiting: !!activeWaitingRoom, 
-      roomTitle: activeWaitingRoom?.title || '',
-      hasOpponent: !!activePlayingRoom,
-      playingRoomId: activePlayingRoom?.id || null,
-      opponentName: activePlayingRoom?.opponent?.username || '',
-      opponentAvatar: activePlayingRoom?.opponent?.avatar || ''
+    if (!mostRecentActiveRoom) {
+      return { 
+        isWaiting: false, 
+        roomTitle: '', 
+        hasOpponent: false, 
+        playingRoomId: null, 
+        opponentName: '', 
+        opponentAvatar: '' 
+      };
+    }
+
+    return {
+      isWaiting: mostRecentActiveRoom.status === 'WAITING',
+      roomTitle: mostRecentActiveRoom.title,
+      hasOpponent: mostRecentActiveRoom.status === 'PLAYING',
+      playingRoomId: mostRecentActiveRoom.id,
+      opponentName: mostRecentActiveRoom.opponent?.username || '',
+      opponentAvatar: mostRecentActiveRoom.opponent?.avatar || ''
     };
   } catch (error) {
     return { 

@@ -41,11 +41,15 @@ export async function updateStreamStatus(
         },
       });
 
-      // Reset LiveRoom status
+      // Reset LiveRoom status and clear previous chat comments
       await prisma.liveRoom.upsert({
         where: { streamId: stream.id },
         update: { activeViewers: 0, likes: 0 },
         create: { streamId: stream.id, activeViewers: 0, likes: 0 }
+      });
+
+      await prisma.message.deleteMany({
+        where: { streamId: stream.id }
       });
     } else {
       // Find stream first to make sure it exists
