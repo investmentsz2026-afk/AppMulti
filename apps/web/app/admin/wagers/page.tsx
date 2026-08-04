@@ -25,6 +25,25 @@ export default function AdminWagersPage() {
   // PvP Screen preview modal
   const [previewScreenshot, setPreviewScreenshot] = useState<string | null>(null);
   const [submittingPvpApproval, setSubmittingPvpApproval] = useState<string | null>(null);
+  const [detailRoomModal, setDetailRoomModal] = useState<any | null>(null);
+
+  const handleApprovePvPWithWinner = async (roomId: string, winnerId: string) => {
+    setSubmittingPvpApproval(roomId);
+    try {
+      const res = await approveRoomWinnerAction(roomId, winnerId);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success('¡Ganador premiado con éxito!');
+        setDetailRoomModal(null);
+        loadData();
+      }
+    } catch (err: any) {
+      toast.error('Error al premiar PvP: ' + err.message);
+    } finally {
+      setSubmittingPvpApproval(null);
+    }
+  };
 
   const loadData = async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -303,38 +322,12 @@ export default function AdminWagersPage() {
 
                   {/* Screenshot & Action column */}
                   <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
-                    
-                    {/* Link to Stream */}
-                    {isPlaying && (
-                      <Link 
-                        href={`/live/${room.creatorId}`}
-                        target="_blank"
-                        className="px-4 py-2 bg-purple-600/10 hover:bg-purple-600 border border-purple-500/20 text-purple-400 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all"
-                      >
-                        <Play className="w-3.5 h-3.5 fill-current" /> Ver Directo
-                      </Link>
-                    )}
-
-                    {/* Screenshot Winner review */}
-                    {room.winScreenshot && (
-                      <button
-                        onClick={() => setPreviewScreenshot(room.winScreenshot)}
-                        className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600 border border-blue-500/20 text-blue-400 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all"
-                      >
-                        <ImageIcon className="w-3.5 h-3.5" /> Ver Captura
-                      </button>
-                    )}
-
-                    {/* Approve Payout */}
-                    {isFinished && room.winnerId && (
-                      <button
-                        onClick={() => handleApprovePvP(room.id)}
-                        disabled={submittingPvpApproval === room.id}
-                        className="px-5 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-green-600/10 active:scale-[0.98]"
-                      >
-                        {submittingPvpApproval === room.id ? 'Aprobando...' : 'Aprobar Ganador'}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setDetailRoomModal(room)}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-pink-500/10 cursor-pointer animate-fade-in"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Ver Detalles de Sala
+                    </button>
 
                     {isApproved && winnerUser && (
                       <span className="px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-green-600/10 border border-green-500/20 text-green-400 flex items-center gap-1">
@@ -428,6 +421,125 @@ export default function AdminWagersPage() {
                 className="max-h-[70vh] max-w-full object-contain rounded-xl border border-white/10 shadow-2xl" 
                 alt="Win Proof" 
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETAIL ROOM MODAL */}
+      {detailRoomModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm transition-opacity p-4 animate-fade-in">
+          <div className="absolute inset-0" onClick={() => setDetailRoomModal(null)} />
+          
+          <div className="relative max-w-lg w-full bg-zinc-950 border border-purple-500/20 rounded-3xl overflow-hidden shadow-2xl z-10 flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-purple-400">Detalles de Sala PvP</span>
+                <h3 className="text-sm font-black text-white mt-0.5">{detailRoomModal.title}</h3>
+              </div>
+              <button 
+                onClick={() => setDetailRoomModal(null)}
+                className="text-xs text-zinc-500 hover:text-white font-black uppercase tracking-widest cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto flex flex-col gap-6 custom-scrollbar">
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-zinc-400">
+                <div className="bg-white/5 border border-white/5 rounded-2xl p-3 text-center">
+                  <span className="text-[9px] text-zinc-500 block uppercase font-black">Apuesta PvP</span>
+                  <span className="text-sm font-black text-yellow-500 flex items-center justify-center gap-1 mt-1">
+                    <Coins className="w-4 h-4" /> {detailRoomModal.wager.toLocaleString()}
+                  </span>
+                </div>
+                <div className="bg-white/5 border border-white/5 rounded-2xl p-3 text-center">
+                  <span className="text-[9px] text-zinc-500 block uppercase font-black">Premio Total</span>
+                  <span className="text-sm font-black text-green-400 flex items-center justify-center gap-1 mt-1">
+                    <Coins className="w-4 h-4" /> {(detailRoomModal.wager * 2).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Credentials */}
+              <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col gap-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-500 font-bold uppercase">ID de la Sala</span>
+                  <span className="font-black text-white select-all font-mono">{detailRoomModal.roomCode}</span>
+                </div>
+                <div className="h-px bg-white/10" />
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-500 font-bold uppercase">Contraseña</span>
+                  <span className="font-black text-yellow-500 select-all font-mono">{detailRoomModal.roomPassword}</span>
+                </div>
+              </div>
+
+              {/* VS Players comparison */}
+              <div className="flex items-center justify-center gap-6 bg-white/5 border border-white/5 rounded-2xl p-4">
+                <div className="flex flex-col items-center gap-1">
+                  <img src={detailRoomModal.creator.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${detailRoomModal.creator.username}`} className="w-12 h-12 rounded-full border border-purple-500 bg-zinc-800" alt="" />
+                  <span className="text-xs font-bold text-white">@{detailRoomModal.creator.username}</span>
+                  <span className="text-[9px] text-zinc-500 font-medium">Creador</span>
+                </div>
+                <div className="text-md font-black text-pink-500 italic">VS</div>
+                <div className="flex flex-col items-center gap-1">
+                  {detailRoomModal.opponent ? (
+                    <>
+                      <img src={detailRoomModal.opponent.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${detailRoomModal.opponent.username}`} className="w-12 h-12 rounded-full border border-pink-500 bg-zinc-800" alt="" />
+                      <span className="text-xs font-bold text-white">@{detailRoomModal.opponent.username}</span>
+                      <span className="text-[9px] text-zinc-500 font-medium">Rival</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-12 h-12 rounded-full border-2 border-dashed border-zinc-700 bg-zinc-950 flex items-center justify-center text-zinc-600 font-bold">?</div>
+                      <span className="text-xs font-bold text-zinc-500">Esperando...</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Uploaded Screenshot Win Proof */}
+              <div>
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-2">Captura de Victoria subida</h4>
+                {detailRoomModal.winScreenshot ? (
+                  <div className="border border-white/5 rounded-2xl overflow-hidden bg-black flex justify-center p-2">
+                    <img src={detailRoomModal.winScreenshot} className="max-h-60 object-contain rounded-lg" alt="Proof" />
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-white/5 border border-dashed border-white/5 rounded-2xl text-xs text-zinc-500 font-bold">
+                    Aún no se ha subido ninguna captura de pantalla.
+                  </div>
+                )}
+              </div>
+
+              {/* Winner selection buttons */}
+              {detailRoomModal.status !== 'APPROVED' && (
+                <div className="border-t border-white/5 pt-4 flex flex-col gap-3">
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400 text-center">Seleccionar Ganador del PvP para Premiar</h4>
+                  
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => handleApprovePvPWithWinner(detailRoomModal.id, detailRoomModal.creatorId)}
+                      disabled={submittingPvpApproval === detailRoomModal.id}
+                      className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black rounded-2xl transition-all shadow-lg active:scale-95 cursor-pointer uppercase tracking-wider text-center"
+                    >
+                      Premiar Creador
+                    </button>
+                    {detailRoomModal.opponentId && (
+                      <button
+                        onClick={() => handleApprovePvPWithWinner(detailRoomModal.id, detailRoomModal.opponentId)}
+                        disabled={submittingPvpApproval === detailRoomModal.id}
+                        className="flex-1 py-3 bg-pink-600 hover:bg-pink-500 text-white text-xs font-black rounded-2xl transition-all shadow-lg active:scale-95 cursor-pointer uppercase tracking-wider text-center"
+                      >
+                        Premiar Rival
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

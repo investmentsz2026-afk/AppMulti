@@ -238,7 +238,7 @@ export async function submitRoomWinAction(data: {
 }
 
 // 5. Admin approves and payouts double wager pool to winner
-export async function approveRoomWinnerAction(roomId: string) {
+export async function approveRoomWinnerAction(roomId: string, overrideWinnerId?: string) {
   const session = await getSession();
   if (!session) return { error: 'No autenticado.' };
 
@@ -257,17 +257,20 @@ export async function approveRoomWinnerAction(roomId: string) {
     });
 
     if (!room) return { error: 'Sala no encontrada.' };
-    if (room.status !== 'FINISHED' || !room.winnerId) {
-      return { error: 'Esta sala no tiene una victoria reportada pendiente.' };
+    
+    // Allow approval if there is a reported winner OR an override winner provided by admin
+    const targetWinnerId = overrideWinnerId || room.winnerId;
+    if (!targetWinnerId) {
+      return { error: 'No se ha especificado un ganador para premiar.' };
     }
 
     const totalPrize = room.wager * 2;
 
     // Credit full prize to winner
     const winnerWallet = await prisma.wallet.upsert({
-      where: { userId: room.winnerId },
+      where: { userId: targetWinnerId },
       update: { balance: { increment: totalPrize } },
-      create: { userId: room.winnerId, balance: totalPrize }
+      create: { userId: targetWinnerId, balance: totalPrize }
     });
 
     // Log transaction
@@ -284,6 +287,7 @@ export async function approveRoomWinnerAction(roomId: string) {
     const updated = await prisma.gameRoom.update({
       where: { id: roomId },
       data: {
+        winnerId: targetWinnerId,
         status: 'APPROVED'
       }
     });
