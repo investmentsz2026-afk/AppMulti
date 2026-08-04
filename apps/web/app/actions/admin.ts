@@ -128,3 +128,84 @@ export async function addUserCoinsAction(userId: string, amount: number) {
     return { error: error.message };
   }
 }
+
+// Fetch real admin stats and lists from database
+export async function getAdminStatsAction() {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    throw new Error('No autorizado');
+  }
+
+  try {
+    const totalUsers = await prisma.user.count();
+    const activeStreams = await prisma.user.count({
+      where: { isLive: true }
+    });
+    
+    const wagers = await prisma.gameRoom.aggregate({
+      _sum: {
+        wager: true
+      }
+    });
+    const totalWagerAmount = wagers._sum.wager || 0;
+
+    // Recent reports
+    const recentReports = await prisma.moderationReport.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reporter: { select: { username: true } },
+        reported: { select: { username: true } }
+      }
+    });
+
+    // Top Streamers
+    const topStreamers = await prisma.user.findMany({
+      where: { role: 'STREAMER' },
+      take: 5,
+      include: {
+        followers: true,
+        stream: true
+      }
+    });
+
+    return {
+      totalUsers,
+      activeStreams,
+      totalWagers: totalWagerAmount,
+      recentReports,
+      topStreamers: topStreamers.map(s => ({
+        username: s.username,
+        followersCount: s.followers.length,
+        isLive: s.isLive
+      }))
+    };
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
+    return {
+      totalUsers: 0,
+      activeStreams: 0,
+      totalWagers: 0,
+      recentReports: [],
+      topStreamers: []
+    };
+  }
+}
+
+// Resolve user report
+export async function resolveReportAction(reportId: string, action: 'ACTION_TAKEN' | 'DISMISSED') {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    await prisma.moderationReport.update({
+      where: { id: reportId },
+      data: { status: action }
+    });
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}

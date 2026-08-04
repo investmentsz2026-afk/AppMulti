@@ -2,9 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Play, DollarSign, Activity, ArrowUpRight, ArrowDownRight, Swords, Award, ShieldCheck, X } from 'lucide-react';
+import { 
+  Users, Play, DollarSign, Activity, ArrowUpRight, ArrowDownRight, 
+  Swords, Award, ShieldCheck, X, ShieldAlert, Check, CheckCircle2 
+} from 'lucide-react';
 import { getGameRoomsAction, approveRoomWinnerAction } from '@/app/actions/gameroom';
+import { getAdminStatsAction, resolveReportAction } from '@/app/actions/admin';
 import { toast } from 'react-hot-toast';
+import Link from 'next/link';
 
 const StatCard = ({ title, value, change, trend, icon: Icon }: any) => (
   <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl">
@@ -26,14 +31,35 @@ export default function AdminPage() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
   const [isApproving, setIsApproving] = useState<string | null>(null);
+  
+  // Real DB stats state
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeStreams: 0,
+    totalWagers: 0,
+    recentReports: [] as any[],
+    topStreamers: [] as any[]
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
-  const loadRooms = async () => {
-    const res = await getGameRoomsAction();
-    setRooms(res);
+  const loadData = async () => {
+    setLoadingStats(true);
+    try {
+      const dbRooms = await getGameRoomsAction();
+      setRooms(dbRooms);
+
+      const dbStats = await getAdminStatsAction();
+      setStats(dbStats);
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al cargar estadísticas de la base de datos.');
+    } finally {
+      setLoadingStats(false);
+    }
   };
 
   useEffect(() => {
-    loadRooms();
+    loadData();
   }, []);
 
   const handleApprove = async (roomId: string) => {
@@ -44,7 +70,7 @@ export default function AdminPage() {
         toast.error(res.error);
       } else {
         toast.success('¡Victoria aprobada y premio acreditado con éxito!');
-        loadRooms();
+        loadData();
       }
     } catch (err) {
       console.error(err);
@@ -53,62 +79,153 @@ export default function AdminPage() {
     setIsApproving(null);
   };
 
+  const handleResolveReport = async (reportId: string, action: 'ACTION_TAKEN' | 'DISMISSED') => {
+    try {
+      const res = await resolveReportAction(reportId, action);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(action === 'ACTION_TAKEN' ? 'Reporte resuelto.' : 'Reporte descartado.');
+        loadData();
+      }
+    } catch (err) {
+      toast.error('Error al actualizar el reporte.');
+    }
+  };
+
   const pendingRooms = rooms.filter(r => r.status === 'FINISHED' && r.winScreenshot);
 
   return (
     <div className="space-y-10">
+      
+      {/* Cards de Estadísticas Reales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Users" value="1.2M" change="12%" trend="up" icon={Users} />
-        <StatCard title="Active Streams" value="12,450" change="5%" trend="up" icon={Play} />
-        <StatCard title="Daily Wagers" value={`${rooms.length * 100} pts`} change="15%" trend="up" icon={Swords} />
-        <StatCard title="Server Load" value="24%" change="2%" trend="down" icon={Activity} />
+        <StatCard 
+          title="Total Usuarios" 
+          value={loadingStats ? '...' : stats.totalUsers} 
+          change="Real" 
+          trend="up" 
+          icon={Users} 
+        />
+        <StatCard 
+          title="En Vivo Ahora" 
+          value={loadingStats ? '...' : stats.activeStreams} 
+          change="En tiempo real" 
+          trend="up" 
+          icon={Play} 
+        />
+        <StatCard 
+          title="Pozo Acumulado PvP" 
+          value={loadingStats ? '...' : `${stats.totalWagers} pts`} 
+          change="De apuestas" 
+          trend="up" 
+          icon={Swords} 
+        />
+        <StatCard 
+          title="Salas PvP Totales" 
+          value={rooms.length} 
+          change="Registradas" 
+          trend="up" 
+          icon={Activity} 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-zinc-900 border border-white/5 rounded-3xl p-8">
-           <h3 className="text-xl font-bold mb-6">Recent Reports</h3>
-           <div className="space-y-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-2xl border border-white/5">
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                         <Activity className="w-5 h-5 text-red-400" />
-                      </div>
-                      <div>
-                         <div className="text-sm font-bold">Harassment Report</div>
-                         <div className="text-[10px] text-zinc-500">Reported by @user_{i} • 5m ago</div>
-                      </div>
-                   </div>
-                   <button className="px-4 py-1.5 bg-zinc-800 text-xs font-bold rounded-lg hover:bg-zinc-700 transition-colors">
-                      Review
-                   </button>
-                </div>
-              ))}
+        
+        {/* Reportes de Moderación Reales */}
+        <div className="bg-zinc-900 border border-white/5 rounded-3xl p-8 flex flex-col justify-between">
+           <div>
+             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+               <ShieldAlert className="w-5 h-5 text-red-500 animate-pulse" /> Reportes de Moderación Recientes
+             </h3>
+             <div className="space-y-4">
+                {loadingStats ? (
+                  <div className="text-center py-6 text-xs text-zinc-500 font-bold uppercase">Cargando reportes...</div>
+                ) : stats.recentReports.length === 0 ? (
+                  <div className="text-center py-10 bg-zinc-800/10 border border-white/5 border-dashed rounded-2xl">
+                    <p className="text-xs text-zinc-500 font-bold">Sin reportes de moderación activos</p>
+                  </div>
+                ) : (
+                  stats.recentReports.map((report) => (
+                    <div key={report.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-zinc-800/30 rounded-2xl border border-white/5 gap-3">
+                       <div>
+                          <div className="text-sm font-bold text-white flex items-center gap-1">
+                            Reportado: <span className="text-red-400 font-black">@{report.reported.username}</span>
+                          </div>
+                          <p className="text-xs text-zinc-300 mt-1">{report.reason}</p>
+                          <div className="text-[10px] text-zinc-500 mt-1 font-bold">
+                            Por @{report.reporter.username} • Estado: {report.status}
+                          </div>
+                       </div>
+                       
+                       {report.status === 'PENDING' && (
+                         <div className="flex gap-1.5 self-end sm:self-center">
+                           <button 
+                             onClick={() => handleResolveReport(report.id, 'ACTION_TAKEN')}
+                             className="p-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition-all"
+                             title="Resolver"
+                           >
+                             <Check className="w-3.5 h-3.5" />
+                           </button>
+                           <button 
+                             onClick={() => handleResolveReport(report.id, 'DISMISSED')}
+                             className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-bold transition-all"
+                             title="Descartar"
+                           >
+                             <X className="w-3.5 h-3.5" />
+                           </button>
+                         </div>
+                       )}
+                    </div>
+                  ))
+                )}
+             </div>
            </div>
         </div>
 
+        {/* Creadores / Streamers Reales */}
         <div className="bg-zinc-900 border border-white/5 rounded-3xl p-8">
-           <h3 className="text-xl font-bold mb-6">Top Streamers</h3>
+           <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+             <Play className="w-5 h-5 text-purple-500" /> Creadores Destacados (Base de Datos)
+           </h3>
            <div className="space-y-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-2xl border border-white/5">
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                         <Play className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                         <div className="text-sm font-bold">@streamer_{i}</div>
-                         <div className="text-[10px] text-zinc-500">{10000 / i} concurrent viewers</div>
-                      </div>
-                   </div>
-                   <div className="text-right">
-                      <div className="text-sm font-bold text-primary">${5000 / i}</div>
-                      <div className="text-[10px] text-zinc-500">today</div>
-                   </div>
+              {loadingStats ? (
+                <div className="text-center py-6 text-xs text-zinc-500 font-bold uppercase">Cargando creadores...</div>
+              ) : stats.topStreamers.length === 0 ? (
+                <div className="text-center py-10 bg-zinc-800/10 border border-white/5 border-dashed rounded-2xl">
+                  <p className="text-xs text-zinc-500 font-bold">No hay creadores/streamers registrados</p>
                 </div>
-              ))}
+              ) : (
+                stats.topStreamers.map((streamer, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-zinc-800/30 rounded-2xl border border-white/5">
+                     <div className="flex items-center gap-3">
+                        <img 
+                          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`} 
+                          className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10" 
+                          alt=""
+                        />
+                        <div>
+                           <div className="text-sm font-bold text-white">@{streamer.username}</div>
+                           <div className="text-[10px] text-zinc-500 font-bold">
+                             {streamer.followersCount} seguidores
+                           </div>
+                        </div>
+                     </div>
+                     <div className="text-right">
+                        {streamer.isLive ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-red-600/10 border border-red-500/20 text-red-500 uppercase animate-pulse">
+                            En Vivo
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase">Offline</span>
+                        )}
+                     </div>
+                  </div>
+                ))
+              )}
            </div>
         </div>
+
       </div>
 
       {/* REVISIONES DE SALAS PVP */}
