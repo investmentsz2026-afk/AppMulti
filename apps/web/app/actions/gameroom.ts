@@ -295,3 +295,25 @@ export async function approveRoomWinnerAction(roomId: string) {
     return { error: error.message || 'Error al aprobar al ganador.' };
   }
 }
+
+// Check if creator has an active WAITING PvP GameRoom
+export async function checkUserActiveWagerStatusAction() {
+  const session = await getSession();
+  if (!session) return { isWaiting: false };
+
+  try {
+    const activeWaitingRoom = await prisma.gameRoom.findFirst({
+      where: {
+        creatorId: session.id,
+        status: 'WAITING'
+      }
+    });
+
+    return { 
+      isWaiting: !!activeWaitingRoom, 
+      roomTitle: activeWaitingRoom?.title || '' 
+    };
+  } catch (error) {
+    return { isWaiting: false };
+  }
+}

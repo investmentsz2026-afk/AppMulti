@@ -11,6 +11,7 @@ import {
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage } from '@/app/actions/stream';
+import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
 
 interface HeartAnimation {
   id: number;
@@ -83,6 +84,13 @@ export default function TransmitirClient({ user }: { user: any }) {
       screenStreamRef.current = null;
       setIsScreenSharing(false);
     } else {
+      // Check if creator has a waiting PvP game room
+      const pvpCheck = await checkUserActiveWagerStatusAction();
+      if (pvpCheck.isWaiting) {
+        toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
+        return;
+      }
+
       if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
         toast.error('Compartir pantalla solo es compatible con computadoras (PC/Laptop). En celulares se utiliza la cámara.');
         return;
@@ -333,6 +341,13 @@ export default function TransmitirClient({ user }: { user: any }) {
   const handleStartLive = async () => {
     if (!title.trim()) {
       toast.error('Por favor escribe un título para tu transmisión.');
+      return;
+    }
+    
+    // Check if creator has a waiting PvP game room
+    const pvpCheck = await checkUserActiveWagerStatusAction();
+    if (pvpCheck.isWaiting) {
+      toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes iniciar transmisión hasta que alguien se una.`);
       return;
     }
     
