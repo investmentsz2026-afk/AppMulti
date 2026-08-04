@@ -27,6 +27,9 @@ export default function GamingClient({ user }: { user: any }) {
   const [realRooms, setRealRooms] = useState<any[]>([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [confirmJoinRoom, setConfirmJoinRoom] = useState<any | null>(null);
+  const [activePvpRoomDetails, setActivePvpRoomDetails] = useState<any | null>(null);
+  const [joiningInProgress, setJoiningInProgress] = useState(false);
   
   // Followed status simulation
   const [followedStreamers, setFollowedStreamers] = useState<number[]>([]);
@@ -88,14 +91,20 @@ export default function GamingClient({ user }: { user: any }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleJoinRoom = async (roomId: string, roomCode: string, feeStr: string) => {
+  const handleJoinRoom = async (room: any) => {
+    setJoiningInProgress(true);
     try {
-      const res = await joinGameRoomAction(roomId);
+      const res = await joinGameRoomAction(room.id) as any;
       if (res.error) {
         triggerToast(res.error);
       } else {
-        triggerToast(`¡Te uniste a la sala PvP ${roomCode}! 🎮 Costo: ${feeStr}`);
-        // Reload data
+        triggerToast(`¡Te uniste a la sala PvP con éxito! 🎮`);
+        setActivePvpRoomDetails(res.room || {
+          ...room,
+          roomCode: room.roomCode || room.roomID,
+          roomPassword: res.room?.roomPassword || '123'
+        });
+        
         const balance = await getUserWalletBalance();
         setUserCoins(balance);
         const rooms = await getGameRoomsAction();
@@ -103,6 +112,9 @@ export default function GamingClient({ user }: { user: any }) {
       }
     } catch (err: any) {
       triggerToast('Error de conexión al unirse a la sala.');
+    } finally {
+      setJoiningInProgress(false);
+      setConfirmJoinRoom(null);
     }
   };
 
@@ -399,121 +411,50 @@ export default function GamingClient({ user }: { user: any }) {
                 </h3>
               </div>
 
-              {activeFeedItems.map((item: any) => (
-                <div 
-                  key={item.id} 
-                  className={`bg-[#0b0a12]/90 border rounded-3xl overflow-hidden shadow-lg group transition-all duration-300 ${
-                    item.isOwn 
-                      ? 'border-purple-500/40 bg-[#1c0933]/15 shadow-[0_0_20px_rgba(168,85,247,0.15)] hover:border-pink-500' 
-                      : 'border-white/5 hover:border-purple-500/20'
-                  }`}
-                >
-                  {/* Large thumbnail */}
-                  <div className="relative aspect-[16/9] w-full overflow-hidden">
-                    <img src={item.img} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" alt="" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
-
-                    {/* Stats overlay */}
-                    <div className="absolute top-4 left-4 flex gap-2">
-                      <span className="px-2 py-0.5 bg-red-600 text-white text-[9px] font-black rounded flex items-center gap-1 shadow">
-                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" /> EN VIVO
-                      </span>
-                      <span className="px-2 py-0.5 bg-black/40 backdrop-blur-sm border border-white/10 text-[9px] font-black rounded text-zinc-200">
-                        ▷ {item.views} VIEWS
-                      </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {realRooms.filter(r => r.status === 'WAITING').map((room: any) => (
+                  <div 
+                    key={room.id}
+                    className="bg-[#0b0a12]/95 border border-purple-500/20 rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[180px] hover:border-pink-500/50 transition-all duration-300 animate-fade-in"
+                  >
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-pink-600" />
+                    
+                    <div>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-black rounded uppercase">
+                            🕹️ {room.game || 'Free Fire'}
+                          </span>
+                          <h4 className="text-sm font-black text-white mt-2 mb-1">{room.title}</h4>
+                        </div>
+                        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-2.5 py-1 text-right">
+                          <span className="text-[8px] text-zinc-500 font-bold block uppercase">Premio</span>
+                          <span className="text-xs font-black text-yellow-500">🏆 {room.wager * 2} Monedas</span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 mt-2">
+                        Creador: <strong className="text-zinc-200">@{room.creator?.username || 'Usuario'}</strong>
+                      </p>
                     </div>
 
-                    <div className="absolute top-4 right-4">
-                      <span className="px-2.5 py-0.5 bg-pink-500/20 text-pink-400 border border-pink-500/20 text-[9px] font-bold rounded uppercase tracking-wider">
-                        {item.category}
-                      </span>
-                    </div>
-
-                    {/* Click stream overlay button */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 z-10">
-                      <button 
-                        onClick={() => {
-                          router.push(`/live/${item.name}`);
-                        }} 
-                        className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-xs font-black rounded-full shadow-lg shadow-pink-500/20 uppercase tracking-widest hover:scale-105 transition-transform"
+                    <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-4">
+                      <span className="text-[10px] text-zinc-500 font-bold">Costo: <strong className="text-white">{room.wager} Monedas</strong></span>
+                      <button
+                        onClick={() => setConfirmJoinRoom(room)}
+                        className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-black rounded-xl uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
                       >
-                        Ver Directo
+                        Unirse
                       </button>
                     </div>
                   </div>
+                ))}
 
-                  {/* Body & actions */}
-                  <div className="p-5">
-                    <div className="flex justify-between items-start gap-4 mb-4">
-                      <div className="flex gap-3">
-                        <img src={item.avatar} className="w-10 h-10 rounded-full border border-white/10 object-cover" alt="" />
-                        <div>
-                          <h4 className="font-black text-sm flex items-center gap-1">
-                            {item.name} <BadgeCheck className="w-4 h-4 text-blue-400" />
-                          </h4>
-                          <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">Streamer de Free Fire</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {!item.isOwn && (
-                          <button 
-                            onClick={() => handleFollowToggle(item.id, item.name)}
-                            className={`px-3.5 py-1 rounded-full text-[10px] font-black border transition-all ${
-                              followedStreamers.includes(item.id) 
-                                ? 'bg-purple-600/20 border-purple-500/30 text-purple-300' 
-                                : 'bg-white/5 border-transparent text-white hover:bg-white/10'
-                            }`}
-                          >
-                            {followedStreamers.includes(item.id) ? 'Siguiendo ✓' : '+ Seguir'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-zinc-200 mb-4 line-clamp-2 leading-relaxed">
-                      {item.title}
-                    </h3>
-
-                    {/* Reactions and Quick Comments bar (Ultra responsive) */}
-                    <div className="flex items-center justify-between border-t border-white/5 pt-4 gap-2">
-                      <div className="flex items-center gap-3 sm:gap-6">
-                        <button onClick={() => triggerToast('¡Le diste Me gusta! ❤️')} className="flex items-center gap-1 text-zinc-400 hover:text-pink-500 transition-colors shrink-0">
-                          <Heart className="w-4 h-4 sm:w-4.5 sm:h-4.5" /> 
-                          <span className="text-[9px] sm:text-[10px] font-bold">1.2K</span>
-                        </button>
-                        <button onClick={() => triggerToast('Cargando comentarios... 💬')} className="flex items-center gap-1 text-zinc-400 hover:text-purple-400 transition-colors shrink-0">
-                          <MessageCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5" /> 
-                          <span className="text-[9px] sm:text-[10px] font-bold">245</span>
-                        </button>
-                        <button onClick={() => triggerToast('Enlace de stream copiado! 🔗')} className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors shrink-0">
-                          <Share2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" /> 
-                          <span className="text-[9px] sm:text-[10px] font-bold hidden sm:inline">Compartir</span>
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                        {item.pvpID && (
-                          <button 
-                            onClick={() => triggerToast(`¡Entrando a la Sala PvP ID: ${item.pvpID}! ⚔️`)}
-                            className="px-2.5 sm:px-3.5 py-1.5 bg-yellow-500 text-black text-[9px] sm:text-[10px] font-black rounded-lg uppercase tracking-wider shadow-lg hover:scale-105 transition-transform"
-                          >
-                            Sala PvP
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => {
-                            router.push(`/live/${item.name}`);
-                          }} 
-                          className="px-2.5 sm:px-3.5 py-1.5 bg-[#171333] border border-purple-500/20 text-purple-300 text-[9px] sm:text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-[#1f1a44] transition-colors"
-                        >
-                          Ver Live
-                        </button>
-                      </div>
-                    </div>
+                {realRooms.filter(r => r.status === 'WAITING').length === 0 && (
+                  <div className="col-span-2 text-center text-xs text-zinc-500 py-12 bg-white/5 rounded-3xl border border-dashed border-white/10">
+                    No hay salas PvP abiertas en este momento. ¡Crea una sala usando el botón en la esquina superior derecha!
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
             </div>
 
             {/* COLUMN 3: RIGHT PANEL (SALAS PvP ACTIVAS & TOP STREAMERS) */}
@@ -551,7 +492,10 @@ export default function GamingClient({ user }: { user: any }) {
                       <div className="flex items-center justify-between">
                         <span className="text-[8px] text-zinc-500 font-bold">Inicia en: <strong className="text-pink-400 font-black">{formatCountdown(countdowns[room.id] || 180)}</strong></span>
                         <button 
-                          onClick={() => handleJoinRoom(room.id, room.roomID, room.fee)}
+                          onClick={() => {
+                            const orig = realRooms.find(r => r.id === room.id);
+                            if (orig) setConfirmJoinRoom(orig);
+                          }}
                           className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-[8px] font-black rounded uppercase tracking-widest text-white transition-colors"
                         >
                           Unirse
@@ -759,6 +703,100 @@ export default function GamingClient({ user }: { user: any }) {
             </form>
           </div>
 
+        </div>
+      )}
+
+      {/* CONFIRM JOIN ROOM MODAL */}
+      {confirmJoinRoom && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-[#0c0b13] border border-purple-500/30 p-6 sm:p-8 rounded-3xl max-w-sm w-full relative text-center flex flex-col items-center gap-6 shadow-2xl">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-600 to-pink-600" />
+            
+            <div className="w-16 h-16 rounded-full bg-purple-600/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+              <Sword className="w-8 h-8 animate-pulse" />
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-pink-500 block mb-1">Confirmación de Ingreso</span>
+              <h3 className="text-lg font-black text-white">{confirmJoinRoom.title || confirmJoinRoom.name}</h3>
+              <p className="text-xs text-zinc-400 mt-2 leading-relaxed font-semibold">
+                Vas a unirte a esta sala de PvP. Se te descontará el costo de la apuesta y entrarás a la sala con el creador.
+              </p>
+            </div>
+
+            <div className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 flex justify-around">
+              <div>
+                <span className="text-[9px] text-zinc-500 font-bold block uppercase">Costo</span>
+                <span className="text-sm font-black text-zinc-200">{confirmJoinRoom.wager || confirmJoinRoom.fee}</span>
+              </div>
+              <div className="w-px bg-white/10" />
+              <div>
+                <span className="text-[9px] text-zinc-500 font-bold block uppercase">Premio</span>
+                <span className="text-sm font-black text-yellow-500">{confirmJoinRoom.wager ? `🏆 ${confirmJoinRoom.wager * 2} Monedas` : confirmJoinRoom.prize}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 w-full mt-2">
+              <button
+                onClick={() => setConfirmJoinRoom(null)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-black rounded-xl uppercase tracking-wider transition-colors border border-white/5 cursor-pointer"
+                disabled={joiningInProgress}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleJoinRoom(confirmJoinRoom)}
+                disabled={joiningInProgress}
+                className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-black rounded-xl uppercase tracking-wider shadow-lg shadow-pink-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {joiningInProgress ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  "Sí, Ingresar"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ACTIVE PVP ROOM DETAILS MODAL */}
+      {activePvpRoomDetails && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-[#0c0b13] border border-green-500/30 p-6 sm:p-8 rounded-3xl max-w-sm w-full relative text-center flex flex-col items-center gap-6 shadow-2xl">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-green-500 to-emerald-600" />
+            
+            <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400">
+              <Trophy className="w-8 h-8 animate-bounce" />
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block mb-1">¡Unido con Éxito!</span>
+              <h3 className="text-lg font-black text-white">{activePvpRoomDetails.title || activePvpRoomDetails.name}</h3>
+              <p className="text-xs text-zinc-400 mt-2 leading-relaxed font-semibold">
+                Ingresa estas credenciales en la app de Free Fire para unirte a la sala de juego:
+              </p>
+            </div>
+
+            <div className="w-full flex flex-col gap-2.5 bg-white/5 border border-white/5 rounded-2xl p-4">
+              <div className="flex justify-between items-center text-left">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase">ID de la Sala</span>
+                <span className="text-xs font-black text-white tracking-wider select-all">{activePvpRoomDetails.roomCode || activePvpRoomDetails.roomID}</span>
+              </div>
+              <div className="h-px bg-white/10" />
+              <div className="flex justify-between items-center text-left">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase">Contraseña</span>
+                <span className="text-xs font-black text-yellow-500 tracking-wider select-all">{activePvpRoomDetails.roomPassword || '123'}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setActivePvpRoomDetails(null)}
+              className="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-xs font-black rounded-xl uppercase tracking-wider transition-colors shadow-lg shadow-green-500/10 cursor-pointer"
+            >
+              Cerrar y Jugar
+            </button>
+          </div>
         </div>
       )}
 

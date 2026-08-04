@@ -25,6 +25,25 @@ export default function TransmitirClient({ user }: { user: any }) {
   const { isLive, streamTitle, streamCategory, viewers, likes, comments, startLive, stopLive, addLike, addComment, setComments, setViewers } = useLiveStore();
   
   const [hasMounted, setHasMounted] = useState(false);
+  const [pvpStatus, setPvpStatus] = useState<{
+    isWaiting: boolean;
+    roomTitle: string;
+    hasOpponent: boolean;
+    playingRoomId: string | null;
+    opponentName: string;
+    opponentAvatar: string;
+  } | null>(null);
+  const [wagerUnblocked, setWagerUnblocked] = useState(false);
+
+  useEffect(() => {
+    async function checkPvp() {
+      const res = await checkUserActiveWagerStatusAction();
+      setPvpStatus(res);
+    }
+    checkPvp();
+    const interval = setInterval(checkPvp, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     setHasMounted(true);
@@ -507,7 +526,75 @@ export default function TransmitirClient({ user }: { user: any }) {
       
       {/* -------------------- SETUP PRE-LIVE VIEW -------------------- */}
       {!isLive ? (
-        <div key="setup-view" className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden">
+        pvpStatus && (pvpStatus.isWaiting || pvpStatus.hasOpponent) && !wagerUnblocked ? (
+          <div key="wager-wait-view" className="flex-1 flex flex-col items-center justify-center p-8 bg-[#05050a] text-white">
+            <div className="max-w-md w-full bg-[#0b0a12]/90 border border-purple-500/20 p-8 rounded-3xl shadow-2xl relative overflow-hidden text-center flex flex-col items-center gap-6">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600" />
+              
+              <div className="w-16 h-16 rounded-full bg-purple-600/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                <Swords className="w-8 h-8 animate-pulse" />
+              </div>
+
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-pink-500 block mb-1">Sala PvP Apostada</span>
+                <h2 className="text-xl font-black text-white">{pvpStatus.roomTitle || 'Tu Sala PvP'}</h2>
+                <p className="text-xs text-zinc-400 mt-2">
+                  {pvpStatus.isWaiting 
+                    ? "Esperando a que un oponente se una a tu sala PvP para poder iniciar la transmisión..."
+                    : "¡Tu oponente se ha unido a la sala PvP!"}
+                </p>
+              </div>
+
+              {/* Profiles comparison */}
+              <div className="flex items-center justify-center gap-8 my-4 w-full">
+                {/* Creator */}
+                <div className="flex flex-col items-center gap-2">
+                  <img src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} className="w-16 h-16 rounded-full border-2 border-purple-500 bg-zinc-800" alt="" />
+                  <span className="text-xs font-bold text-zinc-300">@{user.username}</span>
+                  <span className="px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 text-[8px] font-black text-purple-400 rounded uppercase">Creador</span>
+                </div>
+
+                <div className="text-xl font-black text-pink-500 italic">VS</div>
+
+                {/* Opponent */}
+                {pvpStatus.hasOpponent ? (
+                  <div className="flex flex-col items-center gap-2 animate-bounce">
+                    <img src={pvpStatus.opponentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${pvpStatus.opponentName}`} className="w-16 h-16 rounded-full border-2 border-pink-500 bg-zinc-800" alt="" />
+                    <span className="text-xs font-bold text-zinc-300">@{pvpStatus.opponentName}</span>
+                    <span className="px-2 py-0.5 bg-pink-500/20 border border-pink-500/30 text-[8px] font-black text-pink-400 rounded uppercase">Rival</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-700 bg-zinc-950 flex items-center justify-center text-zinc-600">
+                      <Users className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <span className="text-xs font-bold text-zinc-500">Esperando...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Button */}
+              {pvpStatus.hasOpponent ? (
+                <button
+                  onClick={() => setWagerUnblocked(true)}
+                  className="w-full py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-black rounded-2xl shadow-xl shadow-pink-500/20 transition-all uppercase tracking-wider scale-105 active:scale-95 cursor-pointer"
+                >
+                  Ir a transmitir / compartir pantalla
+                </button>
+              ) : (
+                <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 font-bold">
+                  <div className="w-4 h-4 rounded-full border-2 border-zinc-700 border-t-pink-500 animate-spin" />
+                  Buscando retador en la plataforma...
+                </div>
+              )}
+
+              <Link href="/dashboard" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-bold mt-2">
+                Cancelar y Salir al Inicio
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div key="setup-view" className="flex-1 flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden">
           
           {/* Left panel: Camera Preview & controls */}
           <div className="flex-none lg:flex-1 flex flex-col p-4 sm:p-8 relative bg-black justify-center items-center">
@@ -688,9 +775,9 @@ export default function TransmitirClient({ user }: { user: any }) {
             </div>
 
           </div>
-
         </div>
-      ) : (
+      )
+    ) : (
         
         // -------------------- ACTIVE STREAMING VIEW (Live) --------------------
         <div key="live-view" className="flex-1 flex flex-col lg:flex-row h-full relative bg-black">

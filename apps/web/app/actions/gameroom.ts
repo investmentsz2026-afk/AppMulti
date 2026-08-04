@@ -296,10 +296,17 @@ export async function approveRoomWinnerAction(roomId: string) {
   }
 }
 
-// Check if creator has an active WAITING PvP GameRoom
+// Check if creator has an active WAITING or PLAYING PvP GameRoom
 export async function checkUserActiveWagerStatusAction() {
   const session = await getSession();
-  if (!session) return { isWaiting: false };
+  if (!session) return { 
+    isWaiting: false, 
+    roomTitle: '', 
+    hasOpponent: false, 
+    playingRoomId: null, 
+    opponentName: '', 
+    opponentAvatar: '' 
+  };
 
   try {
     const activeWaitingRoom = await prisma.gameRoom.findFirst({
@@ -309,11 +316,32 @@ export async function checkUserActiveWagerStatusAction() {
       }
     });
 
+    const activePlayingRoom = await prisma.gameRoom.findFirst({
+      where: {
+        creatorId: session.id,
+        status: 'PLAYING'
+      },
+      include: {
+        opponent: { select: { username: true, avatar: true } }
+      }
+    });
+
     return { 
       isWaiting: !!activeWaitingRoom, 
-      roomTitle: activeWaitingRoom?.title || '' 
+      roomTitle: activeWaitingRoom?.title || '',
+      hasOpponent: !!activePlayingRoom,
+      playingRoomId: activePlayingRoom?.id || null,
+      opponentName: activePlayingRoom?.opponent?.username || '',
+      opponentAvatar: activePlayingRoom?.opponent?.avatar || ''
     };
   } catch (error) {
-    return { isWaiting: false };
+    return { 
+      isWaiting: false, 
+      roomTitle: '', 
+      hasOpponent: false, 
+      playingRoomId: null, 
+      opponentName: '', 
+      opponentAvatar: '' 
+    };
   }
 }
