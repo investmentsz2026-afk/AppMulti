@@ -13,7 +13,9 @@ import { updateProfile } from '@/app/actions/profile';
 import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment } from '@/app/actions/social';
 import { useRouter } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
-import { Coins, CreditCard } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { Coins, CreditCard, HelpCircle } from 'lucide-react';
+import { submitHelpRequestAction } from '@/app/actions/admin';
 
 // TikTok Custom SVG Icon
 function TiktokIcon({ className }: { className?: string }) {
@@ -60,6 +62,32 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   
   const router = useRouter();
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
+
+  // Support / Help Ticket State
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [helpTitle, setHelpTitle] = useState('Apelación de Restricción');
+  const [helpMessage, setHelpMessage] = useState('');
+  const [sendingHelp, setSendingHelp] = useState(false);
+
+  const handleSubmitHelp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!helpTitle.trim() || !helpMessage.trim()) return;
+    setSendingHelp(true);
+    try {
+      const res = await submitHelpRequestAction(helpTitle, helpMessage);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success('Tu solicitud de soporte ha sido enviada al administrador.');
+        setIsHelpOpen(false);
+        setHelpMessage('');
+      }
+    } catch (err) {
+      toast.error('Error al enviar la solicitud.');
+    } finally {
+      setSendingHelp(false);
+    }
+  };
 
 
   const handleLikePostInModal = async (postId: string) => {
@@ -493,7 +521,8 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   ];
 
   return (
-    <div className="flex h-screen w-full bg-[#05050a] text-white relative">
+    <>
+      <div className="flex h-screen w-full bg-[#05050a] text-white relative">
       {/* Left Sidebar (Perfectly matching other pages!) */}
       <aside className="w-[260px] border-r border-white/5 bg-[#0a0a0f] flex flex-col p-4 shrink-0 overflow-y-auto custom-scrollbar">
         <Link href="/dashboard?tab=inicio" className="flex items-center gap-3 mb-8 px-2">
@@ -650,6 +679,9 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                     </button>
                     <button onClick={() => triggerToast('¡Función de promoción activada! 🚀')} className="bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md">
                       Promocionar publicación
+                    </button>
+                    <button onClick={() => setIsHelpOpen(true)} className="bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-white cursor-pointer shadow-md">
+                      <HelpCircle className="w-3.5 h-3.5 text-blue-400" /> Soporte / Ayuda
                     </button>
                     <button onClick={() => { setSettingsActiveTab('cuenta'); setIsSettingsOpen(true); }} className="w-9 h-9 rounded-full bg-[#12152b]/90 hover:bg-[#1f2444] border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer shadow-md">
                       <Settings className="w-4 h-4" />
@@ -1309,7 +1341,6 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
 
               </div>
             </div>
-
           </div>
         </div>
       )}
@@ -1735,5 +1766,69 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
       })()}
 
     </div>
+
+      {/* SUPPORT HELP MODAL */}
+      {isHelpOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm transition-opacity p-4">
+          <div className="absolute inset-0" onClick={() => setIsHelpOpen(false)} />
+          
+          <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(139,92,246,0.25)] z-10 animate-in zoom-in-95">
+            <div className="absolute top-0 left-0 w-full h-1 bg-purple-500" />
+            
+            <form onSubmit={handleSubmitHelp} className="p-6 flex flex-col gap-4">
+              <h3 className="text-base font-black text-white flex items-center gap-1.5">
+                <HelpCircle className="w-5 h-5 text-purple-400" /> Contactar Soporte / Ayuda
+              </h3>
+              <p className="text-[11px] text-zinc-400 -mt-1 leading-relaxed">
+                Describe tu duda, petición o solicitud de apelación (ej: si tienes el chat o las publicaciones restringidas). El administrador la revisará y te responderá mediante las notificaciones del sistema.
+              </p>
+              
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Asunto</label>
+                <select
+                  value={helpTitle}
+                  onChange={(e) => setHelpTitle(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-bold outline-none focus:border-purple-500 transition-colors"
+                >
+                  <option value="Apelación de Restricción" className="bg-zinc-950 text-white">Apelación de Restricción de Cuenta</option>
+                  <option value="Problemas con Monedas" className="bg-zinc-950 text-white">Problema con Monedas / Saldo</option>
+                  <option value="Reportar un Bug" className="bg-zinc-950 text-white">Reportar un Error / Bug</option>
+                  <option value="Otro Asunto" className="bg-zinc-950 text-white">Otro Asunto</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Mensaje / Petición Detallada</label>
+                <textarea 
+                  required
+                  rows={4}
+                  value={helpMessage}
+                  onChange={(e) => setHelpMessage(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-medium outline-none focus:border-purple-500 transition-colors resize-none leading-relaxed"
+                  placeholder="Detalla aquí tu problema o solicitud..."
+                />
+              </div>
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsHelpOpen(false)}
+                  className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black text-xs uppercase tracking-wider rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingHelp}
+                  className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-colors shadow-lg shadow-purple-600/20"
+                >
+                  {sendingHelp ? 'Enviando...' : 'Enviar Solicitud'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -9,6 +9,103 @@ import { getUsersAction, getAllDMsAction, getUserConversationAction } from '@/ap
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 
+interface SearchableUserSelectProps {
+  label: string;
+  users: any[];
+  selectedValue: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}
+
+const SearchableUserSelect = ({ label, users, selectedValue, onChange, placeholder }: SearchableUserSelectProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const selectedUser = users.find(u => u.id === selectedValue);
+
+  const filtered = users.filter(u => 
+    u.username.toLowerCase().includes(query.toLowerCase()) || 
+    u.email.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col gap-1.5 relative" ref={containerRef}>
+      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</label>
+      
+      <div className="relative">
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={isOpen ? query : (selectedUser ? `@${selectedUser.username}` : '')}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => {
+            setQuery('');
+            setIsOpen(true);
+          }}
+          className="w-full bg-white text-black placeholder-zinc-500 border border-zinc-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-purple-500 transition-colors"
+        />
+        {selectedValue && !isOpen && (
+          <button 
+            type="button"
+            onClick={() => {
+              onChange('');
+              setQuery('');
+            }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-black font-black text-[10px] uppercase tracking-wider"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute top-[105%] left-0 w-full bg-white border border-zinc-200 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
+          {filtered.length === 0 ? (
+            <div className="p-3 text-xs text-zinc-500 text-center font-bold">No se encontraron usuarios</div>
+          ) : (
+            filtered.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => {
+                  onChange(u.id);
+                  setIsOpen(false);
+                  setQuery('');
+                }}
+                className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-left text-xs font-bold transition-colors ${
+                  selectedValue === u.id 
+                    ? 'bg-purple-50 text-purple-600' 
+                    : 'text-zinc-900 hover:bg-zinc-100'
+                }`}
+              >
+                <img src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`} className="w-6 h-6 rounded-full border border-zinc-200 shrink-0 bg-zinc-100" alt="" />
+                <div className="min-w-0">
+                  <div className="text-zinc-900 truncate">@{u.username}</div>
+                  <div className="text-[10px] text-zinc-500 truncate font-semibold">{u.email}</div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function AdminLogsPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [dms, setDms] = useState<any[]>([]);
@@ -117,35 +214,20 @@ export default function AdminLogsPage() {
 
           {/* Selectors */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Selector User 1 */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Usuario A (Remitente)</label>
-              <select
-                value={selectedSenderId}
-                onChange={(e) => setSelectedSenderId(e.target.value)}
-                className="bg-zinc-850 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none cursor-pointer focus:border-purple-500 transition-colors"
-              >
-                <option value="" className="bg-zinc-950 text-zinc-600">-- Selecciona Usuario A --</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id} className="bg-zinc-950 text-white">@{u.username} ({u.email})</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Selector User 2 */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Usuario B (Receptor)</label>
-              <select
-                value={selectedReceiverId}
-                onChange={(e) => setSelectedReceiverId(e.target.value)}
-                className="bg-zinc-850 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none cursor-pointer focus:border-purple-500 transition-colors"
-              >
-                <option value="" className="bg-zinc-950 text-zinc-600">-- Selecciona Usuario B --</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id} className="bg-zinc-950 text-white">@{u.username} ({u.email})</option>
-                ))}
-              </select>
-            </div>
+            <SearchableUserSelect 
+              label="Usuario A (Remitente)" 
+              users={users} 
+              selectedValue={selectedSenderId} 
+              onChange={setSelectedSenderId}
+              placeholder="Escribe para buscar Usuario A..."
+            />
+            <SearchableUserSelect 
+              label="Usuario B (Receptor)" 
+              users={users} 
+              selectedValue={selectedReceiverId} 
+              onChange={setSelectedReceiverId}
+              placeholder="Escribe para buscar Usuario B..."
+            />
           </div>
 
           {/* Conversation Screen */}

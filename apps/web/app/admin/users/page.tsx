@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Search, Shield, ShieldAlert, BadgeCheck, CheckCircle2, XCircle, 
-  Coins, Sparkles, UserMinus, UserCheck, ChevronDown, RefreshCw, Plus, ArrowLeft 
+  Coins, Sparkles, UserMinus, UserCheck, ChevronDown, RefreshCw, Plus, ArrowLeft, Bell 
 } from 'lucide-react';
 import { 
   getUsersAction, 
@@ -11,7 +11,8 @@ import {
   updateUserRoleAction, 
   addUserCoinsAction,
   toggleUserPostRestrictionAction,
-  toggleUserChatRestrictionAction 
+  toggleUserChatRestrictionAction,
+  sendSystemNotificationAction
 } from '@/app/actions/admin';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
@@ -26,6 +27,33 @@ export default function AdminUsersPage() {
   const [showCoinsModal, setShowCoinsModal] = useState<string | null>(null);
   const [coinsAmount, setCoinsAmount] = useState('100');
   const [coinsAction, setCoinsAction] = useState<'ADD' | 'SUBTRACT'>('ADD');
+
+  // Warning Notification Dialog
+  const [showWarningModal, setShowWarningModal] = useState<string | null>(null);
+  const [warningTitle, setWarningTitle] = useState('Infracción de Reglas');
+  const [warningMessage, setWarningMessage] = useState('Estás infringiendo las reglas de la comunidad. Si sigues así, tu cuenta será suspendida.');
+
+  const handleSendWarning = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showWarningModal) return;
+
+    setUpdatingUserId(showWarningModal);
+    try {
+      const res = await sendSystemNotificationAction(showWarningModal, warningTitle, warningMessage);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success('Advertencia enviada exitosamente.');
+        setShowWarningModal(null);
+        setWarningTitle('Infracción de Reglas');
+        setWarningMessage('Estás infringiendo las reglas de la comunidad. Si sigues así, tu cuenta será suspendida.');
+      }
+    } catch (err) {
+      toast.error('Error al enviar la advertencia.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
 
   const loadUsers = async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -334,18 +362,28 @@ export default function AdminUsersPage() {
 
                       {/* Action buttons */}
                       <td className="px-6 py-4 text-right">
-                        <button
-                          type="button"
-                          disabled={updatingUserId === user.id}
-                          onClick={() => handleToggleStatus(user.id, user.statusActive)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-[0.98] ${
-                            isDeactivated
-                              ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-500/15'
-                              : 'bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/20'
-                          }`}
-                        >
-                          {isDeactivated ? 'Activar' : 'Desactivar'}
-                        </button>
+                        <div className="flex justify-end items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={updatingUserId === user.id}
+                            onClick={() => setShowWarningModal(user.id)}
+                            className="px-3 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/20 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-[0.98] flex items-center gap-1"
+                          >
+                            <Bell className="w-3 h-3 text-yellow-500" /> Advertir
+                          </button>
+                          <button
+                            type="button"
+                            disabled={updatingUserId === user.id}
+                            onClick={() => handleToggleStatus(user.id, user.statusActive)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-[0.98] ${
+                              isDeactivated
+                                ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-500/15'
+                                : 'bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/20'
+                            }`}
+                          >
+                            {isDeactivated ? 'Activar' : 'Desactivar'}
+                          </button>
+                        </div>
                       </td>
 
                     </tr>
@@ -421,6 +459,75 @@ export default function AdminUsersPage() {
                   className="flex-1 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-colors"
                 >
                   Confirmar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* WARNING NOTIFICATION MODAL */}
+      {showWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm transition-opacity p-4">
+          <div className="absolute inset-0" onClick={() => setShowWarningModal(null)} />
+          
+          <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.25)] z-10 animate-in zoom-in-95">
+            <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse" />
+            
+            <form onSubmit={handleSendWarning} className="p-6 flex flex-col gap-4">
+              <h3 className="text-base font-black text-white flex items-center gap-1.5">
+                <ShieldAlert className="w-5 h-5 text-red-500" /> Enviar Advertencia a Usuario
+              </h3>
+              
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Asunto / Tipo de Regla</label>
+                <select
+                  value={warningTitle}
+                  onChange={(e) => {
+                    setWarningTitle(e.target.value);
+                    if (e.target.value === 'Infracción de Reglas') {
+                      setWarningMessage('Estás infringiendo las reglas de la comunidad. Si sigues así, tu cuenta será bloqueada.');
+                    } else if (e.target.value === 'Comportamiento Inadecuado') {
+                      setWarningMessage('Hemos recibido reportes sobre tu comportamiento hostil. Evita agresiones o tu cuenta será suspendida.');
+                    } else if (e.target.value === 'Fraude en Apuestas PvP') {
+                      setWarningMessage('Se detectó un reporte de fraude o screenshot alterada en tu sala PvP. Respeta las reglas de wagers.');
+                    }
+                  }}
+                  className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-bold outline-none focus:border-red-500 transition-colors"
+                >
+                  <option value="Infracción de Reglas" className="bg-zinc-950 text-white">Infracción de Reglas Generales</option>
+                  <option value="Comportamiento Inadecuado" className="bg-zinc-950 text-white">Comportamiento Inadecuado / Acoso</option>
+                  <option value="Fraude en Apuestas PvP" className="bg-zinc-950 text-white">Fraude en Apuestas PvP (Wagers)</option>
+                  <option value="Advertencia Personalizada" className="bg-zinc-950 text-white">Mensaje Personalizado</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Mensaje de Advertencia</label>
+                <textarea 
+                  required
+                  rows={4}
+                  value={warningMessage}
+                  onChange={(e) => setWarningMessage(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-medium outline-none focus:border-red-500 transition-colors resize-none leading-relaxed"
+                  placeholder="Escribe la advertencia detallada..."
+                />
+              </div>
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowWarningModal(null)}
+                  className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black text-xs uppercase tracking-wider rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingUserId !== null}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-colors shadow-lg shadow-red-600/20"
+                >
+                  Enviar Alerta
                 </button>
               </div>
             </form>

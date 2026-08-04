@@ -306,3 +306,100 @@ export async function getUserConversationAction(user1Id: string, user2Id: string
     return [];
   }
 }
+
+// Send warning/system notification to a user
+export async function sendSystemNotificationAction(userId: string, title: string, message: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    const formattedContent = `Sistema|https://api.dicebear.com/7.x/icons/svg?seed=Alert|⚠️ ${title}: ${message}`;
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'SYSTEM',
+        content: formattedContent,
+        link: '/notificaciones'
+      }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+// User submits support request/help from profile
+export async function submitHelpRequestAction(title: string, message: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  try {
+    await prisma.moderationReport.create({
+      data: {
+        reporterId: session.id,
+        reportedId: session.id, // Self-ticket
+        reason: `[SOPORTE] ${title}`,
+        details: message,
+        status: 'PENDING'
+      }
+    });
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+// Fetch all reports and support tickets for admin
+export async function getAdminReportsAndTicketsAction() {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    throw new Error('No autorizado');
+  }
+
+  try {
+    const items = await prisma.moderationReport.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reporter: { select: { id: true, username: true, avatar: true } },
+        reported: { select: { id: true, username: true, avatar: true } }
+      }
+    });
+    return items;
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    return [];
+  }
+}
+
+// Admin responds to support ticket and notifies user
+export async function respondToTicketAction(ticketId: string, userId: string, replyMessage: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    await prisma.moderationReport.update({
+      where: { id: ticketId },
+      data: { status: 'ACTION_TAKEN' }
+    });
+
+    const formattedContent = `Sistema|https://api.dicebear.com/7.x/icons/svg?seed=AdminSupport|✉️ Respuesta del Administrador: ${replyMessage}`;
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'SYSTEM',
+        content: formattedContent,
+        link: '/notificaciones'
+      }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
