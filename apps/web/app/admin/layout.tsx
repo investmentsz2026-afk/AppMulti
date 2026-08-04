@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Shield, Users, BarChart3, Settings, LogOut, Database, AlertCircle } from 'lucide-react';
+import { Shield, Users, BarChart3, Settings, LogOut, Database, AlertCircle, Sword } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 import { logoutUser } from '@/app/actions/auth';
@@ -21,6 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { icon: Users, label: 'Users', href: '/admin/users' },
     { icon: Database, label: 'Logs', href: '/admin/logs' },
     { icon: AlertCircle, label: 'Reports', href: '/admin/reports' },
+    { icon: Sword, label: 'Batallas y PvP', href: '/admin/wagers' },
   ];
 
   return (

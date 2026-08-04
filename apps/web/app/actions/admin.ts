@@ -403,3 +403,96 @@ export async function respondToTicketAction(ticketId: string, userId: string, re
     return { error: error.message };
   }
 }
+
+// Fetch all live battles and PvP GameRooms for admin view
+export async function getAdminBattlesAndWagersAction() {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    throw new Error('No autorizado');
+  }
+
+  try {
+    const battles = await prisma.streamBattle.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        stream1: { 
+          include: { 
+            user: { select: { id: true, username: true, avatar: true } } 
+          } 
+        },
+        stream2: { 
+          include: { 
+            user: { select: { id: true, username: true, avatar: true } } 
+          } 
+        }
+      }
+    });
+
+    const rooms = await prisma.gameRoom.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        creator: { select: { id: true, username: true, avatar: true } },
+        opponent: { select: { id: true, username: true, avatar: true } }
+      }
+    });
+
+    return { battles, rooms };
+  } catch (error) {
+    console.error('Error fetching admin battles and wagers:', error);
+    return { battles: [], rooms: [] };
+  }
+}
+
+// Admin awards winner of StreamBattle and sets it to FINISHED
+export async function adminFinishStreamBattleAction(battleId: string, winnerUserId: string, prizeCoins: number) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    // 1. Update StreamBattle status and winner
+    const updated = await prisma.streamBattle.update({
+      where: { id: battleId },
+      data: {
+        status: 'FINISHED',
+        winnerId: winnerUserId,
+        endTime: new Date()
+      }
+    });
+
+    // 2. Award coins if prizeCoins is positive
+    if (prizeCoins > 0) {
+      const wallet = await prisma.wallet.upsert({
+        where: { userId: winnerUserId },
+        update: { balance: { increment: prizeCoins } },
+        create: { userId: winnerUserId, balance: prizeCoins }
+      });
+
+      // Log transaction
+      await prisma.transaction.create({
+        data: {
+          amount: prizeCoins,
+          type: 'TOURNAMENT_PRIZE',
+          walletId: wallet.id,
+          referenceId: battleId
+        }
+      });
+
+      // Send SYSTEM notification to winner
+      const formattedContent = `Sistema|https://api.dicebear.com/7.x/icons/svg?seed=Trophy|🏆 ¡Felicidades! El administrador te ha premiado con ${prizeCoins} monedas por ganar la Batalla Stream.`;
+      await prisma.notification.create({
+        data: {
+          userId: winnerUserId,
+          type: 'SYSTEM',
+          content: formattedContent,
+          link: '/wallet'
+        }
+      });
+    }
+
+    return { success: true, battle: updated };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
