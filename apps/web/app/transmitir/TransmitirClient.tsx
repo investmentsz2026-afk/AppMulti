@@ -104,10 +104,12 @@ export default function TransmitirClient({ user }: { user: any }) {
       setIsScreenSharing(false);
     } else {
       // Check if creator has a waiting PvP game room
-      const pvpCheck = await checkUserActiveWagerStatusAction();
-      if (pvpCheck.isWaiting) {
-        toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
-        return;
+      if (!wagerUnblocked) {
+        const pvpCheck = await checkUserActiveWagerStatusAction();
+        if (pvpCheck.isWaiting) {
+          toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
+          return;
+        }
       }
 
       if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
@@ -364,10 +366,12 @@ export default function TransmitirClient({ user }: { user: any }) {
     }
     
     // Check if creator has a waiting PvP game room
-    const pvpCheck = await checkUserActiveWagerStatusAction();
-    if (pvpCheck.isWaiting) {
-      toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes iniciar transmisión hasta que alguien se una.`);
-      return;
+    if (!wagerUnblocked) {
+      const pvpCheck = await checkUserActiveWagerStatusAction();
+      if (pvpCheck.isWaiting) {
+        toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes iniciar transmisión hasta que alguien se una.`);
+        return;
+      }
     }
     
     const loadingToast = toast.loading('Iniciando transmisión...');

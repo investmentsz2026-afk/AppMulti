@@ -13,7 +13,7 @@ import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { getUpcomingStreamers, getUserWalletBalance } from '@/app/actions/battle';
 import { getUnreadNotificationsCount } from '@/app/actions/social';
-import { getGameRoomsAction, joinGameRoomAction } from '@/app/actions/gameroom';
+import { getGameRoomsAction, joinGameRoomAction, submitRoomWinAction } from '@/app/actions/gameroom';
 
 export default function GamingClient({ user }: { user: any }) {
   const router = useRouter();
@@ -30,6 +30,8 @@ export default function GamingClient({ user }: { user: any }) {
   const [confirmJoinRoom, setConfirmJoinRoom] = useState<any | null>(null);
   const [activePvpRoomDetails, setActivePvpRoomDetails] = useState<any | null>(null);
   const [joiningInProgress, setJoiningInProgress] = useState(false);
+  const [roomScreenshots, setRoomScreenshots] = useState<Record<string, string>>({});
+  const [submittingWins, setSubmittingWins] = useState<Record<string, boolean>>({});
   
   // Followed status simulation
   const [followedStreamers, setFollowedStreamers] = useState<number[]>([]);
@@ -45,6 +47,28 @@ export default function GamingClient({ user }: { user: any }) {
     setToastMessage(msg);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2500);
+  };
+
+  const handleSubmitWin = async (roomId: string) => {
+    const screenshot = roomScreenshots[roomId];
+    if (!screenshot) return;
+    
+    setSubmittingWins(prev => ({ ...prev, [roomId]: true }));
+    try {
+      const res = await submitRoomWinAction({ roomId, winScreenshot: screenshot }) as any;
+      if (res.error) {
+        triggerToast(`❌ Error: ${res.error}`);
+      } else {
+        triggerToast('🎉 ¡Captura de victoria enviada con éxito! Esperando revisión del admin.');
+        setRoomScreenshots(prev => ({ ...prev, [roomId]: '' }));
+        const rooms = await getGameRoomsAction();
+        setRealRooms(rooms);
+      }
+    } catch (err) {
+      triggerToast('Error al enviar la captura.');
+    } finally {
+      setSubmittingWins(prev => ({ ...prev, [roomId]: false }));
+    }
   };
 
   useEffect(() => {
@@ -412,44 +436,132 @@ export default function GamingClient({ user }: { user: any }) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {realRooms.filter(r => r.status === 'WAITING').map((room: any) => (
-                  <div 
-                    key={room.id}
-                    className="bg-[#0b0a12]/95 border border-purple-500/20 rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[180px] hover:border-pink-500/50 transition-all duration-300 animate-fade-in"
-                  >
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-pink-600" />
-                    
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-black rounded uppercase">
-                            🕹️ {room.game || 'Free Fire'}
-                          </span>
-                          <h4 className="text-sm font-black text-white mt-2 mb-1">{room.title}</h4>
+                {realRooms.filter((room: any) => {
+                  if (room.status === 'WAITING') return true;
+                  if (room.status === 'PLAYING' || room.status === 'FINISHED') {
+                    return room.creatorId === user?.id || room.opponentId === user?.id;
+                  }
+                  return false;
+                }).map((room: any) => {
+                  const isParticipant = room.creatorId === user?.id || room.opponentId === user?.id;
+                  const isActiveOrFinished = room.status === 'PLAYING' || room.status === 'FINISHED';
+
+                  return (
+                    <div 
+                      key={room.id}
+                      className={`bg-[#0b0a12]/95 border rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[180px] hover:border-pink-500/50 transition-all duration-300 animate-fade-in ${
+                        isActiveOrFinished ? 'border-green-500/30 bg-[#07130b]/20 shadow-[0_0_15px_rgba(34,197,94,0.05)]' : 'border-purple-500/20'
+                      }`}
+                    >
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-pink-600" />
+                      
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className={`px-2 py-0.5 border text-[9px] font-black rounded uppercase ${
+                              isActiveOrFinished 
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                                : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                            }`}>
+                              {isActiveOrFinished ? `⚔️ EN JUEGO` : `🕹️ ${room.game || 'Free Fire'}`}
+                            </span>
+                            <h4 className="text-sm font-black text-white mt-2 mb-1">{room.title}</h4>
+                          </div>
+                          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-2.5 py-1 text-right">
+                            <span className="text-[8px] text-zinc-500 font-bold block uppercase">Premio</span>
+                            <span className="text-xs font-black text-yellow-500">🏆 {room.wager * 2} Monedas</span>
+                          </div>
                         </div>
-                        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-2.5 py-1 text-right">
-                          <span className="text-[8px] text-zinc-500 font-bold block uppercase">Premio</span>
-                          <span className="text-xs font-black text-yellow-500">🏆 {room.wager * 2} Monedas</span>
-                        </div>
+
+                        {isActiveOrFinished ? (
+                          <div className="mt-3 bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col gap-2">
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-zinc-500 font-bold uppercase">ID Sala</span>
+                              <span className="font-black text-zinc-200 select-all">{room.roomCode}</span>
+                            </div>
+                            <div className="h-px bg-white/10" />
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-zinc-500 font-bold uppercase">Contraseña</span>
+                              <span className="font-black text-yellow-500 select-all">{room.roomPassword}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-zinc-400 mt-2">
+                            Creador: <strong className="text-zinc-200">@{room.creator?.username || 'Usuario'}</strong>
+                          </p>
+                        )}
                       </div>
-                      <p className="text-[10px] text-zinc-400 mt-2">
-                        Creador: <strong className="text-zinc-200">@{room.creator?.username || 'Usuario'}</strong>
-                      </p>
-                    </div>
 
-                    <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-4">
-                      <span className="text-[10px] text-zinc-500 font-bold">Costo: <strong className="text-white">{room.wager} Monedas</strong></span>
-                      <button
-                        onClick={() => setConfirmJoinRoom(room)}
-                        className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-black rounded-xl uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                      >
-                        Unirse
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                      {/* Bottom action panel */}
+                      <div className="border-t border-white/5 pt-3 mt-4 flex flex-col gap-2">
+                        {isActiveOrFinished ? (
+                          room.submittedWin ? (
+                            <span className="text-[10px] text-green-400 font-bold text-center block">
+                              📸 Captura enviada. Esperando aprobación de Admin.
+                            </span>
+                          ) : (
+                            <div className="flex flex-col gap-2">
+                              <span className="text-[9px] text-zinc-400 font-black uppercase text-center block">Subir captura de victoria para reclamar premio</span>
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      setRoomScreenshots(prev => ({ ...prev, [room.id]: reader.result as string }));
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                                className="hidden" 
+                                id={`win-upload-${room.id}`} 
+                              />
+                              <label 
+                                htmlFor={`win-upload-${room.id}`}
+                                className="w-full py-2 border-2 border-dashed border-white/10 hover:border-purple-500/30 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-zinc-400 hover:text-white transition-all bg-white/5 text-[10px] font-black uppercase"
+                              >
+                                📸 {roomScreenshots[room.id] ? 'Cambiar captura' : 'Seleccionar captura'}
+                              </label>
 
-                {realRooms.filter(r => r.status === 'WAITING').length === 0 && (
+                              {roomScreenshots[room.id] && (
+                                <div className="flex flex-col gap-1.5 mt-1">
+                                  <img src={roomScreenshots[room.id]} className="rounded-lg max-h-24 object-contain bg-black border border-white/10" alt="" />
+                                  <button
+                                    onClick={() => handleSubmitWin(room.id)}
+                                    disabled={submittingWins[room.id]}
+                                    className="w-full py-2 bg-purple-600 hover:bg-[#a21caf] text-white font-black text-[10px] uppercase rounded-xl transition-all cursor-pointer"
+                                  >
+                                    {submittingWins[room.id] ? 'Subiendo...' : 'Confirmar Reporte de Victoria'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-zinc-500 font-bold">Costo: <strong className="text-white">{room.wager} Monedas</strong></span>
+                            <button
+                              onClick={() => setConfirmJoinRoom(room)}
+                              className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-black rounded-xl uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                            >
+                              Unirse
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {realRooms.filter((room: any) => {
+                  if (room.status === 'WAITING') return true;
+                  if (room.status === 'PLAYING' || room.status === 'FINISHED') {
+                    return room.creatorId === user?.id || room.opponentId === user?.id;
+                  }
+                  return false;
+                }).length === 0 && (
                   <div className="col-span-2 text-center text-xs text-zinc-500 py-12 bg-white/5 rounded-3xl border border-dashed border-white/10">
                     No hay salas PvP abiertas en este momento. ¡Crea una sala usando el botón en la esquina superior derecha!
                   </div>
