@@ -339,7 +339,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
 
         {/* Video Player */}
         <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden group">
-          {isLive ? (
+          {isStreamActive ? (
             <video 
               ref={videoRef}
               autoPlay

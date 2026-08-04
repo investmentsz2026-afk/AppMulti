@@ -280,7 +280,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     <div className="relative h-[100dvh] w-full bg-black text-white overflow-hidden">
       {/* Video Background (Horizontal video centered on vertical screen) */}
       <div className="absolute inset-0 flex items-center justify-center">
-          {isLive ? (
+          {isStreamActive ? (
             <video 
               ref={videoRef}
               autoPlay

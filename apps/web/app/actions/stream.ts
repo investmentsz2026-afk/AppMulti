@@ -69,14 +69,21 @@ export async function updateStreamStatus(
   }
 }
 
-export async function checkStreamStatus(streamerUsername: string) {
+export async function checkStreamStatus(streamerUsernameOrId: string) {
   try {
     const streamer = await prisma.user.findFirst({
       where: { 
-        username: {
-          equals: streamerUsername,
-          mode: 'insensitive'
-        }
+        OR: [
+          {
+            username: {
+              equals: streamerUsernameOrId,
+              mode: 'insensitive'
+            }
+          },
+          {
+            id: streamerUsernameOrId
+          }
+        ]
       },
       select: {
         isLive: true,
