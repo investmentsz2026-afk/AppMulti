@@ -25,6 +25,7 @@ export default function GamingClient({ user }: { user: any }) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [realLiveStreamers, setRealLiveStreamers] = useState<any[]>([]);
   const [realRooms, setRealRooms] = useState<any[]>([]);
+  const [gamingSubTab, setGamingSubTab] = useState<'active' | 'history'>('active');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [confirmJoinRoom, setConfirmJoinRoom] = useState<any | null>(null);
@@ -429,144 +430,253 @@ export default function GamingClient({ user }: { user: any }) {
             {/* COLUMN 1 & 2: PRIMARY STREAM FEED */}
             <div className="xl:col-span-2 flex flex-col gap-6">
               
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-pink-500" /> Feed de PvP y Clasificatorias
-                </h3>
+              <div className="flex flex-col gap-4 border-b border-white/5 pb-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-pink-500 animate-pulse" /> Free Fire Arena
+                  </h3>
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setGamingSubTab('active')}
+                    className={`pb-1 text-xs font-black uppercase tracking-wider transition-colors border-b-2 cursor-pointer ${
+                      gamingSubTab === 'active' ? 'border-purple-500 text-purple-400' : 'border-transparent text-zinc-500 hover:text-white'
+                    }`}
+                  >
+                    Salas Activas
+                  </button>
+                  <button
+                    onClick={() => setGamingSubTab('history')}
+                    className={`pb-1 text-xs font-black uppercase tracking-wider transition-colors border-b-2 cursor-pointer ${
+                      gamingSubTab === 'history' ? 'border-purple-500 text-purple-400' : 'border-transparent text-zinc-500 hover:text-white'
+                    }`}
+                  >
+                    Mi Historial
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {realRooms.filter((room: any) => {
-                  if (room.status === 'WAITING') return true;
-                  if (room.status === 'PLAYING' || room.status === 'FINISHED') {
-                    return room.creatorId === user?.id || room.opponentId === user?.id;
-                  }
-                  return false;
-                }).map((room: any) => {
-                  const isParticipant = room.creatorId === user?.id || room.opponentId === user?.id;
-                  const isActiveOrFinished = room.status === 'PLAYING' || room.status === 'FINISHED';
+              {gamingSubTab === 'active' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                  {realRooms.filter((room: any) => {
+                    if (room.status === 'WAITING') return true;
+                    if (room.status === 'PLAYING' || room.status === 'FINISHED') {
+                      return room.creatorId === user?.id || room.opponentId === user?.id;
+                    }
+                    return false;
+                  }).map((room: any) => {
+                    const isParticipant = room.creatorId === user?.id || room.opponentId === user?.id;
+                    const isActiveOrFinished = room.status === 'PLAYING' || room.status === 'FINISHED';
 
-                  return (
-                    <div 
-                      key={room.id}
-                      className={`bg-[#0b0a12]/95 border rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[180px] hover:border-pink-500/50 transition-all duration-300 animate-fade-in ${
-                        isActiveOrFinished ? 'border-green-500/30 bg-[#07130b]/20 shadow-[0_0_15px_rgba(34,197,94,0.05)]' : 'border-purple-500/20'
-                      }`}
-                    >
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-pink-600" />
-                      
-                      <div>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className={`px-2 py-0.5 border text-[9px] font-black rounded uppercase ${
-                              isActiveOrFinished 
-                                ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                                : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                            }`}>
-                              {isActiveOrFinished ? `⚔️ EN JUEGO` : `🕹️ ${room.game || 'Free Fire'}`}
-                            </span>
-                            <h4 className="text-sm font-black text-white mt-2 mb-1">{room.title}</h4>
+                    return (
+                      <div 
+                        key={room.id}
+                        className={`bg-[#0b0a12]/95 border rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[180px] hover:border-pink-500/50 transition-all duration-300 animate-fade-in ${
+                          isActiveOrFinished ? 'border-green-500/30 bg-[#07130b]/20 shadow-[0_0_15px_rgba(34,197,94,0.05)]' : 'border-purple-500/20'
+                        }`}
+                      >
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-pink-600" />
+                        
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className={`px-2 py-0.5 border text-[9px] font-black rounded uppercase ${
+                                isActiveOrFinished 
+                                  ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                                  : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                              }`}>
+                                {isActiveOrFinished ? `⚔️ EN JUEGO` : `🕹️ ${room.game || 'Free Fire'}`}
+                              </span>
+                              <h4 className="text-sm font-black text-white mt-2 mb-1">{room.title}</h4>
+                            </div>
+                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-2.5 py-1 text-right">
+                              <span className="text-[8px] text-zinc-500 font-bold block uppercase">Premio</span>
+                              <span className="text-xs font-black text-yellow-500">🏆 {room.wager * 2} Monedas</span>
+                            </div>
                           </div>
-                          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-2.5 py-1 text-right">
-                            <span className="text-[8px] text-zinc-500 font-bold block uppercase">Premio</span>
-                            <span className="text-xs font-black text-yellow-500">🏆 {room.wager * 2} Monedas</span>
+
+                          {isActiveOrFinished ? (
+                            <div className="mt-3 bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col gap-2">
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-zinc-500 font-bold uppercase">ID Sala</span>
+                                <span className="font-black text-zinc-200 select-all">{room.roomCode}</span>
+                              </div>
+                              <div className="h-px bg-white/10" />
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-zinc-500 font-bold uppercase">Contraseña</span>
+                                <span className="font-black text-yellow-500 select-all">{room.roomPassword}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-zinc-400 mt-2">
+                              Creador: <strong className="text-zinc-200">@{room.creator?.username || 'Usuario'}</strong>
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Bottom action panel */}
+                        <div className="border-t border-white/5 pt-3 mt-4 flex flex-col gap-2">
+                          {isActiveOrFinished ? (
+                            room.submittedWin ? (
+                              <span className="text-[10px] text-green-400 font-bold text-center block">
+                                📸 Captura enviada. Esperando aprobación de Admin.
+                              </span>
+                            ) : (
+                              <div className="flex flex-col gap-2">
+                                <span className="text-[9px] text-zinc-400 font-black uppercase text-center block">Subir captura de victoria para reclamar premio</span>
+                                <input 
+                                  type="file" 
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onloadend = () => {
+                                        setRoomScreenshots(prev => ({ ...prev, [room.id]: reader.result as string }));
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                  className="hidden" 
+                                  id={`win-upload-${room.id}`} 
+                                />
+                                <label 
+                                  htmlFor={`win-upload-${room.id}`}
+                                  className="w-full py-2 border-2 border-dashed border-white/10 hover:border-purple-500/30 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-zinc-400 hover:text-white transition-all bg-white/5 text-[10px] font-black uppercase"
+                                >
+                                  📸 {roomScreenshots[room.id] ? 'Cambiar captura' : 'Seleccionar captura'}
+                                </label>
+
+                                {roomScreenshots[room.id] && (
+                                  <div className="flex flex-col gap-1.5 mt-1">
+                                    <img src={roomScreenshots[room.id]} className="rounded-lg max-h-24 object-contain bg-black border border-white/10" alt="" />
+                                    <button
+                                      onClick={() => handleSubmitWin(room.id)}
+                                      disabled={submittingWins[room.id]}
+                                      className="w-full py-2 bg-purple-600 hover:bg-[#a21caf] text-white font-black text-[10px] uppercase rounded-xl transition-all cursor-pointer"
+                                    >
+                                      {submittingWins[room.id] ? 'Subiendo...' : 'Confirmar Reporte de Victoria'}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-zinc-500 font-bold">Costo: <strong className="text-white">{room.wager} Monedas</strong></span>
+                              <button
+                                onClick={() => setConfirmJoinRoom(room)}
+                                className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-black rounded-xl uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                              >
+                                Unirse
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {realRooms.filter((room: any) => {
+                    if (room.status === 'WAITING') return true;
+                    if (room.status === 'PLAYING' || room.status === 'FINISHED') {
+                      return room.creatorId === user?.id || room.opponentId === user?.id;
+                    }
+                    return false;
+                  }).length === 0 && (
+                    <div className="col-span-2 text-center text-xs text-zinc-500 py-12 bg-white/5 rounded-3xl border border-dashed border-white/10">
+                      No hay salas PvP abiertas en este momento. ¡Crea una sala usando el botón en la esquina superior derecha!
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* HISTORY TAB PANEL */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                  {realRooms.filter((room: any) => {
+                    const isParticipant = room.creatorId === user?.id || room.opponentId === user?.id;
+                    const isHist = room.status === 'APPROVED' || room.status === 'CANCELLED';
+                    return isParticipant && isHist;
+                  }).map((room: any) => {
+                    const isApproved = room.status === 'APPROVED';
+                    const isCancelled = room.status === 'CANCELLED';
+                    const isCreatorWinner = room.winnerId === room.creatorId;
+                    const isOpponentWinner = room.winnerId === room.opponentId;
+                    const winnerUsername = isCreatorWinner 
+                      ? room.creator?.username 
+                      : (isOpponentWinner ? room.opponent?.username : null);
+
+                    return (
+                      <div 
+                        key={room.id}
+                        className={`bg-[#0b0a12]/80 border rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[180px] transition-all duration-300 animate-fade-in ${
+                          isApproved ? 'border-green-500/10 bg-[#07130b]/10' : 'border-red-500/10 bg-[#14080b]/10'
+                        }`}
+                      >
+                        <div className={`absolute top-0 left-0 w-full h-1 ${isApproved ? 'bg-green-500' : 'bg-red-500'}`} />
+
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className={`px-2 py-0.5 border text-[9px] font-black rounded uppercase ${
+                                isApproved 
+                                  ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                                  : 'bg-red-500/10 text-red-400 border-red-500/20'
+                              }`}>
+                                {isApproved ? '⚔️ CULMINADA' : '❌ CANCELADA'}
+                              </span>
+                              <h4 className="text-sm font-black text-white mt-2 mb-1">{room.title}</h4>
+                              <span className="text-[9px] text-zinc-500 font-semibold">
+                                {new Date(room.createdAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
+                              </span>
+                            </div>
+                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-2.5 py-1 text-right">
+                              <span className="text-[8px] text-zinc-500 font-bold block uppercase">Apuesta</span>
+                              <span className="text-xs font-black text-yellow-500">{room.wager} Monedas</span>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col gap-1.5 text-[10px]">
+                            <div className="flex justify-between text-zinc-400">
+                              <span>Creador:</span>
+                              <strong className="text-zinc-200">@{room.creator?.username}</strong>
+                            </div>
+                            <div className="flex justify-between text-zinc-400">
+                              <span>Oponente:</span>
+                              <strong className="text-zinc-200">@{room.opponent?.username || 'N/A'}</strong>
+                            </div>
                           </div>
                         </div>
 
-                        {isActiveOrFinished ? (
-                          <div className="mt-3 bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col gap-2">
-                            <div className="flex justify-between items-center text-[10px]">
-                              <span className="text-zinc-500 font-bold uppercase">ID Sala</span>
-                              <span className="font-black text-zinc-200 select-all">{room.roomCode}</span>
-                            </div>
-                            <div className="h-px bg-white/10" />
-                            <div className="flex justify-between items-center text-[10px]">
-                              <span className="text-zinc-500 font-bold uppercase">Contraseña</span>
-                              <span className="font-black text-yellow-500 select-all">{room.roomPassword}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-zinc-400 mt-2">
-                            Creador: <strong className="text-zinc-200">@{room.creator?.username || 'Usuario'}</strong>
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Bottom action panel */}
-                      <div className="border-t border-white/5 pt-3 mt-4 flex flex-col gap-2">
-                        {isActiveOrFinished ? (
-                          room.submittedWin ? (
-                            <span className="text-[10px] text-green-400 font-bold text-center block">
-                              📸 Captura enviada. Esperando aprobación de Admin.
+                        <div className="border-t border-white/5 pt-3 mt-4 flex items-center justify-between text-xs">
+                          {isApproved ? (
+                            <span className="text-green-400 font-black flex items-center gap-1.5">
+                              🏆 Ganador: @{winnerUsername || 'Revisado'}
                             </span>
                           ) : (
-                            <div className="flex flex-col gap-2">
-                              <span className="text-[9px] text-zinc-400 font-black uppercase text-center block">Subir captura de victoria para reclamar premio</span>
-                              <input 
-                                type="file" 
-                                accept="image/*"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => {
-                                      setRoomScreenshots(prev => ({ ...prev, [room.id]: reader.result as string }));
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                                className="hidden" 
-                                id={`win-upload-${room.id}`} 
-                              />
-                              <label 
-                                htmlFor={`win-upload-${room.id}`}
-                                className="w-full py-2 border-2 border-dashed border-white/10 hover:border-purple-500/30 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-zinc-400 hover:text-white transition-all bg-white/5 text-[10px] font-black uppercase"
-                              >
-                                📸 {roomScreenshots[room.id] ? 'Cambiar captura' : 'Seleccionar captura'}
-                              </label>
-
-                              {roomScreenshots[room.id] && (
-                                <div className="flex flex-col gap-1.5 mt-1">
-                                  <img src={roomScreenshots[room.id]} className="rounded-lg max-h-24 object-contain bg-black border border-white/10" alt="" />
-                                  <button
-                                    onClick={() => handleSubmitWin(room.id)}
-                                    disabled={submittingWins[room.id]}
-                                    className="w-full py-2 bg-purple-600 hover:bg-[#a21caf] text-white font-black text-[10px] uppercase rounded-xl transition-all cursor-pointer"
-                                  >
-                                    {submittingWins[room.id] ? 'Subiendo...' : 'Confirmar Reporte de Victoria'}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-zinc-500 font-bold">Costo: <strong className="text-white">{room.wager} Monedas</strong></span>
-                            <button
-                              onClick={() => setConfirmJoinRoom(room)}
-                              className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-black rounded-xl uppercase tracking-wider shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                            >
-                              Unirse
-                            </button>
-                          </div>
-                        )}
+                            <span className="text-red-400 font-bold">
+                              Reembolsado a los participantes
+                            </span>
+                          )}
+                          <span className="text-[9px] text-zinc-500 font-black uppercase tracking-wider">
+                            Premio: {room.wager * 2}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
-                {realRooms.filter((room: any) => {
-                  if (room.status === 'WAITING') return true;
-                  if (room.status === 'PLAYING' || room.status === 'FINISHED') {
-                    return room.creatorId === user?.id || room.opponentId === user?.id;
-                  }
-                  return false;
-                }).length === 0 && (
-                  <div className="col-span-2 text-center text-xs text-zinc-500 py-12 bg-white/5 rounded-3xl border border-dashed border-white/10">
-                    No hay salas PvP abiertas en este momento. ¡Crea una sala usando el botón en la esquina superior derecha!
-                  </div>
-                )}
-              </div>
+                  {realRooms.filter((room: any) => {
+                    const isParticipant = room.creatorId === user?.id || room.opponentId === user?.id;
+                    const isHist = room.status === 'APPROVED' || room.status === 'CANCELLED';
+                    return isParticipant && isHist;
+                  }).length === 0 && (
+                    <div className="col-span-2 text-center text-xs text-zinc-500 py-12 bg-white/5 rounded-3xl border border-dashed border-white/10">
+                      No has participado en ninguna sala finalizada o cancelada todavía.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* COLUMN 3: RIGHT PANEL (SALAS PvP ACTIVAS & TOP STREAMERS) */}

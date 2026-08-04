@@ -336,24 +336,69 @@ export default function TransmitirClient({ user }: { user: any }) {
   };
 
   // 3. Toggle camera stream
-  // 3. Toggle camera stream
-  const toggleCamera = () => {
-    if (cameraStream) {
-      const videoTrack = cameraStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setCameraActive(videoTrack.enabled);
+  const toggleCamera = async () => {
+    if (cameraActive) {
+      if (cameraStream) {
+        const videoTrack = cameraStream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.enabled = false;
+        }
+      }
+      setCameraActive(false);
+      toast.success('Cámara apagada');
+    } else {
+      try {
+        let stream = cameraStream;
+        const hasActiveVideoTrack = stream && stream.getVideoTracks().some(t => t.readyState === 'live');
+        if (!hasActiveVideoTrack) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: micActive });
+          setCameraStream(stream);
+          cameraStreamRef.current = stream;
+        } else if (stream) {
+          const videoTrack = stream.getVideoTracks()[0];
+          if (videoTrack) {
+            videoTrack.enabled = true;
+          }
+        }
+        setCameraActive(true);
+        toast.success('Cámara encendida');
+      } catch (err) {
+        console.error('Error al encender la cámara:', err);
+        toast.error('No se pudo acceder a la cámara.');
       }
     }
   };
 
   // 4. Toggle microphone
-  const toggleMic = () => {
-    if (cameraStream) {
-      const audioTrack = cameraStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setMicActive(audioTrack.enabled);
+  const toggleMic = async () => {
+    if (micActive) {
+      if (cameraStream) {
+        const audioTrack = cameraStream.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = false;
+        }
+      }
+      setMicActive(false);
+      toast.success('Micrófono silenciado');
+    } else {
+      try {
+        let stream = cameraStream;
+        const hasActiveAudioTrack = stream && stream.getAudioTracks().some(t => t.readyState === 'live');
+        if (!hasActiveAudioTrack) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: cameraActive, audio: true });
+          setCameraStream(stream);
+          cameraStreamRef.current = stream;
+        } else if (stream) {
+          const audioTrack = stream.getAudioTracks()[0];
+          if (audioTrack) {
+            audioTrack.enabled = true;
+          }
+        }
+        setMicActive(true);
+        toast.success('Micrófono activado');
+      } catch (err) {
+        console.error('Error al encender el micrófono:', err);
+        toast.error('No se pudo acceder al micrófono.');
       }
     }
   };

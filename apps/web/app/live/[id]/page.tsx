@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import DesktopLiveRoom from './components/DesktopLiveRoom';
 import MobileLiveRoom from './components/MobileLiveRoom';
 
-export default async function LiveRoomPage({ params }: { params: { id: string } }) {
+export default async function LiveRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   
   if (!session) {
@@ -11,7 +11,8 @@ export default async function LiveRoomPage({ params }: { params: { id: string } 
   }
 
   // The 'id' parameter corresponds to the streamer's name (e.g. SofiLive)
-  const streamerName = decodeURIComponent(params.id);
+  const { id } = await params;
+  const streamerName = decodeURIComponent(id);
 
   return (
     <>

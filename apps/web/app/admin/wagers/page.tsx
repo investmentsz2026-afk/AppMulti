@@ -12,6 +12,7 @@ import Link from 'next/link';
 
 export default function AdminWagersPage() {
   const [activeTab, setActiveTab] = useState<'battles' | 'pvp'>('battles');
+  const [pvpSubTab, setPvpSubTab] = useState<'active' | 'history'>('active');
   const [battles, setBattles] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,93 +252,134 @@ export default function AdminWagersPage() {
       ) : (
         
         /* PVP GAME ROOMS TAB PANEL */
-        <div className="space-y-4">
-          {rooms.length === 0 ? (
+        <div className="space-y-6">
+          {/* Subtabs switcher */}
+          <div className="flex gap-4 border-b border-white/5 pb-2">
+            <button
+              onClick={() => setPvpSubTab('active')}
+              className={`pb-2 text-xs font-black uppercase tracking-wider transition-colors border-b-2 cursor-pointer ${
+                pvpSubTab === 'active' ? 'border-purple-500 text-purple-400' : 'border-transparent text-zinc-500 hover:text-white'
+              }`}
+            >
+              Salas Activas / Pendientes ({rooms.filter(r => ['WAITING', 'PLAYING', 'FINISHED'].includes(r.status)).length})
+            </button>
+            <button
+              onClick={() => setPvpSubTab('history')}
+              className={`pb-2 text-xs font-black uppercase tracking-wider transition-colors border-b-2 cursor-pointer ${
+                pvpSubTab === 'history' ? 'border-purple-500 text-purple-400' : 'border-transparent text-zinc-500 hover:text-white'
+              }`}
+            >
+              Historial Culminadas / Cerradas ({rooms.filter(r => ['APPROVED', 'CANCELLED'].includes(r.status)).length})
+            </button>
+          </div>
+
+          {rooms.filter(room => {
+            if (pvpSubTab === 'active') {
+              return ['WAITING', 'PLAYING', 'FINISHED'].includes(room.status);
+            } else {
+              return ['APPROVED', 'CANCELLED'].includes(room.status);
+            }
+          }).length === 0 ? (
             <div className="text-center py-16 bg-zinc-900 border border-white/5 rounded-3xl">
               <Sword className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-              <h4 className="text-sm font-bold text-zinc-400">Sin salas PvP registradas</h4>
-              <p className="text-xs text-zinc-600 mt-1">No hay salas de apuestas PvP activas o terminadas.</p>
+              <h4 className="text-sm font-bold text-zinc-400">Sin salas registradas</h4>
+              <p className="text-xs text-zinc-600 mt-1">No hay salas de apuestas PvP en esta sección.</p>
             </div>
           ) : (
-            rooms.map((room) => {
-              const isFinished = room.status === 'FINISHED';
-              const isApproved = room.status === 'APPROVED';
-              const isPlaying = room.status === 'PLAYING';
-              
-              // Find winner username
-              const winnerUser = room.winnerId === room.creator.id ? room.creator : room.opponent;
+            <div className="space-y-4">
+              {rooms.filter(room => {
+                if (pvpSubTab === 'active') {
+                  return ['WAITING', 'PLAYING', 'FINISHED'].includes(room.status);
+                } else {
+                  return ['APPROVED', 'CANCELLED'].includes(room.status);
+                }
+              }).map((room) => {
+                const isFinished = room.status === 'FINISHED';
+                const isApproved = room.status === 'APPROVED';
+                const isPlaying = room.status === 'PLAYING';
+                const isCancelled = room.status === 'CANCELLED';
+                
+                // Find winner username
+                const winnerUser = room.winnerId === room.creator.id ? room.creator : room.opponent;
 
-              return (
-                <div key={room.id} className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all relative overflow-hidden">
-                  <div className={`absolute top-0 left-0 h-full w-1 ${
-                    isApproved ? 'bg-green-500' : isFinished ? 'bg-yellow-500' : 'bg-blue-500'
-                  }`} />
+                return (
+                  <div key={room.id} className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all relative overflow-hidden">
+                    <div className={`absolute top-0 left-0 h-full w-1 ${
+                      isApproved ? 'bg-green-500' : isCancelled ? 'bg-red-500' : isFinished ? 'bg-yellow-500' : 'bg-blue-500'
+                    }`} />
 
-                  {/* User Info Column */}
-                  <div className="flex items-center gap-4 min-w-0 md:w-1/3">
-                    <div className="flex items-center -space-x-4">
-                      <img 
-                        src={room.creator.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.creator.username}`} 
-                        className="w-10 h-10 rounded-full border-2 border-zinc-900 bg-zinc-800 shrink-0" 
-                        alt="" 
-                      />
-                      {room.opponent && (
+                    {/* User Info Column */}
+                    <div className="flex items-center gap-4 min-w-0 md:w-1/3">
+                      <div className="flex items-center -space-x-4">
                         <img 
-                          src={room.opponent.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.opponent.username}`} 
+                          src={room.creator.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.creator.username}`} 
                           className="w-10 h-10 rounded-full border-2 border-zinc-900 bg-zinc-800 shrink-0" 
                           alt="" 
                         />
+                        {room.opponent && (
+                          <img 
+                            src={room.opponent.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.opponent.username}`} 
+                            className="w-10 h-10 rounded-full border-2 border-zinc-900 bg-zinc-800 shrink-0" 
+                            alt="" 
+                          />
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-black text-white truncate leading-snug">{room.title}</h4>
+                        <p className="text-xs text-zinc-500 mt-0.5 font-bold">
+                          @{room.creator.username} vs {room.opponent ? `@${room.opponent.username}` : 'Esperando oponente...'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Coins & Code detail column */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs font-bold text-zinc-400">
+                      <div>
+                        <div className="text-[9px] font-black uppercase text-zinc-500 tracking-wider">Apuesta PvP</div>
+                        <div className="text-sm font-black text-yellow-500 flex items-center gap-1 mt-0.5">
+                          <Coins className="w-4 h-4" /> {room.wager.toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-black uppercase text-zinc-500 tracking-wider">Premio Total</div>
+                        <div className="text-sm font-black text-green-400 flex items-center gap-1 mt-0.5">
+                          <Coins className="w-4 h-4" /> {(room.wager * 2).toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-black uppercase text-zinc-500 tracking-wider">Código de Sala</div>
+                        <div className="text-white mt-1 select-all font-mono text-[11px] bg-black/35 px-2 py-0.5 rounded border border-white/5 w-fit">
+                          {room.roomCode}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Screenshot & Action column */}
+                    <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+                      <button
+                        onClick={() => setDetailRoomModal(room)}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-pink-500/10 cursor-pointer animate-fade-in"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Ver Detalles de Sala
+                      </button>
+
+                      {isApproved && winnerUser && (
+                        <span className="px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-green-600/10 border border-green-500/20 text-green-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Pagado a @{winnerUser.username}
+                        </span>
+                      )}
+
+                      {isCancelled && (
+                        <span className="px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-red-600/10 border border-red-500/20 text-red-400 flex items-center gap-1">
+                          Cancelada / Reembolsada
+                        </span>
                       )}
                     </div>
-
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-black text-white truncate leading-snug">{room.title}</h4>
-                      <p className="text-xs text-zinc-500 mt-0.5 font-bold">
-                        @{room.creator.username} vs {room.opponent ? `@${room.opponent.username}` : 'Esperando oponente...'}
-                      </p>
-                    </div>
                   </div>
-
-                  {/* Coins & Code detail column */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs font-bold text-zinc-400">
-                    <div>
-                      <div className="text-[9px] font-black uppercase text-zinc-500 tracking-wider">Apuesta PvP</div>
-                      <div className="text-sm font-black text-yellow-500 flex items-center gap-1 mt-0.5">
-                        <Coins className="w-4 h-4" /> {room.wager.toLocaleString()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] font-black uppercase text-zinc-500 tracking-wider">Premio Total</div>
-                      <div className="text-sm font-black text-green-400 flex items-center gap-1 mt-0.5">
-                        <Coins className="w-4 h-4" /> {(room.wager * 2).toLocaleString()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] font-black uppercase text-zinc-500 tracking-wider">Código de Sala</div>
-                      <div className="text-white mt-1 select-all font-mono text-[11px] bg-black/35 px-2 py-0.5 rounded border border-white/5 w-fit">
-                        {room.roomCode}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Screenshot & Action column */}
-                  <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
-                    <button
-                      onClick={() => setDetailRoomModal(room)}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-pink-500/10 cursor-pointer animate-fade-in"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> Ver Detalles de Sala
-                    </button>
-
-                    {isApproved && winnerUser && (
-                      <span className="px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-green-600/10 border border-green-500/20 text-green-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Pagado a @{winnerUser.username}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
       )}

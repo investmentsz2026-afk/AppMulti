@@ -429,9 +429,6 @@ export async function getAdminBattlesAndWagersAction() {
     });
 
     const rooms = await prisma.gameRoom.findMany({
-      where: {
-        status: { in: ['WAITING', 'PLAYING', 'FINISHED'] }
-      },
       orderBy: { createdAt: 'desc' },
       include: {
         creator: { select: { id: true, username: true, avatar: true } },
