@@ -43,7 +43,7 @@ const MOCK_REC_POSTS = [
 ];
 
 export default function MobileLiveRoom({ user, streamerName }: { user: any, streamerName: string }) {
-  const { isLive, streamTitle, viewers, likes } = useLiveStore();
+  const { isLive, streamTitle, streamCategory, viewers, likes } = useLiveStore();
   const { posts: dbPosts } = usePublicPosts();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -280,21 +280,29 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     <div className="relative h-[100dvh] w-full bg-black text-white overflow-hidden">
       {/* Video Background (Horizontal video centered on vertical screen) */}
       <div className="absolute inset-0 flex items-center justify-center">
-         {isLive && streamerName === user?.username ? (
-           <video 
-             ref={videoRef}
-             autoPlay
-             playsInline
-             muted
-             className="w-full h-full object-cover"
-           />
-         ) : (
-           <img 
-             src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800" 
-             alt="Stream" 
-             className="w-full h-auto aspect-video object-cover" 
-           />
-         )}
+          {isLive ? (
+            <video 
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              loop
+              className="w-full h-full object-cover animate-fade-in"
+              src={streamerName === user?.username ? undefined : (
+                streamTitleState.toLowerCase().includes('valorant') || streamCategory.toLowerCase().includes('valorant')
+                  ? 'https://assets.mixkit.co/videos/preview/mixkit-guy-playing-a-console-game-42294-large.mp4'
+                  : streamTitleState.toLowerCase().includes('free fire') || streamCategory.toLowerCase().includes('free fire')
+                  ? 'https://assets.mixkit.co/videos/preview/mixkit-playing-pc-video-games-42290-large.mp4'
+                  : 'https://assets.mixkit.co/videos/preview/mixkit-gaming-room-with-neon-lights-42289-large.mp4'
+              )}
+            />
+          ) : (
+            <img 
+              src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800" 
+              alt="Stream Offline" 
+              className="w-full h-auto aspect-video object-cover" 
+            />
+          )}
       </div>
 
       {/* Top Gradient for readability */}

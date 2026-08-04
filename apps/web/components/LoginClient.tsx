@@ -38,7 +38,11 @@ export default function LoginClient() {
           useAuthStore.getState().setAuth(res.user, '');
         }
         toast.success('¡Sesión iniciada con éxito!');
-        router.push('/dashboard');
+        if (res?.user?.role === 'ADMIN') {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (error) {
       console.error('Login failed', error);

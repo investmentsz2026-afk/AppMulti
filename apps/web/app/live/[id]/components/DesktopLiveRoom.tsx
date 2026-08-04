@@ -46,7 +46,7 @@ const MOCK_REC_POSTS = [
 ];
 
 export default function DesktopLiveRoom({ user, streamerName }: { user: any, streamerName: string }) {
-  const { isLive, streamTitle, viewers, likes, comments, addComment } = useLiveStore();
+  const { isLive, streamTitle, streamCategory, viewers, likes, comments, addComment } = useLiveStore();
   const { posts: dbPosts } = usePublicPosts();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -339,18 +339,26 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
 
         {/* Video Player */}
         <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden group">
-          {isLive && streamerName === user?.username ? (
+          {isLive ? (
             <video 
               ref={videoRef}
               autoPlay
               playsInline
               muted
+              loop
               className="w-full h-full object-cover"
+              src={streamerName === user?.username ? undefined : (
+                streamTitleState.toLowerCase().includes('valorant') || streamCategory.toLowerCase().includes('valorant')
+                  ? 'https://assets.mixkit.co/videos/preview/mixkit-guy-playing-a-console-game-42294-large.mp4'
+                  : streamTitleState.toLowerCase().includes('free fire') || streamCategory.toLowerCase().includes('free fire')
+                  ? 'https://assets.mixkit.co/videos/preview/mixkit-playing-pc-video-games-42290-large.mp4'
+                  : 'https://assets.mixkit.co/videos/preview/mixkit-gaming-room-with-neon-lights-42289-large.mp4'
+              )}
             />
           ) : (
             <img 
               src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200" 
-              alt="Stream" 
+              alt="Stream Offline" 
               className="w-full h-full object-contain" 
             />
           )}

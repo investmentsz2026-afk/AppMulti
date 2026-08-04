@@ -36,6 +36,7 @@ model User {
   facebookActive  Boolean   @default(false)
   facebookUrl     String?
   isLive        Boolean   @default(false)
+  statusActive  Boolean   @default(true)
   
   // Relations
   stream        Stream?
