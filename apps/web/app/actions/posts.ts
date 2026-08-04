@@ -11,6 +11,12 @@ export async function createPost(formData: FormData) {
   const file = formData.get('file') as File;
   const privacy = formData.get('privacy') as string; // 'public' | 'private'
 
+  // Check user restriction
+  const dbUser = await prisma.user.findUnique({ where: { id: session.id } });
+  if (!dbUser || !dbUser.canPost) {
+    return { error: 'Tu cuenta tiene restringida la publicación de videos e imágenes.' };
+  }
+
   if (!title || !file) return { error: 'Título y archivo son obligatorios' };
 
   // Validate file type

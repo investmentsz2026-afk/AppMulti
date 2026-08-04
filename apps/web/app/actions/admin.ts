@@ -209,3 +209,100 @@ export async function resolveReportAction(reportId: string, action: 'ACTION_TAKE
     return { error: error.message };
   }
 }
+
+// Toggle user canPost restriction
+export async function toggleUserPostRestrictionAction(userId: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return { error: 'Usuario no encontrado' };
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { canPost: !user.canPost }
+    });
+
+    revalidatePath('/admin/users');
+    return { success: true, canPost: updated.canPost };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+// Toggle user canChat restriction
+export async function toggleUserChatRestrictionAction(userId: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return { error: 'Usuario no encontrado' };
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { canChat: !user.canChat }
+    });
+
+    revalidatePath('/admin/users');
+    return { success: true, canChat: updated.canChat };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+// Fetch all direct messages in database for audit logs
+export async function getAllDMsAction() {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    throw new Error('No autorizado');
+  }
+
+  try {
+    const dms = await prisma.directMessage.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        sender: { select: { id: true, username: true, avatar: true } },
+        receiver: { select: { id: true, username: true, avatar: true } }
+      }
+    });
+    return dms;
+  } catch (error) {
+    console.error('Error fetching DM audit logs:', error);
+    return [];
+  }
+}
+
+// Fetch full conversation between two users
+export async function getUserConversationAction(user1Id: string, user2Id: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    throw new Error('No autorizado');
+  }
+
+  try {
+    const dms = await prisma.directMessage.findMany({
+      where: {
+        OR: [
+          { senderId: user1Id, receiverId: user2Id },
+          { senderId: user2Id, receiverId: user1Id }
+        ]
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        sender: { select: { id: true, username: true, avatar: true } },
+        receiver: { select: { id: true, username: true, avatar: true } }
+      }
+    });
+    return dms;
+  } catch (error) {
+    console.error('Error fetching conversation details:', error);
+    return [];
+  }
+}

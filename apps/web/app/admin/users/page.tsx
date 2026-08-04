@@ -9,7 +9,9 @@ import {
   getUsersAction, 
   toggleUserStatusAction, 
   updateUserRoleAction, 
-  addUserCoinsAction 
+  addUserCoinsAction,
+  toggleUserPostRestrictionAction,
+  toggleUserChatRestrictionAction 
 } from '@/app/actions/admin';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
@@ -40,6 +42,40 @@ export default function AdminUsersPage() {
   useEffect(() => {
     loadUsers(true);
   }, []);
+
+  const handleTogglePostRestriction = async (userId: string) => {
+    setUpdatingUserId(userId);
+    try {
+      const res = await toggleUserPostRestrictionAction(userId);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(res.canPost ? 'Publicación permitida.' : 'Publicación restringida.');
+        loadUsers();
+      }
+    } catch (err) {
+      toast.error('Error al actualizar restricción de posts.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const handleToggleChatRestriction = async (userId: string) => {
+    setUpdatingUserId(userId);
+    try {
+      const res = await toggleUserChatRestrictionAction(userId);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(res.canChat ? 'Chat privado permitido.' : 'Chat privado restringido.');
+        loadUsers();
+      }
+    } catch (err) {
+      toast.error('Error al actualizar restricción de chat.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
 
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
     setUpdatingUserId(userId);
@@ -183,6 +219,7 @@ export default function AdminUsersPage() {
                   <th className="px-6 py-4.5">Fecha Registro</th>
                   <th className="px-6 py-4.5">Rol de Sistema</th>
                   <th className="px-6 py-4.5">Monedas 💎</th>
+                  <th className="px-6 py-4.5">Restricciones</th>
                   <th className="px-6 py-4.5">Estado Cuenta</th>
                   <th className="px-6 py-4.5 text-right">Acciones</th>
                 </tr>
@@ -253,6 +290,32 @@ export default function AdminUsersPage() {
                           >
                             <Coins className="w-3.5 h-3.5" />
                           </button>
+                        </div>
+                      </td>
+
+                      {/* Restrictions checkboxes */}
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1.5 text-[10px] font-black uppercase tracking-wider">
+                          <label className="flex items-center gap-2 cursor-pointer text-zinc-400 hover:text-white transition-colors">
+                            <input 
+                              type="checkbox"
+                              checked={user.canPost === false}
+                              disabled={updatingUserId === user.id}
+                              onChange={() => handleTogglePostRestriction(user.id)}
+                              className="accent-purple-500 rounded border-white/10 bg-zinc-950 w-3.5 h-3.5 cursor-pointer"
+                            />
+                            <span>Bloquear Postear</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer text-zinc-400 hover:text-white transition-colors">
+                            <input 
+                              type="checkbox"
+                              checked={user.canChat === false}
+                              disabled={updatingUserId === user.id}
+                              onChange={() => handleToggleChatRestriction(user.id)}
+                              className="accent-purple-500 rounded border-white/10 bg-zinc-950 w-3.5 h-3.5 cursor-pointer"
+                            />
+                            <span>Bloquear Chat</span>
+                          </label>
                         </div>
                       </td>
 

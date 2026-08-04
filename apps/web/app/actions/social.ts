@@ -523,6 +523,12 @@ export async function sendDirectMessage(receiverId: string, content: string, med
   const senderId = session.id as string;
   if (senderId === receiverId) return { error: 'No puedes enviarte mensajes a ti mismo' };
 
+  // Check user restriction
+  const dbUser = await prisma.user.findUnique({ where: { id: senderId } });
+  if (!dbUser || !dbUser.canChat) {
+    return { error: 'Tu cuenta tiene restringido el envío de mensajes privados.' };
+  }
+
   const trimmed = content.trim();
   if (!trimmed && !mediaUrl) return { error: 'Mensaje vacío' };
 
