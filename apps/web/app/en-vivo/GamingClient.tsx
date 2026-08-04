@@ -682,51 +682,7 @@ export default function GamingClient({ user }: { user: any }) {
             {/* COLUMN 3: RIGHT PANEL (SALAS PvP ACTIVAS & TOP STREAMERS) */}
             <div className="flex flex-col gap-6">
               
-              {/* SUBSECTION A: SALAS PvP ACTIVAS */}
-              <div className="bg-[#0b0a12]/90 border border-white/5 rounded-3xl p-5 shadow-lg">
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 flex items-center gap-1.5">
-                  <Sword className="w-4 h-4 text-pink-500" /> Salas PvP Activas
-                </h3>
 
-                <div className="flex flex-col gap-3.5">
-                  {pvpRooms.map(room => (
-                    <div 
-                      key={room.id} 
-                      className="bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col gap-2 relative group hover:border-purple-500/30 transition-all"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-[10px] font-black text-purple-400 block leading-tight truncate">{room.name}</span>
-                          <span className="text-[8px] text-zinc-500 font-bold uppercase mt-0.5">{room.mode}</span>
-                        </div>
-                        <span className="px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-[7px] font-black rounded">
-                          🏆 {room.prize}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[9px] text-zinc-400 mt-1 font-semibold">
-                        <span>Jugadores: <strong className="text-white">{room.players}</strong></span>
-                        <span>ID: <strong className="text-white">{room.roomID}</strong></span>
-                      </div>
-
-                      <div className="h-px bg-white/5 my-0.5" />
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-[8px] text-zinc-500 font-bold">Inicia en: <strong className="text-pink-400 font-black">{formatCountdown(countdowns[room.id] || 180)}</strong></span>
-                        <button 
-                          onClick={() => {
-                            const orig = realRooms.find(r => r.id === room.id);
-                            if (orig) setConfirmJoinRoom(orig);
-                          }}
-                          className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-[8px] font-black rounded uppercase tracking-widest text-white transition-colors"
-                        >
-                          Unirse
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               {/* SUBSECTION B: TOP STREAMERS FF RANKING */}
               <div className="bg-[#0b0a12]/90 border border-white/5 rounded-3xl p-5 shadow-lg relative overflow-hidden">

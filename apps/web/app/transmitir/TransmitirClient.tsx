@@ -113,7 +113,7 @@ export default function TransmitirClient({ user }: { user: any }) {
       }
 
       if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        toast.error('Compartir pantalla solo es compatible con computadoras (PC/Laptop). En celulares se utiliza la cámara.');
+        toast.error('Tu navegador no soporta compartir pantalla. En celular, asegúrate de estar usando Chrome/Safari y de ingresar mediante una conexión segura (HTTPS).');
         return;
       }
 
