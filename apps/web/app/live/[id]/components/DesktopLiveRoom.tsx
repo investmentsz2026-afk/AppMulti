@@ -8,7 +8,7 @@ import {
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
-import { checkStreamStatus } from '@/app/actions/stream';
+import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage } from '@/app/actions/stream';
 
 const MOCK_REC_POSTS = [
   {
@@ -53,13 +53,9 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   const [inputMessage, setInputMessage] = useState('');
   const [isStreamActive, setIsStreamActive] = useState(true);
   const [streamTitleState, setStreamTitleState] = useState(streamTitle);
-  const [localChatMessages, setLocalChatMessages] = useState([
-    { id: 1, user: 'Ander_live', badge: 'N.º 1', text: 'en el fercho', color: 'text-blue-400' },
-    { id: 2, user: 'Joel', badge: '', text: 'Jajajaja na mentira', color: 'text-zinc-300' },
-    { id: 3, user: 'Joel', badge: '', text: 'Pero puedo estar con tu otra hermana pe', color: 'text-zinc-300' },
-    { id: 4, user: 'Joel', badge: '', text: 'Cómo te digo entonces capibara xd jajajaja', color: 'text-zinc-300' },
-    { id: 5, user: 'Jimmy', badge: 'N.º 3', text: 'ahorita lo saco pe', color: 'text-amber-400' },
-  ]);
+  const [dbViewers, setDbViewers] = useState(0);
+  const [dbLikes, setDbLikes] = useState(0);
+  const [dbChatMessages, setDbChatMessages] = useState<any[]>([]);
 
   useEffect(() => {
     let activeStream: MediaStream | null = null;
@@ -111,28 +107,40 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   }, [isLive, streamerName, user]);
 
   // Track stream status in real-time
+  // 1. Join / Leave stream viewers count
   useEffect(() => {
-    // 1. Initial check
+    if (streamerName !== user?.username) {
+      joinStreamViewerAction(streamerName);
+      return () => {
+        leaveStreamViewerAction(streamerName);
+      };
+    }
+  }, [streamerName, user]);
+
+  // 2. Track stream status, viewers, and likes in real-time
+  useEffect(() => {
     async function checkInitialStatus() {
       const res = await checkStreamStatus(streamerName);
       setIsStreamActive(res.isLive);
       if (res.title) {
         setStreamTitleState(res.title);
       }
+      if (res.viewers !== undefined) setDbViewers(res.viewers);
+      if (res.likes !== undefined) setDbLikes(res.likes);
     }
     
     checkInitialStatus();
 
-    // 2. Poll every 4 seconds to detect cross-device end live
     const interval = setInterval(async () => {
       const res = await checkStreamStatus(streamerName);
       setIsStreamActive(res.isLive);
       if (res.title) {
         setStreamTitleState(res.title);
       }
+      if (res.viewers !== undefined) setDbViewers(res.viewers);
+      if (res.likes !== undefined) setDbLikes(res.likes);
     }, 4000);
 
-    // 3. Storage event sync (for same-browser tab testing)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'live-stream-storage') {
         try {
@@ -154,31 +162,29 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
     };
   }, [streamerName]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // 3. Poll Real database Live chat comments
+  useEffect(() => {
+    async function loadChat() {
+      const msgs = await getStreamChatMessages(streamerName);
+      setDbChatMessages(msgs);
+    }
+    loadChat();
+    const interval = setInterval(loadChat, 2000);
+    return () => clearInterval(interval);
+  }, [streamerName]);
+
+  // 4. Send chat message
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
-    if (isLive && streamerName === user?.username) {
-      addComment({
-        id: Math.random().toString(),
-        user: user?.username || 'Creador',
-        text: inputMessage,
-        badge: 'Creador',
-        color: 'text-pink-400'
-      });
-    } else {
-      setLocalChatMessages(prev => [
-        ...prev,
-        {
-          id: Math.random(),
-          user: user?.username || 'Invitado',
-          badge: '',
-          text: inputMessage,
-          color: 'text-zinc-300'
-        }
-      ]);
-    }
+    const text = inputMessage.trim();
     setInputMessage('');
+
+    const res = await sendStreamChatMessage(streamerName, text);
+    if (res.success && res.message) {
+      setDbChatMessages(prev => [...prev, res.message]);
+    }
   };
 
   if (!isStreamActive) {
@@ -327,7 +333,15 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
               {streamerName} <Shield className="w-3 h-3 text-blue-400" />
             </span>
             <div className="flex items-center gap-1 text-[11px] text-zinc-300 font-bold">
-              <Heart className="w-3 h-3 fill-pink-500 text-pink-500" /> {isLive && streamerName === user?.username ? `${likes}` : '11.6K'}
+              <Heart 
+                onClick={async () => {
+                  const res = await likeStreamAction(streamerName);
+                  if (res.likes !== undefined) {
+                    setDbLikes(res.likes);
+                  }
+                }}
+                className="w-3 h-3 fill-pink-500 text-pink-500 cursor-pointer hover:scale-120 transition-transform" 
+              /> {dbLikes.toLocaleString()}
             </div>
           </div>
           {streamerName !== user?.username && (
@@ -338,7 +352,15 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
         </div>
 
         {/* Video Player */}
-        <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden group">
+        <div 
+          onDoubleClick={async () => {
+            const res = await likeStreamAction(streamerName);
+            if (res.likes !== undefined) {
+              setDbLikes(res.likes);
+            }
+          }}
+          className="flex-1 relative flex items-center justify-center bg-black overflow-hidden group cursor-pointer"
+        >
           {isStreamActive ? (
             <video 
               ref={videoRef}
@@ -407,7 +429,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
         {/* Top Donators List */}
         <div className="p-4 border-b border-white/5">
           <div className="flex items-center justify-between mb-3 text-sm font-bold">
-            <span>Espectadores • {isLive && streamerName === user?.username ? viewers : 9}</span>
+            <span>Espectadores • {dbViewers}</span>
           </div>
           <div className="flex flex-col gap-2">
             {[
@@ -433,15 +455,23 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
              ¡Bienvenido al chat! Sé respetuoso.
            </div>
 
-           {(isLive && streamerName === user?.username ? comments : localChatMessages).map(msg => (
-             <div key={msg.id} className="flex gap-2 items-start text-sm">
-               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user}`} className="w-7 h-7 rounded-full bg-zinc-800 shrink-0 mt-0.5" />
+           {dbChatMessages.map(msg => (
+             <div key={msg.id} className="flex gap-2 items-start text-sm animate-fade-in">
+               <img 
+                 src={msg.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user.username}`} 
+                 className="w-7 h-7 rounded-full bg-zinc-800 shrink-0 mt-0.5" 
+                 alt=""
+               />
                <div className="flex flex-col">
                  <div className="flex items-center gap-1.5 mb-0.5">
-                   {msg.badge && <span className={`text-[9px] px-1 py-0.5 rounded uppercase font-black bg-white/10 ${msg.color || 'text-pink-400'}`}>{msg.badge}</span>}
-                   <span className="text-zinc-400 text-xs font-bold">{msg.user}</span>
+                   {msg.user.username === streamerName && (
+                     <span className="text-[9px] px-1 py-0.5 rounded uppercase font-black bg-purple-600/20 text-purple-400 border border-purple-500/20">
+                       Streamer
+                     </span>
+                   )}
+                   <span className="text-zinc-400 text-xs font-bold">@{msg.user.username}</span>
                  </div>
-                 <p className="text-white text-[13px] leading-tight">{msg.text}</p>
+                 <p className="text-white text-[13px] leading-tight font-medium">{msg.content}</p>
                </div>
              </div>
            ))}

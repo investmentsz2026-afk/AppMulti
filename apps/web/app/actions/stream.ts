@@ -23,7 +23,7 @@ export async function updateStreamStatus(
 
     // 2. Upsert or update Stream model
     if (isLive) {
-      await prisma.stream.upsert({
+      const stream = await prisma.stream.upsert({
         where: { userId },
         update: {
           isLive: true,
@@ -39,6 +39,13 @@ export async function updateStreamStatus(
           isLive: true,
           startedAt: new Date(),
         },
+      });
+
+      // Reset LiveRoom status
+      await prisma.liveRoom.upsert({
+        where: { streamId: stream.id },
+        update: { activeViewers: 0, likes: 0 },
+        create: { streamId: stream.id, activeViewers: 0, likes: 0 }
       });
     } else {
       // Find stream first to make sure it exists
@@ -86,28 +93,101 @@ export async function checkStreamStatus(streamerUsernameOrId: string) {
         ]
       },
       select: {
+        id: true,
+        username: true,
         isLive: true,
         stream: {
           select: {
+            id: true,
             title: true,
             category: true,
+            liveRoom: {
+              select: {
+                activeViewers: true,
+                likes: true
+              }
+            }
           },
         },
       },
     });
 
     if (!streamer) {
-      return { isLive: false };
+      return { isLive: false, viewers: 0, likes: 0 };
     }
 
     return {
       isLive: streamer.isLive,
       title: streamer.stream?.title || '',
       category: streamer.stream?.category || 'Gaming',
+      viewers: streamer.stream?.liveRoom?.activeViewers || 0,
+      likes: streamer.stream?.liveRoom?.likes || 0,
     };
   } catch (error) {
     console.error('Error al verificar el estado de transmisión:', error);
-    return { isLive: false };
+    return { isLive: false, viewers: 0, likes: 0 };
+  }
+}
+
+export async function joinStreamViewerAction(streamerUsername: string) {
+  try {
+    const streamer = await prisma.user.findUnique({
+      where: { username: streamerUsername },
+      include: { stream: true }
+    });
+    if (streamer && streamer.stream) {
+      await prisma.liveRoom.upsert({
+        where: { streamId: streamer.stream.id },
+        update: { activeViewers: { increment: 1 }, totalViews: { increment: 1 } },
+        create: { streamId: streamer.stream.id, activeViewers: 1, totalViews: 1 }
+      });
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function leaveStreamViewerAction(streamerUsername: string) {
+  try {
+    const streamer = await prisma.user.findUnique({
+      where: { username: streamerUsername },
+      include: { stream: true }
+    });
+    if (streamer && streamer.stream) {
+      const liveRoom = await prisma.liveRoom.findUnique({
+        where: { streamId: streamer.stream.id }
+      });
+      if (liveRoom && liveRoom.activeViewers > 0) {
+        await prisma.liveRoom.update({
+          where: { streamId: streamer.stream.id },
+          data: { activeViewers: { decrement: 1 } }
+        });
+      }
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function likeStreamAction(streamerUsername: string) {
+  try {
+    const streamer = await prisma.user.findUnique({
+      where: { username: streamerUsername },
+      include: { stream: true }
+    });
+    if (streamer && streamer.stream) {
+      const liveRoom = await prisma.liveRoom.upsert({
+        where: { streamId: streamer.stream.id },
+        update: { likes: { increment: 1 } },
+        create: { streamId: streamer.stream.id, likes: 1 }
+      });
+      return { success: true, likes: liveRoom.likes };
+    }
+    return { error: 'Stream not found' };
+  } catch (err: any) {
+    return { error: err.message };
   }
 }
 

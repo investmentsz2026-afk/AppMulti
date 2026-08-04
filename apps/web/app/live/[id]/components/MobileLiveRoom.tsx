@@ -5,7 +5,7 @@ import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Fl
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
-import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage } from '@/app/actions/stream';
+import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction } from '@/app/actions/stream';
 
 const MOCK_REC_POSTS = [
   {
@@ -51,6 +51,8 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   const [isStreamActive, setIsStreamActive] = useState(true);
   const [streamTitleState, setStreamTitleState] = useState(streamTitle);
   const [dbChatMessages, setDbChatMessages] = useState<any[]>([]);
+  const [dbViewers, setDbViewers] = useState(0);
+  const [dbLikes, setDbLikes] = useState(0);
 
   useEffect(() => {
     async function loadChatMessages() {
@@ -115,29 +117,40 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     };
   }, [isLive, streamerName, user]);
 
-  // Track stream status in real-time
+  // 1. Join / Leave stream viewers count
   useEffect(() => {
-    // 1. Initial check
+    if (streamerName !== user?.username) {
+      joinStreamViewerAction(streamerName);
+      return () => {
+        leaveStreamViewerAction(streamerName);
+      };
+    }
+  }, [streamerName, user]);
+
+  // 2. Track stream status, viewers, and likes in real-time
+  useEffect(() => {
     async function checkInitialStatus() {
       const res = await checkStreamStatus(streamerName);
       setIsStreamActive(res.isLive);
       if (res.title) {
         setStreamTitleState(res.title);
       }
+      if (res.viewers !== undefined) setDbViewers(res.viewers);
+      if (res.likes !== undefined) setDbLikes(res.likes);
     }
     
     checkInitialStatus();
 
-    // 2. Poll every 4 seconds to detect cross-device end live
     const interval = setInterval(async () => {
       const res = await checkStreamStatus(streamerName);
       setIsStreamActive(res.isLive);
       if (res.title) {
         setStreamTitleState(res.title);
       }
+      if (res.viewers !== undefined) setDbViewers(res.viewers);
+      if (res.likes !== undefined) setDbLikes(res.likes);
     }, 4000);
 
-    // 3. Storage event sync (for same-browser tab testing)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'live-stream-storage') {
         try {
@@ -279,7 +292,15 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   return (
     <div className="relative h-[100dvh] w-full bg-black text-white overflow-hidden">
       {/* Video Background (Horizontal video centered on vertical screen) */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div 
+        onDoubleClick={async () => {
+          const res = await likeStreamAction(streamerName);
+          if (res.likes !== undefined) {
+            setDbLikes(res.likes);
+          }
+        }}
+        className="absolute inset-0 flex items-center justify-center cursor-pointer"
+      >
           {isStreamActive ? (
             <video 
               ref={videoRef}
@@ -320,7 +341,15 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
              <div className="flex flex-col">
                <span className="text-xs font-bold leading-tight">{streamerName}</span>
                <div className="flex items-center gap-1 text-[10px] text-zinc-300">
-                 <Heart className="w-2.5 h-2.5 fill-current" /> {isLive && streamerName === user?.username ? likes : 678}
+                 <Heart 
+                   onClick={async () => {
+                     const res = await likeStreamAction(streamerName);
+                     if (res.likes !== undefined) {
+                       setDbLikes(res.likes);
+                     }
+                   }}
+                   className="w-2.5 h-2.5 fill-pink-500 text-pink-500 cursor-pointer hover:scale-120 transition-transform" 
+                 /> {dbLikes.toLocaleString()}
                </div>
              </div>
              {streamerName !== user?.username && (
@@ -348,7 +377,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=U1" className="w-7 h-7 rounded-full border border-black z-30" />
                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=U2" className="w-7 h-7 rounded-full border border-black z-20" />
              </div>
-             <div className="px-2 font-bold text-xs">{isLive && streamerName === user?.username ? viewers : 28}</div>
+             <div className="px-2 font-bold text-xs">{dbViewers}</div>
            </div>
            <Link href="/dashboard" className="w-8 h-8 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/10 transition-colors">
              <X className="w-5 h-5" />
