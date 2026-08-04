@@ -56,6 +56,10 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   const [dbViewers, setDbViewers] = useState(0);
   const [dbLikes, setDbLikes] = useState(0);
   const [dbChatMessages, setDbChatMessages] = useState<any[]>([]);
+  const [remoteCameraStream, setRemoteCameraStream] = useState<MediaStream | null>(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+  const screenVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     let activeStream: MediaStream | null = null;
@@ -186,6 +190,90 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
       setDbChatMessages(prev => [...prev, res.message]);
     }
   };
+
+  // WebRTC Local Receiver for Tab-to-Tab streaming (no server needed)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!isStreamActive) return;
+
+    const channel = new BroadcastChannel('live-stream-channel');
+    const viewerId = Math.random().toString();
+    
+    let pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    pc.ontrack = (event) => {
+      const [stream] = event.streams;
+      if (!stream) return;
+
+      const isScreen = event.track.label.toLowerCase().includes('screen') || event.track.label.toLowerCase().includes('display');
+      if (isScreen) {
+        setRemoteScreenStream(stream);
+      } else {
+        setRemoteCameraStream(stream);
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        channel.postMessage({
+          type: 'candidate',
+          from: viewerId,
+          to: 'streamer',
+          candidate: event.candidate
+        });
+      }
+    };
+
+    channel.onmessage = async (e) => {
+      const { type, to, offer, candidate } = e.data;
+      if (to !== viewerId) return;
+
+      if (type === 'offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        channel.postMessage({
+          type: 'answer',
+          from: viewerId,
+          to: 'streamer',
+          answer
+        });
+      } else if (type === 'candidate') {
+        if (candidate) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      }
+    };
+
+    // Request stream join
+    channel.postMessage({ type: 'join', from: viewerId });
+
+    // Poll join request every 2.5 seconds
+    const pollJoin = setInterval(() => {
+      channel.postMessage({ type: 'join', from: viewerId });
+    }, 2500);
+
+    return () => {
+      clearInterval(pollJoin);
+      channel.close();
+      pc.close();
+    };
+  }, [isStreamActive]);
+
+  // Bind video element streams
+  useEffect(() => {
+    if (cameraVideoRef.current && remoteCameraStream) {
+      cameraVideoRef.current.srcObject = remoteCameraStream;
+    }
+  }, [remoteCameraStream]);
+
+  useEffect(() => {
+    if (screenVideoRef.current && remoteScreenStream) {
+      screenVideoRef.current.srcObject = remoteScreenStream;
+    }
+  }, [remoteScreenStream]);
 
   if (!isStreamActive) {
     return (
@@ -362,21 +450,53 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
           className="flex-1 relative flex items-center justify-center bg-black overflow-hidden group cursor-pointer"
         >
           {isStreamActive ? (
-            <video 
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              loop
-              className="w-full h-full object-cover"
-              src={streamerName === user?.username ? undefined : (
-                streamTitleState.toLowerCase().includes('valorant') || streamCategory.toLowerCase().includes('valorant')
-                  ? 'https://assets.mixkit.co/videos/preview/mixkit-guy-playing-a-console-game-42294-large.mp4'
-                  : streamTitleState.toLowerCase().includes('free fire') || streamCategory.toLowerCase().includes('free fire')
-                  ? 'https://assets.mixkit.co/videos/preview/mixkit-playing-pc-video-games-42290-large.mp4'
-                  : 'https://assets.mixkit.co/videos/preview/mixkit-gaming-room-with-neon-lights-42289-large.mp4'
+            <div className={`w-full h-full grid ${remoteCameraStream && remoteScreenStream ? 'grid-rows-2' : 'grid-cols-1'} bg-black`}>
+              {remoteCameraStream && (
+                <div className="relative w-full h-full bg-[#09090e] overflow-hidden flex items-center justify-center border border-white/5">
+                  <video 
+                    ref={cameraVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    className="w-full h-full object-cover scale-x-[-1]"
+                  />
+                  <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
+                    CÁMARA
+                  </div>
+                </div>
               )}
-            />
+
+              {remoteScreenStream && (
+                <div className="relative w-full h-full bg-[#050508] overflow-hidden flex items-center justify-center border border-white/5">
+                  <video 
+                    ref={screenVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
+                    PANTALLA COMPARTIDA
+                  </div>
+                </div>
+              )}
+
+              {!remoteCameraStream && !remoteScreenStream && (
+                <video 
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  loop
+                  className="w-full h-full object-cover"
+                  src={streamerName === user?.username ? undefined : (
+                    streamTitleState.toLowerCase().includes('valorant')
+                      ? 'https://assets.mixkit.co/videos/preview/mixkit-guy-playing-a-console-game-42294-large.mp4'
+                      : streamTitleState.toLowerCase().includes('free fire')
+                      ? 'https://assets.mixkit.co/videos/preview/mixkit-playing-pc-video-games-42290-large.mp4'
+                      : 'https://assets.mixkit.co/videos/preview/mixkit-gaming-room-with-neon-lights-42289-large.mp4'
+                  )}
+                />
+              )}
+            </div>
           ) : (
             <img 
               src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200" 

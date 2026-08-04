@@ -490,6 +490,77 @@ export default function TransmitirClient({ user }: { user: any }) {
     }, 500);
   };
 
+  // WebRTC Local Signaling for Tab-to-Tab streaming (no server needed)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!isLive) return;
+
+    const channel = new BroadcastChannel('live-stream-channel');
+    const pcs: Record<string, RTCPeerConnection> = {};
+
+    channel.onmessage = async (e) => {
+      const { type, from, offer, candidate, to } = e.data;
+      if (to && to !== 'streamer') return;
+
+      if (type === 'join') {
+        // Create PeerConnection
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+        pcs[from] = pc;
+
+        // Add tracks
+        if (cameraStream) {
+          cameraStream.getTracks().forEach(track => {
+            pc.addTrack(track, cameraStream);
+          });
+        }
+        if (screenStream) {
+          screenStream.getTracks().forEach(track => {
+            pc.addTrack(track, screenStream);
+          });
+        }
+
+        // Handle ICE candidates
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            channel.postMessage({
+              type: 'candidate',
+              from: 'streamer',
+              to: from,
+              candidate: event.candidate
+            });
+          }
+        };
+
+        // Create offer
+        const sdp = await pc.createOffer();
+        await pc.setLocalDescription(sdp);
+        channel.postMessage({
+          type: 'offer',
+          from: 'streamer',
+          to: from,
+          offer: sdp
+        });
+      } else if (type === 'answer') {
+        const pc = pcs[from];
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(e.data.answer));
+        }
+      } else if (type === 'candidate') {
+        const pc = pcs[from];
+        if (pc && candidate) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      }
+    };
+
+    return () => {
+      channel.close();
+      Object.values(pcs).forEach(pc => pc.close());
+    };
+  }, [isLive, cameraStream, screenStream]);
+
   // 7. Polling Real database Live comments
   useEffect(() => {
     if (!isLive || !user?.username) return;
