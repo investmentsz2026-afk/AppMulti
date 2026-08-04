@@ -60,10 +60,70 @@ export async function createGameRoomAction(data: {
   }
 }
 
-// 2. Get all game rooms
+// 2. Get all game rooms with auto-cleanup of expired ones
 export async function getGameRoomsAction() {
   try {
+    // Auto-cleanup: find all WAITING or PLAYING rooms created more than 1 hour ago
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const expiredRooms = await prisma.gameRoom.findMany({
+      where: {
+        status: { in: ['WAITING', 'PLAYING'] },
+        createdAt: { lt: oneHourAgo }
+      }
+    });
+
+    for (const room of expiredRooms) {
+      try {
+        // Refund creator
+        const creatorWallet = await prisma.wallet.findUnique({ where: { userId: room.creatorId } });
+        if (creatorWallet) {
+          await prisma.wallet.update({
+            where: { userId: room.creatorId },
+            data: { balance: { increment: room.wager } }
+          });
+          await prisma.transaction.create({
+            data: {
+              amount: room.wager,
+              type: 'TOURNAMENT_PRIZE',
+              walletId: creatorWallet.id,
+              referenceId: room.id
+            }
+          });
+        }
+
+        // Refund opponent if joined
+        if (room.opponentId && room.status === 'PLAYING') {
+          const oppWallet = await prisma.wallet.findUnique({ where: { userId: room.opponentId } });
+          if (oppWallet) {
+            await prisma.wallet.update({
+              where: { userId: room.opponentId },
+              data: { balance: { increment: room.wager } }
+            });
+            await prisma.transaction.create({
+              data: {
+                amount: room.wager,
+                type: 'TOURNAMENT_PRIZE',
+                walletId: oppWallet.id,
+                referenceId: room.id
+              }
+            });
+          }
+        }
+
+        // Mark room as CANCELLED
+        await prisma.gameRoom.update({
+          where: { id: room.id },
+          data: { status: 'CANCELLED' }
+        });
+      } catch (err) {
+        console.error('Error auto-cancelling room:', room.id, err);
+      }
+    }
+
     const rooms = await prisma.gameRoom.findMany({
+      where: {
+        status: { not: 'CANCELLED' }
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         creator: {

@@ -496,3 +496,78 @@ export async function adminFinishStreamBattleAction(battleId: string, winnerUser
     return { error: error.message };
   }
 }
+
+// Fetch real explore data from database (no simulation)
+export async function getRealExploreDataAction() {
+  try {
+    const heartbeatThreshold = new Date(Date.now() - 75000);
+    
+    // 1. Get real active streams
+    const activeStreams = await prisma.stream.findMany({
+      where: {
+        isLive: true,
+        updatedAt: { gte: heartbeatThreshold }
+      },
+      include: {
+        user: { select: { id: true, username: true, avatar: true } },
+        liveRoom: true
+      }
+    });
+
+    // 2. Get top streamers ordered by wallet balance
+    const topStreamers = await prisma.user.findMany({
+      where: {
+        role: 'STREAMER'
+      },
+      orderBy: {
+        wallet: {
+          balance: 'desc'
+        }
+      },
+      take: 5,
+      include: {
+        wallet: { select: { balance: true } }
+      }
+    });
+
+    // 3. Get top donors ordered by wallet balance (users in general)
+    const topDonors = await prisma.user.findMany({
+      orderBy: {
+        wallet: {
+          balance: 'desc'
+        }
+      },
+      take: 5,
+      include: {
+        wallet: { select: { balance: true } }
+      }
+    });
+
+    // 4. Get active battles
+    const activeBattles = await prisma.streamBattle.findMany({
+      where: {
+        status: 'ONGOING'
+      },
+      include: {
+        stream1: { include: { user: { select: { username: true } } } },
+        stream2: { include: { user: { select: { username: true } } } }
+      },
+      take: 4
+    });
+
+    return {
+      streams: activeStreams,
+      topStreamers,
+      topDonors,
+      activeBattles
+    };
+  } catch (error) {
+    console.error('Error fetching explore data:', error);
+    return {
+      streams: [],
+      topStreamers: [],
+      topDonors: [],
+      activeBattles: []
+    };
+  }
+}

@@ -33,7 +33,16 @@ const topCategories = [
   { name: 'Esports', icon: Trophy, viewers: '5.1K', color: 'from-yellow-600 to-orange-600' },
 ];
 
-export default function MobileExplorar({ user }: { user: any }) {
+export default function MobileExplorar({ 
+  user, streams = [], topStreamers = [], topDonors = [], activeBattles = [], loading = false 
+}: { 
+  user: any;
+  streams: any[];
+  topStreamers: any[];
+  topDonors: any[];
+  activeBattles: any[];
+  loading: boolean;
+}) {
   const router = useRouter();
   const [showQuickActions, setShowQuickActions] = useState(false);
   const { isLive, streamTitle, viewers, streamCategory } = useLiveStore();
@@ -47,7 +56,18 @@ export default function MobileExplorar({ user }: { user: any }) {
     isOwn: true
   } : null;
 
-  const activeStreams = userStream ? [userStream, ...streams] : streams;
+  const mappedStreams = streams.map((s: any) => ({
+    name: s.user.username,
+    viewers: s.liveRoom?.activeViewers !== undefined ? String(s.liveRoom.activeViewers) : '0',
+    title: s.title || 'Transmisión en Vivo 🎮',
+    cat: s.category || 'Gaming',
+    img: s.thumbnail || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400',
+    isOwn: s.user.id === user?.id
+  }));
+
+  const activeStreams = userStream 
+    ? [userStream, ...mappedStreams.filter(ms => ms.name !== user.username)] 
+    : mappedStreams;
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-[#05050a] text-white overflow-hidden">

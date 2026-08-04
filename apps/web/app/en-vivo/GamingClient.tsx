@@ -13,6 +13,7 @@ import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { getUpcomingStreamers, getUserWalletBalance } from '@/app/actions/battle';
 import { getUnreadNotificationsCount } from '@/app/actions/social';
+import { getGameRoomsAction, joinGameRoomAction } from '@/app/actions/gameroom';
 
 export default function GamingClient({ user }: { user: any }) {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function GamingClient({ user }: { user: any }) {
   const [userCoins, setUserCoins] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [realLiveStreamers, setRealLiveStreamers] = useState<any[]>([]);
+  const [realRooms, setRealRooms] = useState<any[]>([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   
@@ -31,9 +33,9 @@ export default function GamingClient({ user }: { user: any }) {
   
   // PvP Room countdowns simulation
   const [countdowns, setCountdowns] = useState<Record<number, number>>({
-    1: 180,
-    2: 240,
-    3: 310
+    1: 173,
+    2: 233,
+    3: 302
   });
 
   const triggerToast = (msg: string) => {
@@ -70,6 +72,9 @@ export default function GamingClient({ user }: { user: any }) {
 
         const count = await getUnreadNotificationsCount();
         setUnreadNotifications(count);
+
+        const rooms = await getGameRoomsAction();
+        setRealRooms(rooms);
       } catch (err) {
         console.error('Error loading real data in gaming:', err);
       }
@@ -81,6 +86,24 @@ export default function GamingClient({ user }: { user: any }) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleJoinRoom = async (roomId: string, roomCode: string, feeStr: string) => {
+    try {
+      const res = await joinGameRoomAction(roomId);
+      if (res.error) {
+        triggerToast(res.error);
+      } else {
+        triggerToast(`¡Te uniste a la sala PvP ${roomCode}! 🎮 Costo: ${feeStr}`);
+        // Reload data
+        const balance = await getUserWalletBalance();
+        setUserCoins(balance);
+        const rooms = await getGameRoomsAction();
+        setRealRooms(rooms);
+      }
+    } catch (err: any) {
+      triggerToast('Error de conexión al unirse a la sala.');
+    }
   };
 
   const handleFollowToggle = (id: number, name: string) => {
@@ -136,11 +159,16 @@ export default function GamingClient({ user }: { user: any }) {
 
   const activeLiveStreamers = userStreamer ? [userStreamer, ...mappedLiveStreamers] : mappedLiveStreamers;
 
-  const pvpRooms = [
-    { id: 1, name: 'PvP Apostado 4vs4', mode: 'Escuadra vs Escuadra', players: '6/8', fee: '50 Monedas', prize: '800 Monedas', roomID: '2287910', online: true },
-    { id: 2, name: 'Sala Solo M1014', mode: '1vs1 Clásico', players: '1/2', fee: '20 Monedas', prize: '320 Monedas', roomID: '8876295', online: true },
-    { id: 3, name: 'Torneo Rápido Ráfaga', mode: 'Solo vs Todos', players: '32/50', fee: '100 Monedas', prize: '4,500 Monedas', roomID: '4452109', online: true }
-  ];
+  const pvpRooms = realRooms.map(r => ({
+    id: r.id,
+    name: r.title,
+    mode: r.game,
+    players: r.opponent ? '2/2' : '1/2',
+    fee: `${r.wager} Monedas`,
+    prize: `${r.wager * 2} Monedas`,
+    roomID: r.roomCode,
+    online: r.status === 'WAITING' || r.status === 'PLAYING'
+  }));
 
   const topStreamers = [
     { id: 1, name: 'NobruFF', level: 'Nivel 58', followers: '4.2M', wins: '15,240', avatar: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=150', rank: '#1', glowColor: 'rgba(239, 68, 68, 0.4)' },
@@ -523,7 +551,7 @@ export default function GamingClient({ user }: { user: any }) {
                       <div className="flex items-center justify-between">
                         <span className="text-[8px] text-zinc-500 font-bold">Inicia en: <strong className="text-pink-400 font-black">{formatCountdown(countdowns[room.id] || 180)}</strong></span>
                         <button 
-                          onClick={() => triggerToast(`¡Te uniste a la sala PvP ${room.roomID}! 🎮 Costo: ${room.fee}`)}
+                          onClick={() => handleJoinRoom(room.id, room.roomID, room.fee)}
                           className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-[8px] font-black rounded uppercase tracking-widest text-white transition-colors"
                         >
                           Unirse

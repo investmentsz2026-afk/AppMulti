@@ -55,7 +55,16 @@ const trendingStreams = [
   { title: 'Nuevas skins en Fortnite', cat: 'Fortnite', viewers: '987' },
 ];
 
-export default function DesktopExplorar({ user }: { user: any }) {
+export default function DesktopExplorar({ 
+  user, streams = [], topStreamers = [], topDonors = [], activeBattles = [], loading = false 
+}: { 
+  user: any;
+  streams: any[];
+  topStreamers: any[];
+  topDonors: any[];
+  activeBattles: any[];
+  loading: boolean;
+}) {
   const [activeCat, setActiveCat] = React.useState('Todo');
   const { isLive, streamTitle, viewers, streamCategory } = useLiveStore();
 
@@ -69,7 +78,33 @@ export default function DesktopExplorar({ user }: { user: any }) {
     isOwn: true
   } : null;
 
-  const activeStreams = userStream ? [userStream, ...streams] : streams;
+  const mappedStreams = streams.map((s: any) => ({
+    name: s.user.username,
+    viewers: s.liveRoom?.activeViewers !== undefined ? String(s.liveRoom.activeViewers) : '0',
+    title: s.title || 'Transmisión en Vivo 🎮',
+    cat: s.category || 'Gaming',
+    tags: ['Español', 'RealTime'],
+    img: s.thumbnail || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400',
+    isOwn: s.user.id === user?.id
+  }));
+
+  const activeStreams = userStream 
+    ? [userStream, ...mappedStreams.filter(ms => ms.name !== user.username)] 
+    : mappedStreams;
+
+  const mappedTopStreamers = topStreamers.map((s: any) => ({
+    name: s.username,
+    coins: `${s.wallet?.balance?.toLocaleString() || 0} 🪙`,
+    verified: true
+  }));
+
+  const mappedTopDonors = topDonors.map((s: any) => ({
+    name: s.username,
+    coins: `${s.wallet?.balance?.toLocaleString() || 0} 🪙`,
+    verified: true
+  }));
+
+  const heroBattle = activeBattles && activeBattles[0] ? activeBattles[0] : null;
 
   return (
     <div className="flex h-screen w-full bg-[#05050a] text-white">
@@ -302,48 +337,59 @@ export default function DesktopExplorar({ user }: { user: any }) {
             {/* Top Streamers */}
             <div className="bg-[#0a0a0f] border border-white/5 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-sm">Top streamers</h3><button className="text-[10px] text-purple-400 font-bold">Ver todos</button></div>
-              {topStreamers.map((s, i) => (
-                <div key={i} className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-black w-4 text-center ${i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-amber-600':'text-zinc-600'}`}>{i+1}</span>
-                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-7 h-7 rounded-full bg-zinc-800" />
-                    <span className="text-xs font-bold flex items-center gap-1">{s.name} {s.verified && <BadgeCheck className="w-3 h-3 text-blue-400" />}</span>
+              {mappedTopStreamers.length === 0 ? (
+                <div className="text-[11px] text-zinc-600 text-center py-4 font-bold">No hay streamers registrados</div>
+              ) : (
+                mappedTopStreamers.map((s: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-black w-4 text-center ${i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-amber-600':'text-zinc-600'}`}>{i+1}</span>
+                      <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-7 h-7 rounded-full bg-zinc-800" alt="" />
+                      <span className="text-xs font-bold flex items-center gap-1">{s.name} <BadgeCheck className="w-3 h-3 text-blue-400" /></span>
+                    </div>
+                    <span className="text-[10px] font-bold text-pink-400">{s.coins}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-pink-400">👁 {s.coins}</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
-            {/* Trending Streams */}
+            {/* Trending Streams (Real Active Battles) */}
             <div className="bg-[#0a0a0f] border border-white/5 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-sm">Streams tendencias</h3><button className="text-[10px] text-purple-400 font-bold">Ver todos</button></div>
-              {trendingStreams.map((s, i) => (
-                <div key={i} className="flex items-center gap-3 py-2">
-                  <img src={`https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=80&u=${i}`} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                  <div className="min-w-0">
-                    <h4 className="text-[11px] font-bold truncate">{s.title}</h4>
-                    <p className="text-[9px] text-zinc-500">{s.cat} · 👁 {s.viewers}</p>
+              <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-sm">Batallas Activas</h3><button className="text-[10px] text-purple-400 font-bold">Ver todos</button></div>
+              {activeBattles.length === 0 ? (
+                <div className="text-[11px] text-zinc-600 text-center py-4 font-bold">No hay batallas activas</div>
+              ) : (
+                activeBattles.map((b: any, i: number) => (
+                  <div key={i} className="flex items-center gap-3 py-2">
+                    <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 font-black text-xs">VS</div>
+                    <div className="min-w-0">
+                      <h4 className="text-[11px] font-bold truncate">@{b.stream1.user.username} vs @{b.stream2.user.username}</h4>
+                      <p className="text-[9px] text-zinc-500">Apuesta Directa · {b.points1 + b.points2} pts</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Top Donors */}
             <div className="bg-[#0a0a0f] border border-white/5 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-sm">Top donadores</h3><button className="text-[10px] text-purple-400 font-bold">Ver todos</button></div>
-              {topDonors.map((d, i) => (
-                <div key={i} className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-black w-4 text-center ${i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-amber-600':'text-zinc-600'}`}>{i+1}</span>
-                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${d.name}`} className="w-7 h-7 rounded-full bg-zinc-800" />
-                    <span className="text-xs font-bold flex items-center gap-1">{d.name} {d.verified && <BadgeCheck className="w-3 h-3 text-blue-400" />}</span>
+              {mappedTopDonors.length === 0 ? (
+                <div className="text-[11px] text-zinc-600 text-center py-4 font-bold">No hay donadores registrados</div>
+              ) : (
+                mappedTopDonors.map((d: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-black w-4 text-center ${i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-amber-600':'text-zinc-600'}`}>{i+1}</span>
+                      <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${d.name}`} className="w-7 h-7 rounded-full bg-zinc-800" alt="" />
+                      <span className="text-xs font-bold flex items-center gap-1">{d.name} <BadgeCheck className="w-3 h-3 text-blue-400" /></span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-yellow-400">{d.coins}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center"><span className="text-[6px] text-black font-black">L</span></div>
-                    <span className="text-[10px] font-bold text-yellow-400">{d.coins}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* CTA */}
