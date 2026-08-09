@@ -4,6 +4,9 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
+// Global cache to track active viewers in local testing environments
+const activeViewersMap = new Map<string, Set<string>>();
+
 export async function updateStreamStatus(
   isLive: boolean,
   title?: string,
@@ -135,6 +138,14 @@ export async function checkStreamStatus(streamerUsernameOrId: string) {
 
 export async function joinStreamViewerAction(streamerUsername: string) {
   try {
+    const session = await getSession();
+    if (session && session.username) {
+      if (!activeViewersMap.has(streamerUsername)) {
+        activeViewersMap.set(streamerUsername, new Set());
+      }
+      activeViewersMap.get(streamerUsername)!.add(session.username);
+    }
+
     const streamer = await prisma.user.findUnique({
       where: { username: streamerUsername },
       include: { stream: true }
@@ -154,6 +165,13 @@ export async function joinStreamViewerAction(streamerUsername: string) {
 
 export async function leaveStreamViewerAction(streamerUsername: string) {
   try {
+    const session = await getSession();
+    if (session && session.username) {
+      if (activeViewersMap.has(streamerUsername)) {
+        activeViewersMap.get(streamerUsername)!.delete(session.username);
+      }
+    }
+
     const streamer = await prisma.user.findUnique({
       where: { username: streamerUsername },
       include: { stream: true }
@@ -311,11 +329,21 @@ export async function getTopDonorsAction() {
   }
 }
 
-export async function getRealSpectatorsAction() {
+export async function getRealSpectatorsAction(streamerUsername?: string) {
   try {
+    if (!streamerUsername) return [];
+
+    const viewersSet = activeViewersMap.get(streamerUsername);
+    if (!viewersSet || viewersSet.size === 0) {
+      return [];
+    }
+
+    const activeUsernames = Array.from(viewersSet);
+
     const users = await prisma.user.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
+      where: {
+        username: { in: activeUsernames }
+      },
       select: {
         username: true,
         avatar: true

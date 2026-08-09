@@ -66,11 +66,13 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
 
   useEffect(() => {
     async function loadSpectators() {
-      const data = await getRealSpectatorsAction();
+      const data = await getRealSpectatorsAction(streamerName);
       setSpectators(data);
     }
-    loadSpectators();
-  }, []);
+    if (streamerName) {
+      loadSpectators();
+    }
+  }, [streamerName]);
 
   useEffect(() => {
     async function loadFollowStatus() {
@@ -164,6 +166,10 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
       }
       if (res.viewers !== undefined) setDbViewers(res.viewers);
       if (res.likes !== undefined) setDbLikes(res.likes);
+
+      // Refresh active spectators list in real-time
+      const activeSpecs = await getRealSpectatorsAction(streamerName);
+      setSpectators(activeSpecs);
     }, 4000);
 
     const handleStorageChange = (e: StorageEvent) => {
