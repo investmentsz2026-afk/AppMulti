@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 const passwordHash = "$2a$10$7Z26eT.F/rpep73oH2t5z.G5kLhYm7y4V4P8D47gV88oP8T/14bXq";
 
 export async function seedMockData() {
+  return; // Disabled to keep database 100% real as per user request
   try {
     const mockUsernames = ['SofiLive', 'GamerPro_2026', 'CosplayNeon', 'ApexLegends_Fan', 'SetupFuturista'];
     

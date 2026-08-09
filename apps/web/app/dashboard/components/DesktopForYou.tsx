@@ -221,8 +221,7 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
 
   const activeFeedPosts = [
     ...(userStream ? [userStream] : []),
-    ...dbFeedPosts,
-    ...(dbFeedPosts.length > 0 ? FEED_POSTS.filter(p => p.type === 'battle') : FEED_POSTS)
+    ...dbFeedPosts
   ] as any[];
 
   // Scroll to active postId on For You feed mount

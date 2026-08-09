@@ -266,3 +266,47 @@ export async function getStreamChatMessages(streamerUsername: string) {
     return [];
   }
 }
+
+export async function getActiveStreamsAction() {
+  try {
+    const activeUsers = await prisma.user.findMany({
+      where: { isLive: true },
+      include: {
+        stream: {
+          include: {
+            liveRoom: true
+          }
+        }
+      }
+    });
+
+    return activeUsers.map(user => ({
+      name: user.username,
+      viewers: String(user.stream?.liveRoom?.activeViewers || 0),
+      title: user.stream?.title || '¡Transmisión en Vivo! 🎮',
+      cat: user.stream?.category || 'Gaming',
+      tags: ['Live', user.stream?.category || 'Gaming'],
+      img: user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`
+    }));
+  } catch (error) {
+    console.error('Error fetching active streams:', error);
+    return [];
+  }
+}
+
+export async function getTopDonorsAction() {
+  try {
+    const wallets = await prisma.wallet.findMany({
+      take: 5,
+      orderBy: { balance: 'desc' },
+      include: { user: true }
+    });
+    return wallets.map(w => ({
+      name: w.user.username,
+      coins: String(w.balance),
+      verified: w.user.role === 'ADMIN' || w.user.role === 'STREAMER'
+    }));
+  } catch (error) {
+    return [];
+  }
+}

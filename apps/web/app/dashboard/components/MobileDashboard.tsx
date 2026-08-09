@@ -220,8 +220,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
 
   const activeFeedPosts = [
     ...(userStream ? [userStream] : []),
-    ...dbFeedPosts,
-    ...(dbFeedPosts.length > 0 ? FEED_POSTS.filter(p => p.type === 'battle') : FEED_POSTS)
+    ...dbFeedPosts
   ] as any[];
 
   // Scroll to active postId on For You feed mount

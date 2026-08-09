@@ -143,26 +143,32 @@ export default function MobileExplorar({
             <button className="text-[11px] text-purple-400 font-bold flex items-center gap-0.5">Ver todo <ChevronRight className="w-3 h-3" /></button>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {activeStreams.map((s: any, i: number) => (
-              <Link href={`/live/${s.name}`} key={i} className={`group block ${s.isOwn ? 'border border-purple-500/50 rounded-2xl p-2 bg-[#1c0933]/30 shadow-[0_0_10px_rgba(168,85,247,0.15)]' : ''}`}>
-                <div className="relative aspect-[4/5] rounded-xl overflow-hidden mb-2 border border-white/5">
-                  <img src={s.img} className="w-full h-full object-cover" alt="" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                  <div className="absolute top-2 left-2 flex gap-1">
-                    <span className="px-1.5 py-0.5 bg-red-600 text-[8px] font-black rounded uppercase flex items-center gap-0.5"><span className="w-1 h-1 bg-white rounded-full animate-pulse" />EN VIVO</span>
-                    <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md text-[8px] font-bold rounded flex items-center gap-0.5 border border-white/10"><Eye className="w-2.5 h-2.5" /> {s.viewers}</span>
-                  </div>
-                  <div className="absolute bottom-2 left-2 right-2">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <img src={s.isOwn && user?.avatar ? user.avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-6 h-6 rounded-full border border-white/20 bg-zinc-800" alt="" />
-                      <span className="text-[11px] font-bold flex items-center gap-0.5">{s.name} <BadgeCheck className="w-2.5 h-2.5 text-blue-400" /></span>
+            {activeStreams.length === 0 ? (
+              <div className="col-span-2 text-center py-8 text-zinc-500 bg-[#0a0a0f]/60 rounded-2xl border border-dashed border-white/5 text-[11px] font-bold w-full">
+                No hay transmisiones en vivo en este momento.
+              </div>
+            ) : (
+              activeStreams.map((s: any, i: number) => (
+                <Link href={`/live/${s.name}`} key={i} className={`group block ${s.isOwn ? 'border border-purple-500/50 rounded-2xl p-2 bg-[#1c0933]/30 shadow-[0_0_10px_rgba(168,85,247,0.15)]' : ''}`}>
+                  <div className="relative aspect-[4/5] rounded-xl overflow-hidden mb-2 border border-white/5">
+                    <img src={s.img} className="w-full h-full object-cover" alt="" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <div className="absolute top-2 left-2 flex gap-1">
+                      <span className="px-1.5 py-0.5 bg-red-600 text-[8px] font-black rounded uppercase flex items-center gap-0.5"><span className="w-1 h-1 bg-white rounded-full animate-pulse" />EN VIVO</span>
+                      <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md text-[8px] font-bold rounded flex items-center gap-0.5 border border-white/10"><Eye className="w-2.5 h-2.5" /> {s.viewers}</span>
                     </div>
-                    <p className="text-[9px] text-zinc-400 truncate">{s.title}</p>
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <img src={s.isOwn && user?.avatar ? user.avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-6 h-6 rounded-full border border-white/20 bg-zinc-800" alt="" />
+                        <span className="text-[11px] font-bold flex items-center gap-0.5">{s.name} <BadgeCheck className="w-2.5 h-2.5 text-blue-400" /></span>
+                      </div>
+                      <p className="text-[9px] text-zinc-400 truncate">{s.title}</p>
+                    </div>
                   </div>
-                </div>
-                <p className="text-[10px] text-zinc-500 px-0.5">{s.cat}</p>
-              </Link>
-            ))}
+                  <p className="text-[10px] text-zinc-500 px-0.5">{s.cat}</p>
+                </Link>
+              ))
+            )}
           </div>
         </div>
 

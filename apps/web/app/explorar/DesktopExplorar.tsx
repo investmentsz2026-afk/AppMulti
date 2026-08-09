@@ -302,29 +302,33 @@ export default function DesktopExplorar({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-black flex items-center gap-2">En vivo ahora <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /></h3>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {activeStreams.map((s: any, i: number) => (
-                  <Link href={`/live/${s.name}`} key={i} className={`group cursor-pointer block ${s.isOwn ? 'border-2 border-purple-500 rounded-2xl p-2 bg-[#1c0933]/30 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : ''}`}>
-                    <div className="relative aspect-video rounded-xl overflow-hidden mb-2 border border-white/5 group-hover:border-purple-500/30 transition-all">
-                      <img src={s.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                      <div className="absolute top-2 left-2 flex gap-1">
-                        <span className="px-1.5 py-0.5 bg-red-600 text-[8px] font-black rounded uppercase flex items-center gap-1"><span className="w-1 h-1 bg-white rounded-full animate-pulse" />EN VIVO</span>
-                        <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md text-[8px] font-black rounded flex items-center gap-1 border border-white/10"><Eye className="w-2.5 h-2.5" /> {s.viewers}</span>
-                      </div>
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2">
-                        <img src={s.isOwn && user?.avatar ? user.avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-7 h-7 rounded-full border border-white/20 bg-zinc-800" alt="" />
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold truncate flex items-center gap-1">{s.name} <BadgeCheck className="w-2.5 h-2.5 text-blue-400 shrink-0" /></h4>
-                          <p className="text-[9px] text-zinc-400 truncate">{s.title}</p>
+                {activeStreams.length === 0 ? (
+                  <div className="col-span-4 text-center py-12 text-zinc-500 bg-[#0a0a0f]/60 rounded-2xl border border-dashed border-white/5 text-xs font-bold w-full">
+                    No hay directos en vivo en este momento. ¡Sé el primero en transmitir!
+                  </div>
+                ) : (
+                  activeStreams.map((s: any, i: number) => (
+                    <Link href={`/live/${s.name}`} key={i} className={`group cursor-pointer block ${s.isOwn ? 'border-2 border-purple-500 rounded-2xl p-2 bg-[#1c0933]/30 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : ''}`}>
+                      <div className="relative aspect-video rounded-xl overflow-hidden mb-2 border border-white/5 group-hover:border-purple-500/30 transition-all">
+                        <img src={s.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                        <div className="absolute top-2 left-2 flex gap-1">
+                          <span className="px-1.5 py-0.5 bg-red-600 text-[8px] font-black rounded uppercase flex items-center gap-1"><span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />EN VIVO</span>
+                          <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md text-[8px] font-black rounded flex items-center gap-1 border border-white/10"><Eye className="w-2.5 h-2.5" /> {s.viewers}</span>
+                        </div>
+                        <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2">
+                          <img src={s.isOwn && user?.avatar ? user.avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`} className="w-7 h-7 rounded-full border border-white/20 bg-zinc-800" alt="" />
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold truncate flex items-center gap-1">{s.name} <BadgeCheck className="w-2.5 h-2.5 text-blue-400 shrink-0" /></h4>
+                            <p className="text-[9px] text-zinc-400 truncate">{s.title}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <p className="text-[10px] text-zinc-500 truncate px-1">{s.cat}</p>
-                    <div className="flex gap-1 px-1 mt-1">{s.tags.map((t: string) => <span key={t} className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded text-zinc-400 border border-white/5">{t}</span>)}</div>
-                  </Link>
-                ))}
-              </div>
+                      <p className="text-[10px] text-zinc-500 truncate px-1">{s.cat}</p>
+                      <div className="flex gap-1 px-1 mt-1">{s.tags.map((t: string) => <span key={t} className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded text-zinc-400 border border-white/5">{t}</span>)}</div>
+                    </Link>
+                  ))
+                )}
             </div>
 
             <button className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-2">
