@@ -128,20 +128,29 @@ export default function TransmitirClient({ user }: { user: any }) {
         }
       }
 
+      let useFallbackCamera = false;
       if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        toast.error('Tu navegador no soporta compartir pantalla. En celular, asegúrate de estar usando Chrome/Safari y de ingresar mediante una conexión segura (HTTPS).');
-        return;
+        useFallbackCamera = true;
       }
 
       try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        });
+        let stream: MediaStream;
+        if (useFallbackCamera) {
+          toast.success('Iniciando cámara alternativa para móviles/otros navegadores...');
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' },
+            audio: true
+          });
+        } else {
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true
+          });
+        }
         
         const screenTrack = stream.getVideoTracks()[0];
         if (!screenTrack) {
-          toast.error('No se detectó ningún track de video de pantalla.');
+          toast.error('No se detectó ningún track de video.');
           return;
         }
         
@@ -154,10 +163,37 @@ export default function TransmitirClient({ user }: { user: any }) {
         setScreenStream(stream);
         screenStreamRef.current = stream;
         setIsScreenSharing(true);
-        toast.success('Compartiendo pantalla.');
+        if (useFallbackCamera) {
+          toast.success('Cámara trasera activada como alternativa de transmisión.');
+        } else {
+          toast.success('Compartiendo pantalla.');
+        }
       } catch (err) {
         console.error('Error al compartir pantalla:', err);
-        toast.error('No se pudo compartir la pantalla. Verifica los permisos de tu navegador o sistema.');
+        if (useFallbackCamera) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: true
+            });
+            const screenTrack = stream.getVideoTracks()[0];
+            if (screenTrack) {
+              screenTrack.onended = () => {
+                setScreenStream(null);
+                screenStreamRef.current = null;
+                setIsScreenSharing(false);
+              };
+              setScreenStream(stream);
+              screenStreamRef.current = stream;
+              setIsScreenSharing(true);
+              toast.success('Cámara frontal activada como alternativa.');
+              return;
+            }
+          } catch (secErr) {
+            console.error('Secondary fallback failed:', secErr);
+          }
+        }
+        toast.error('No se pudo iniciar la pantalla o la cámara alternativa. Verifica los permisos de tu navegador.');
       }
     }
   };
