@@ -292,7 +292,11 @@ export default function DesktopFollowing({ user, setTab, tab }: { user: any, set
                       : 'border-white/5 group-hover:border-white/10'
                   } transition-all`}>
                     
-                    <img src={item.img} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" alt="" />
+                    {item.type === 'video' || item.type === 'short' ? (
+                      <video src={item.img} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" muted playsInline />
+                    ) : (
+                      <img src={item.img} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" alt="" />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
                     {/* Badge Indicator Top Left */}

@@ -155,7 +155,11 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
                 
                 {/* Visual Preview */}
                 <div className="relative aspect-[3/4] overflow-hidden">
-                  <img src={item.img} className="w-full h-full object-cover" alt="" />
+                  {item.type === 'video' || item.type === 'short' ? (
+                    <video src={item.img} className="w-full h-full object-cover" muted playsInline />
+                  ) : (
+                    <img src={item.img} className="w-full h-full object-cover" alt="" />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
                   {/* Left Label */}
