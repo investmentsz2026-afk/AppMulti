@@ -193,6 +193,16 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
     };
   }, [streamerName]);
 
+  // Effect to guarantee fallback video playback on mount and changes
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.load();
+      videoRef.current.play().catch(err => {
+        console.warn("Autoplay failed for fallback video:", err);
+      });
+    }
+  }, [isStreamActive, streamTitleState]);
+
   // 3. Poll Real database Live chat comments
   useEffect(() => {
     async function loadChat() {
@@ -549,7 +559,10 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
           {/* Player Controls Overlay (Hover) */}
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/80 to-transparent flex items-center px-6 gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
             <Play className="w-5 h-5 text-white cursor-pointer hover:text-pink-400 transition-colors" />
-            <div className="text-xs font-bold">0:25:37</div>
+            <div className="flex items-center gap-1.5 bg-red-600/20 px-2 py-0.5 rounded border border-red-500/30">
+              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-black text-red-400 uppercase tracking-wider">EN VIVO</span>
+            </div>
             <div className="flex-1" />
             <Settings className="w-5 h-5 text-white cursor-pointer hover:text-pink-400 transition-colors" />
           </div>
