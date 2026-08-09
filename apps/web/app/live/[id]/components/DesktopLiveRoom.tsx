@@ -512,9 +512,9 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                   loop
                   className="w-full h-full object-cover"
                   src={
-                    streamTitleState.toLowerCase().includes('valorant')
+                    (streamTitleState || '').toLowerCase().includes('valorant')
                       ? 'https://assets.mixkit.co/videos/preview/mixkit-guy-playing-a-console-game-42294-large.mp4'
-                      : streamTitleState.toLowerCase().includes('free fire')
+                      : (streamTitleState || '').toLowerCase().includes('free fire')
                       ? 'https://assets.mixkit.co/videos/preview/mixkit-playing-pc-video-games-42290-large.mp4'
                       : 'https://assets.mixkit.co/videos/preview/mixkit-gaming-room-with-neon-lights-42289-large.mp4'
                   }
