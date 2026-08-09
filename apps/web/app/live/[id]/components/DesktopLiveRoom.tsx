@@ -8,7 +8,7 @@ import {
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
-import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage } from '@/app/actions/stream';
+import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage, getRealSpectatorsAction } from '@/app/actions/stream';
 import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
 
 const MOCK_REC_POSTS = [
@@ -62,6 +62,15 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [spectators, setSpectators] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadSpectators() {
+      const data = await getRealSpectatorsAction();
+      setSpectators(data);
+    }
+    loadSpectators();
+  }, []);
 
   useEffect(() => {
     async function loadFollowStatus() {
@@ -513,10 +522,10 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                   className="w-full h-full object-cover"
                   src={
                     (streamTitleState || '').toLowerCase().includes('valorant')
-                      ? 'https://assets.mixkit.co/videos/preview/mixkit-guy-playing-a-console-game-42294-large.mp4'
+                      ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
                       : (streamTitleState || '').toLowerCase().includes('free fire')
-                      ? 'https://assets.mixkit.co/videos/preview/mixkit-playing-pc-video-games-42290-large.mp4'
-                      : 'https://assets.mixkit.co/videos/preview/mixkit-gaming-room-with-neon-lights-42289-large.mp4'
+                      ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+                      : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
                   }
                 />
               )}
@@ -589,20 +598,20 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
             <span>Espectadores • {dbViewers}</span>
           </div>
           <div className="flex flex-col gap-2">
-            {[
-              { pos: 1, name: 'MATCOL', img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=U1' },
-              { pos: 2, name: 'El Rey', img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=U2' },
-              { pos: 3, name: 'Fercho_', img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=U3' },
-            ].map(user => (
-               <div key={user.pos} className="flex items-center justify-between text-xs">
-                 <div className="flex items-center gap-2">
-                   <span className={`font-black w-3 text-center ${user.pos === 1 ? 'text-yellow-400' : user.pos === 2 ? 'text-zinc-300' : 'text-amber-600'}`}>{user.pos}</span>
-                   <img src={user.img} className="w-5 h-5 rounded-full bg-zinc-800" />
-                   <span className="font-bold text-zinc-300 truncate w-[140px]">{user.name}</span>
-                 </div>
-                 <span className="font-bold text-yellow-500">3</span>
-               </div>
-            ))}
+            {spectators.length > 0 ? (
+              spectators.slice(0, 3).map((user) => (
+                <div key={user.pos} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-black w-3 text-center ${user.pos === 1 ? 'text-yellow-400' : user.pos === 2 ? 'text-zinc-300' : 'text-amber-600'}`}>{user.pos}</span>
+                    <img src={user.img} className="w-5 h-5 rounded-full bg-zinc-800" />
+                    <span className="font-bold text-zinc-300 truncate w-[140px]">{user.name}</span>
+                  </div>
+                  <span className="font-bold text-yellow-500">3</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-[10px] text-zinc-500 font-bold text-center py-2">No hay espectadores en la sala.</div>
+            )}
           </div>
         </div>
 

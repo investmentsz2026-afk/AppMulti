@@ -310,3 +310,25 @@ export async function getTopDonorsAction() {
     return [];
   }
 }
+
+export async function getRealSpectatorsAction() {
+  try {
+    const users = await prisma.user.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        username: true,
+        avatar: true
+      }
+    });
+
+    return users.map((u, i) => ({
+      pos: i + 1,
+      name: u.username,
+      img: u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`
+    }));
+  } catch (err) {
+    console.error('Error fetching real spectators:', err);
+    return [];
+  }
+}
