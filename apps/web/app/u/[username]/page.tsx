@@ -8,7 +8,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
   if (!session) redirect('/login');
 
   const { username } = await params;
-  const cleanUsername = decodeURIComponent(username).replace('@', '');
+  const decoded = decodeURIComponent(username);
+  const cleanUsername = decoded.startsWith('@') ? decoded.slice(1) : decoded;
 
   const targetUser = await prisma.user.findFirst({
     where: {
