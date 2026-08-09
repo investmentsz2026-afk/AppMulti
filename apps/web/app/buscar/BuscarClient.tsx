@@ -191,7 +191,7 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
                   <div className="p-3 flex-1 flex flex-col justify-between gap-1.5 leading-tight">
                     <p className="text-xs font-semibold text-zinc-100 line-clamp-2">{item.title}</p>
                     <div className="flex items-center gap-1.5 mt-auto">
-                      <img src={item.avatar} className="w-4.5 h-4.5 rounded-full border border-white/20 bg-zinc-800" alt="" />
+                      <img src={item.avatar} className="w-5 h-5 rounded-full border border-white/20 bg-zinc-800 object-cover" alt="" />
                       <span className="text-[10px] font-black text-zinc-400 truncate flex items-center gap-0.5">
                         @{item.username} <BadgeCheck className="w-2.5 h-2.5 text-blue-400 shrink-0" />
                       </span>
