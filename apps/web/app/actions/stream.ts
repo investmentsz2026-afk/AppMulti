@@ -360,3 +360,17 @@ export async function getRealSpectatorsAction(streamerUsername?: string) {
     return [];
   }
 }
+
+export async function getUserWalletBalanceAction() {
+  const session = await getSession();
+  if (!session) return 0;
+  try {
+    const wallet = await prisma.wallet.findUnique({
+      where: { userId: session.id }
+    });
+    return wallet?.balance ?? 0;
+  } catch (err) {
+    console.error('Error fetching wallet balance:', err);
+    return 0;
+  }
+}

@@ -8,7 +8,7 @@ import {
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
-import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage, getRealSpectatorsAction } from '@/app/actions/stream';
+import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage, getRealSpectatorsAction, getUserWalletBalanceAction } from '@/app/actions/stream';
 import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
 
 const MOCK_REC_POSTS = [
@@ -63,6 +63,15 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [spectators, setSpectators] = useState<any[]>([]);
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  useEffect(() => {
+    async function loadBalance() {
+      const bal = await getUserWalletBalanceAction();
+      setWalletBalance(bal);
+    }
+    loadBalance();
+  }, []);
 
   useEffect(() => {
     async function loadSpectators() {
@@ -170,6 +179,10 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
       // Refresh active spectators list in real-time
       const activeSpecs = await getRealSpectatorsAction(streamerName);
       setSpectators(activeSpecs);
+
+      // Refresh wallet balance in real-time
+      const bal = await getUserWalletBalanceAction();
+      setWalletBalance(bal);
     }, 4000);
 
     const handleStorageChange = (e: StorageEvent) => {
@@ -604,7 +617,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
 
           <button className="px-6 h-[72px] bg-gradient-to-br from-yellow-500 to-orange-500 hover:opacity-90 rounded-xl text-black font-black text-sm transition-opacity flex flex-col items-center justify-center shrink-0">
              <span>Recargar</span>
-             <span className="text-[10px] opacity-80">Saldo: 0</span>
+             <span className="text-[10px] opacity-80">Saldo: {walletBalance.toLocaleString()}</span>
           </button>
         </div>
 
