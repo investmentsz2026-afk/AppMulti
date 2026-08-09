@@ -165,14 +165,22 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top Navbar */}
         <header className="h-20 border-b border-white/5 px-8 flex items-center justify-between shrink-0 bg-[#0a0a0f]/80 backdrop-blur-md z-20">
-           <div className="w-full max-w-md relative">
-             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-             <input 
-               type="text" 
-               placeholder="Buscar streamers, batallas, torneos..." 
-               className="w-full bg-white/5 border border-white/5 rounded-full py-2.5 pl-11 pr-4 text-sm outline-none focus:border-purple-500/50 transition-all text-white placeholder:text-zinc-600"
-             />
-           </div>
+           <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const q = (e.currentTarget.elements.namedItem('q') as HTMLInputElement).value;
+                if (q.trim()) router.push(`/buscar?q=${encodeURIComponent(q)}`);
+              }}
+              className="w-full max-w-md relative"
+            >
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <input 
+                name="q"
+                type="text" 
+                placeholder="Buscar streamers, batallas, torneos..." 
+                className="w-full bg-white/5 border border-white/5 rounded-full py-2.5 pl-11 pr-4 text-sm outline-none focus:border-purple-500/50 transition-all text-white placeholder:text-zinc-600"
+              />
+           </form>
 
            <div className="flex items-center gap-6">
              <button className="text-zinc-400 hover:text-yellow-400 transition-colors">

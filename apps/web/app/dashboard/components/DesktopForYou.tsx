@@ -648,14 +648,22 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
             </button>
           </div>
           
-          <div className="w-80 relative hidden md:block">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = (e.currentTarget.elements.namedItem('q') as HTMLInputElement).value;
+              if (q.trim()) router.push(`/buscar?q=${encodeURIComponent(q)}`);
+            }}
+            className="w-80 relative hidden md:block"
+          >
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input 
+              name="q"
               type="text" 
               placeholder="Buscar streams, videos..." 
               className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-xs focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all text-white placeholder-zinc-500 backdrop-blur-md font-semibold"
             />
-          </div>
+          </form>
         </div>
 
         {/* Dynamic Post Feed Wrapper */}

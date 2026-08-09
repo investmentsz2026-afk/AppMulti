@@ -70,9 +70,9 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
         
         {/* Search Icon */}
         <div className="w-7 h-7 flex items-center justify-end">
-          <button className="text-zinc-400 hover:text-white transition-colors">
+          <Link href="/buscar" className="text-zinc-400 hover:text-white transition-colors">
             <Search className="w-5 h-5" />
-          </button>
+          </Link>
         </div>
       </div>
 

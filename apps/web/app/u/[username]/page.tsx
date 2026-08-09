@@ -52,5 +52,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     }
   });
 
-  return <ProfileClient sessionUser={currentSessionUser || session} targetUser={targetUser} />;
+  if (!currentSessionUser) {
+    redirect('/login');
+  }
+
+  return <ProfileClient sessionUser={currentSessionUser} targetUser={targetUser} />;
 }

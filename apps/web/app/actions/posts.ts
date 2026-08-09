@@ -140,3 +140,46 @@ export async function getUserPosts(username: string, viewerId?: string) {
     };
   });
 }
+
+export async function searchPostsAction(query: string) {
+  if (!query) return [];
+  try {
+    const posts = await prisma.post.findMany({
+      where: {
+        isPrivate: false,
+        title: {
+          contains: query,
+          mode: 'insensitive'
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true
+          }
+        },
+        likes: { select: { userId: true } },
+        comments: { select: { id: true } }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return posts.map(p => ({
+      id: p.id,
+      type: p.type === 'VIDEO' ? 'video' : 'photo',
+      title: p.title,
+      url: p.url,
+      username: p.user.username,
+      avatar: p.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.user.username}`,
+      likesCount: p.likes.length,
+      commentsCount: p.comments.length
+    }));
+  } catch (err) {
+    console.error('Error searching posts:', err);
+    return [];
+  }
+}

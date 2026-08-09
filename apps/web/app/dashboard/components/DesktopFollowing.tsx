@@ -10,8 +10,10 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { getFollowingFeedData } from '@/app/actions/social';
+import { useRouter } from 'next/navigation';
 
 export default function DesktopFollowing({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('Todo');
   const [activeSort, setActiveSort] = useState('Más recientes');
 
@@ -159,14 +161,22 @@ export default function DesktopFollowing({ user, setTab, tab }: { user: any, set
           </div>
 
           {/* Search bar */}
-          <div className="w-96 relative hidden md:block">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = (e.currentTarget.elements.namedItem('q') as HTMLInputElement).value;
+              if (q.trim()) router.push(`/buscar?q=${encodeURIComponent(q)}`);
+            }}
+            className="w-96 relative hidden md:block"
+          >
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
             <input 
+              name="q"
               type="text" 
               placeholder="Buscar streams, creadores, videos..." 
               className="w-full bg-white/5 border border-white/5 rounded-full py-2 pl-10 pr-4 text-xs focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all text-white placeholder-zinc-500"
             />
-          </div>
+          </form>
 
           {/* Right Section */}
           <div className="flex items-center gap-4">
