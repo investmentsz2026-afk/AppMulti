@@ -97,7 +97,11 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
 
           <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar snap-x">
             {liveStreamers.map(streamer => (
-              <div key={streamer.id} className="flex flex-col items-center shrink-0 snap-start w-16">
+              <Link 
+                href={`/live/${streamer.name}`}
+                key={streamer.id} 
+                className="flex flex-col items-center shrink-0 snap-start w-16 cursor-pointer"
+              >
                 {/* Glowing Avatar circle */}
                 <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-purple-600 via-pink-600 to-red-500 shadow-md">
                   <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#05050a] bg-zinc-800">
@@ -117,7 +121,7 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
                 <span className="text-[8px] font-medium text-zinc-500 mt-0.5">
                   ▷ {streamer.views}
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

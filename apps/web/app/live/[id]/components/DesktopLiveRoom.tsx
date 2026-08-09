@@ -490,6 +490,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                     ref={cameraVideoRef} 
                     autoPlay 
                     playsInline 
+                    muted
                     className="w-full h-full object-cover scale-x-[-1]"
                   />
                   <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
@@ -504,6 +505,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                     ref={screenVideoRef} 
                     autoPlay 
                     playsInline 
+                    muted
                     className="w-full h-full object-contain"
                   />
                   <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">

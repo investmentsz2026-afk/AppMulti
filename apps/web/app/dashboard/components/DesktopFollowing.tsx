@@ -215,9 +215,10 @@ export default function DesktopFollowing({ user, setTab, tab }: { user: any, set
 
             <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x">
               {liveStreamers.map(streamer => (
-                <div 
+                <Link 
+                  href={`/live/${streamer.name}`}
                   key={streamer.id} 
-                  className="w-[180px] shrink-0 snap-start bg-[#0c0c14] border border-white/5 rounded-2xl overflow-hidden group hover:border-purple-500/30 transition-all shadow-[0_4px_15px_rgba(0,0,0,0.3)]"
+                  className="w-[180px] shrink-0 snap-start bg-[#0c0c14] border border-white/5 rounded-2xl overflow-hidden group hover:border-purple-500/30 transition-all shadow-[0_4px_15px_rgba(0,0,0,0.3)] cursor-pointer block"
                 >
                   <div className="relative aspect-[3/4] overflow-hidden">
                     <img src={streamer.preview} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
@@ -250,7 +251,7 @@ export default function DesktopFollowing({ user, setTab, tab }: { user: any, set
                     </h4>
                     <p className="text-[10px] text-zinc-500 font-semibold truncate mt-0.5">{streamer.category}</p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

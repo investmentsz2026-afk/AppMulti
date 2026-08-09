@@ -376,7 +376,21 @@ export default function TransmitirClient({ user }: { user: any }) {
         let stream = cameraStream;
         const hasActiveVideoTrack = stream && stream.getVideoTracks().some(t => t.readyState === 'live');
         if (!hasActiveVideoTrack) {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: micActive });
+          try {
+            const videoConstraints = selectedDeviceId 
+              ? { deviceId: { exact: selectedDeviceId } } 
+              : true;
+            stream = await navigator.mediaDevices.getUserMedia({ 
+              video: videoConstraints, 
+              audio: micActive 
+            });
+          } catch (deviceErr) {
+            console.warn('Failed getUserMedia with selected deviceId, trying general video: true...', deviceErr);
+            stream = await navigator.mediaDevices.getUserMedia({ 
+              video: true, 
+              audio: micActive 
+            });
+          }
           setCameraStream(stream);
           cameraStreamRef.current = stream;
         } else if (stream) {
