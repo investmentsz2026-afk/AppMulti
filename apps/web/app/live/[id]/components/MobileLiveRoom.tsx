@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
 import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction } from '@/app/actions/stream';
+import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
 
 const MOCK_REC_POSTS = [
   {
@@ -57,6 +58,17 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    async function loadFollowStatus() {
+      if (streamerName && streamerName !== user?.username) {
+        const res = await checkFollowStatusByUsername(streamerName);
+        setIsFollowing(res.following);
+      }
+    }
+    loadFollowStatus();
+  }, [streamerName, user]);
 
   useEffect(() => {
     async function loadChatMessages() {
@@ -427,13 +439,13 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                   muted
                   loop
                   className="w-full h-full object-cover animate-fade-in"
-                  src={streamerName === user?.username ? undefined : (
+                  src={
                     streamTitleState.toLowerCase().includes('valorant')
                       ? 'https://assets.mixkit.co/videos/preview/mixkit-guy-playing-a-console-game-42294-large.mp4'
                       : streamTitleState.toLowerCase().includes('free fire')
                       ? 'https://assets.mixkit.co/videos/preview/mixkit-playing-pc-video-games-42290-large.mp4'
                       : 'https://assets.mixkit.co/videos/preview/mixkit-gaming-room-with-neon-lights-42289-large.mp4'
-                  )}
+                  }
                 />
               )}
             </div>
@@ -473,8 +485,20 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                </div>
              </div>
              {streamerName !== user?.username && (
-               <button className="bg-pink-600 hover:bg-pink-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-full ml-1 transition-colors">
-                 + Seguir
+               <button 
+                 onClick={async () => {
+                   const res = await toggleFollowByUsername(streamerName);
+                   if (res && res.success) {
+                     setIsFollowing(res.following);
+                   }
+                 }}
+                 className={`${
+                   isFollowing 
+                     ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' 
+                     : 'bg-pink-600 hover:bg-pink-500 text-white'
+                 } text-[11px] font-bold px-3 py-1.5 rounded-full ml-1 transition-colors`}
+               >
+                 {isFollowing ? 'Siguiendo' : '+ Seguir'}
                </button>
              )}
            </div>

@@ -974,3 +974,40 @@ export async function getFollowingFeedData() {
     return { followingCount: 0, liveStreamers: [], feedItems: [] };
   }
 }
+
+export async function checkFollowStatusByUsername(streamerUsername: string) {
+  const session = await getSession();
+  if (!session) return { following: false };
+
+  try {
+    const streamer = await prisma.user.findUnique({
+      where: { username: streamerUsername }
+    });
+    if (!streamer) return { following: false };
+
+    const existing = await prisma.follow.findUnique({
+      where: {
+        followerId_followingId: { followerId: session.id, followingId: streamer.id }
+      }
+    });
+    return { following: !!existing, streamerId: streamer.id };
+  } catch (err) {
+    return { following: false };
+  }
+}
+
+export async function toggleFollowByUsername(streamerUsername: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  try {
+    const streamer = await prisma.user.findUnique({
+      where: { username: streamerUsername }
+    });
+    if (!streamer) return { error: 'Streamer no encontrado' };
+
+    return await toggleFollowUser(streamer.id);
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}

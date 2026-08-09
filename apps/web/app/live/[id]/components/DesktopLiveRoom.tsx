@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
 import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage } from '@/app/actions/stream';
+import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
 
 const MOCK_REC_POSTS = [
   {
@@ -60,6 +61,17 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    async function loadFollowStatus() {
+      if (streamerName && streamerName !== user?.username) {
+        const res = await checkFollowStatusByUsername(streamerName);
+        setIsFollowing(res.following);
+      }
+    }
+    loadFollowStatus();
+  }, [streamerName, user]);
 
   useEffect(() => {
     let activeStream: MediaStream | null = null;
@@ -433,8 +445,20 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
             </div>
           </div>
           {streamerName !== user?.username && (
-            <button className="bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold px-4 py-1.5 rounded-full ml-2 transition-colors">
-              + Seguir
+            <button 
+              onClick={async () => {
+                const res = await toggleFollowByUsername(streamerName);
+                if (res && res.success) {
+                  setIsFollowing(res.following);
+                }
+              }}
+              className={`${
+                isFollowing 
+                  ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' 
+                  : 'bg-pink-600 hover:bg-pink-500 text-white'
+              } text-xs font-bold px-4 py-1.5 rounded-full ml-2 transition-colors`}
+            >
+              {isFollowing ? 'Siguiendo' : '+ Seguir'}
             </button>
           )}
         </div>
@@ -487,13 +511,13 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                   muted
                   loop
                   className="w-full h-full object-cover"
-                  src={streamerName === user?.username ? undefined : (
+                  src={
                     streamTitleState.toLowerCase().includes('valorant')
                       ? 'https://assets.mixkit.co/videos/preview/mixkit-guy-playing-a-console-game-42294-large.mp4'
                       : streamTitleState.toLowerCase().includes('free fire')
                       ? 'https://assets.mixkit.co/videos/preview/mixkit-playing-pc-video-games-42290-large.mp4'
                       : 'https://assets.mixkit.co/videos/preview/mixkit-gaming-room-with-neon-lights-42289-large.mp4'
-                  )}
+                  }
                 />
               )}
             </div>
