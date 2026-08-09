@@ -8,16 +8,17 @@ import {
   MessageSquare, Film, Image, X, Swords, Trophy, MessageCircle, BadgeCheck,
   ChevronUp, ChevronDown, Trash2
 } from 'lucide-react';
-import { searchPostsAction } from '@/app/actions/posts';
+import { searchPostsAction, searchUsersAction } from '@/app/actions/posts';
 import { getPostComments, createComment, deleteComment, toggleLikePost } from '@/app/actions/social';
 
 export default function BuscarClient({ user, initialQuery }: { user: any; initialQuery: string }) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<any[]>([]);
+  const [userResults, setUserResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'Todo' | 'Videos' | 'Fotos'>('Todo');
+  const [activeTab, setActiveTab] = useState<'Todo' | 'Videos' | 'Fotos' | 'Personas'>('Todo');
 
   // Comments state
   const [comments, setComments] = useState<any[]>([]);
@@ -32,12 +33,17 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
     async function performSearch() {
       if (!initialQuery.trim()) {
         setResults([]);
+        setUserResults([]);
         return;
       }
       setLoading(true);
       try {
-        const data = await searchPostsAction(initialQuery);
-        setResults(data);
+        const [postsData, usersData] = await Promise.all([
+          searchPostsAction(initialQuery),
+          searchUsersAction(initialQuery)
+        ]);
+        setResults(postsData);
+        setUserResults(usersData);
       } catch (err) {
         console.error('Error performing search:', err);
       } finally {
@@ -234,7 +240,7 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
 
         {/* SEARCH FILTER TABS */}
         <div className="flex gap-2 border-b border-white/5 bg-[#05050a] px-4 md:px-6 py-3 shrink-0 overflow-x-auto scrollbar-none z-10">
-          {(['Todo', 'Videos', 'Fotos'] as const).map(tab => (
+          {(['Todo', 'Videos', 'Fotos', 'Personas'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -257,60 +263,127 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
                 <div key={i} className="aspect-[3/4] bg-white/5 rounded-2xl border border-white/5" />
               ))}
             </div>
-          ) : filteredResults.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-zinc-600 mb-4 border border-white/5">
-                <Search className="w-8 h-8" />
-              </div>
-              <h3 className="text-sm font-bold text-white mb-1">Sin resultados</h3>
-              <p className="text-xs text-zinc-500 max-w-xs">No encontramos publicaciones que coincidan con tu búsqueda. ¡Prueba buscando otra palabra!</p>
-            </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {filteredResults.map((item, index) => (
-                <div 
-                  key={item.id} 
-                  onClick={() => setActiveMediaIndex(index)}
-                  className="bg-[#0c0c14] border border-white/5 rounded-2xl overflow-hidden shadow-md cursor-pointer hover:border-purple-500/20 transition-all flex flex-col group"
-                >
-                  <div className="relative aspect-[3/4] overflow-hidden bg-black shrink-0">
-                    {item.type === 'video' ? (
-                      <video src={item.url} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" muted playsInline />
-                    ) : (
-                      <img src={item.url} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" alt="" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
-
-                    <div className="absolute top-2 left-2 z-10">
-                      <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md border border-white/10 text-[7px] font-black rounded uppercase tracking-wider flex items-center gap-0.5">
-                        {item.type === 'video' ? <Film className="w-2.5 h-2.5" /> : <Image className="w-2.5 h-2.5" />}
-                        {item.type === 'video' ? 'CLIP' : 'PHOTO'}
-                      </span>
-                    </div>
-
-                    <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center gap-2 text-[9px] font-bold text-white z-10 pointer-events-none">
-                      <div className="flex items-center gap-0.5">
-                        <Heart className="w-3 h-3 fill-pink-500 text-pink-500 shrink-0" />
-                        <span>{likesState[item.id]?.count ?? item.likesCount}</span>
-                      </div>
-                      <div className="flex items-center gap-0.5">
-                        <MessageCircle className="w-3 h-3 fill-purple-500 text-purple-500 shrink-0" />
-                        <span>{item.commentsCount}</span>
-                      </div>
-                    </div>
+            <div className="flex flex-col gap-6">
+              {/* PERSONAS TAB / SECTION */}
+              {(activeTab === 'Personas' || (activeTab === 'Todo' && userResults.length > 0)) && (
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400">
+                    Cuentas / Personas
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(activeTab === 'Personas' ? userResults : userResults.slice(0, 3)).map(profile => (
+                      <Link 
+                        href={`/u/${profile.username}`}
+                        key={profile.id}
+                        className="flex items-center justify-between p-3 rounded-2xl bg-[#0c0c14] border border-white/5 hover:border-purple-500/20 hover:bg-[#12121e] transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img src={profile.avatar} className="w-10 h-10 rounded-full border border-white/10" alt="" />
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-white flex items-center gap-1">
+                              @{profile.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400 inline shrink-0" />
+                            </h4>
+                            <p className="text-[10px] text-zinc-500 truncate max-w-[180px]">{profile.bio}</p>
+                            <p className="text-[8px] text-zinc-400 font-semibold mt-0.5">{profile.followersCount} seguidores</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-black text-purple-400 hover:text-purple-300 uppercase tracking-wider px-3 py-1 bg-purple-500/10 rounded-full">
+                          Ver Perfil
+                        </span>
+                      </Link>
+                    ))}
                   </div>
-
-                  <div className="p-3 flex-1 flex flex-col justify-between gap-1.5 leading-tight">
-                    <p className="text-xs font-semibold text-zinc-100 line-clamp-2">{item.title}</p>
-                    <div className="flex items-center gap-1.5 mt-auto">
-                      <img src={item.avatar} className="w-5 h-5 rounded-full border border-white/20 bg-zinc-800 object-cover" alt="" />
-                      <span className="text-[10px] font-black text-zinc-400 truncate flex items-center gap-0.5">
-                        @{item.username} <BadgeCheck className="w-2.5 h-2.5 text-blue-400 shrink-0" />
-                      </span>
-                    </div>
-                  </div>
+                  {activeTab === 'Todo' && userResults.length > 3 && (
+                    <button 
+                      onClick={() => setActiveTab('Personas')}
+                      className="text-left text-[10px] font-bold text-purple-400 hover:underline"
+                    >
+                      Ver las {userResults.length} personas encontradas
+                    </button>
+                  )}
                 </div>
-              ))}
+              )}
+
+              {/* POSTS (Videos & Fotos) */}
+              {activeTab !== 'Personas' && (
+                <div className="flex flex-col gap-3">
+                  {activeTab === 'Todo' && userResults.length > 0 && results.length > 0 && (
+                    <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 mt-2">
+                      Publicaciones
+                    </h3>
+                  )}
+                  {filteredResults.length === 0 ? (
+                    activeTab !== 'Todo' || userResults.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-zinc-600 mb-4 border border-white/5">
+                          <Search className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-sm font-bold text-white mb-1">Sin publicaciones</h3>
+                        <p className="text-xs text-zinc-500 max-w-xs">No encontramos publicaciones que coincidan con tu búsqueda.</p>
+                      </div>
+                    ) : null
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {filteredResults.map((item, index) => (
+                        <div 
+                          key={item.id} 
+                          onClick={() => setActiveMediaIndex(index)}
+                          className="bg-[#0c0c14] border border-white/5 rounded-2xl overflow-hidden shadow-md cursor-pointer hover:border-purple-500/20 transition-all flex flex-col group"
+                        >
+                          <div className="relative aspect-[3/4] overflow-hidden bg-black shrink-0">
+                            {item.type === 'video' ? (
+                              <video src={item.url} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" muted playsInline />
+                            ) : (
+                              <img src={item.url} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" alt="" />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
+
+                            <div className="absolute top-2 left-2 z-10">
+                              <span className="px-1.5 py-0.5 bg-black/50 backdrop-blur-md border border-white/10 text-[7px] font-black rounded uppercase tracking-wider flex items-center gap-0.5">
+                                {item.type === 'video' ? <Film className="w-2.5 h-2.5" /> : <Image className="w-2.5 h-2.5" />}
+                                {item.type === 'video' ? 'CLIP' : 'PHOTO'}
+                              </span>
+                            </div>
+
+                            <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center gap-2 text-[9px] font-bold text-white z-10 pointer-events-none">
+                              <div className="flex items-center gap-0.5">
+                                <Heart className="w-3 h-3 fill-pink-500 text-pink-500 shrink-0" />
+                                <span>{likesState[item.id]?.count ?? item.likesCount}</span>
+                              </div>
+                              <div className="flex items-center gap-0.5">
+                                <MessageCircle className="w-3 h-3 fill-purple-500 text-purple-500 shrink-0" />
+                                <span>{item.commentsCount}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-3 flex-1 flex flex-col justify-between gap-1.5 leading-tight">
+                            <p className="text-xs font-semibold text-zinc-100 line-clamp-2">{item.title}</p>
+                            <div className="flex items-center gap-1.5 mt-auto">
+                              <img src={item.avatar} className="w-5 h-5 rounded-full border border-white/20 bg-zinc-800 object-cover" alt="" />
+                              <span className="text-[10px] font-black text-zinc-400 truncate flex items-center gap-0.5">
+                                @{item.username} <BadgeCheck className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* General Empty State for Personas tab */}
+              {activeTab === 'Personas' && userResults.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-zinc-600 mb-4 border border-white/5">
+                    <User className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-sm font-bold text-white mb-1">Sin personas</h3>
+                  <p className="text-xs text-zinc-500 max-w-xs">No encontramos usuarios registrados que coincidan con tu búsqueda.</p>
+                </div>
+              )}
             </div>
           )}
         </div>

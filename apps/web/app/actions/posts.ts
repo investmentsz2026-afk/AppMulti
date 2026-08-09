@@ -183,3 +183,50 @@ export async function searchPostsAction(query: string) {
     return [];
   }
 }
+
+export async function searchUsersAction(query: string) {
+  if (!query) return [];
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          {
+            username: {
+              contains: query,
+              mode: 'insensitive'
+            }
+          },
+          {
+            email: {
+              contains: query,
+              mode: 'insensitive'
+            }
+          }
+        ]
+      },
+      select: {
+        id: true,
+        username: true,
+        avatar: true,
+        bio: true,
+        followers: {
+          select: {
+            followerId: true
+          }
+        }
+      },
+      take: 20
+    });
+
+    return users.map(u => ({
+      id: u.id,
+      username: u.username,
+      avatar: u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`,
+      bio: u.bio || 'Sin descripción.',
+      followersCount: u.followers.length
+    }));
+  } catch (err) {
+    console.error('Error searching users:', err);
+    return [];
+  }
+}
