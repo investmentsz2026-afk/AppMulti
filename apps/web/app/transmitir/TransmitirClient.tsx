@@ -142,10 +142,18 @@ export default function TransmitirClient({ user }: { user: any }) {
             audio: true
           });
         } else {
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: true
-          });
+          try {
+            stream = await navigator.mediaDevices.getDisplayMedia({
+              video: true,
+              audio: true
+            });
+          } catch (err) {
+            console.warn('System audio capture not supported or denied, trying video only:', err);
+            stream = await navigator.mediaDevices.getDisplayMedia({
+              video: true,
+              audio: false
+            });
+          }
         }
         
         const screenTrack = stream.getVideoTracks()[0];

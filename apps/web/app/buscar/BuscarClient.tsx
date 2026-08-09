@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Home, Compass, Play, User, Search, ArrowLeft, Heart, 
-  MessageSquare, Film, Image, X, Swords, Trophy, MessageCircle, BadgeCheck
+  MessageSquare, Film, Image, X, Swords, Trophy, MessageCircle, BadgeCheck,
+  ChevronUp, ChevronDown, Trash2
 } from 'lucide-react';
 import { searchPostsAction } from '@/app/actions/posts';
+import { getPostComments, createComment, deleteComment, toggleLikePost } from '@/app/actions/social';
 
 export default function BuscarClient({ user, initialQuery }: { user: any; initialQuery: string }) {
   const router = useRouter();
@@ -16,6 +18,15 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
   const [loading, setLoading] = useState(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'Todo' | 'Videos' | 'Fotos'>('Todo');
+
+  // Comments state
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [showCommentsMobile, setShowCommentsMobile] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
+
+  // Likes state
+  const [likesState, setLikesState] = useState<Record<string, { count: number; liked: boolean }>>({});
 
   useEffect(() => {
     async function performSearch() {
@@ -47,6 +58,107 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
     if (activeTab === 'Fotos' && item.type === 'photo') return true;
     return false;
   });
+
+  // Load comments when index changes
+  useEffect(() => {
+    if (activeMediaIndex === null) {
+      setComments([]);
+      setShowCommentsMobile(false);
+      return;
+    }
+    const post = filteredResults[activeMediaIndex];
+    if (!post) return;
+
+    async function loadComments() {
+      setCommentsLoading(true);
+      try {
+        const res = await getPostComments(post.id);
+        if (Array.isArray(res)) {
+          setComments(res);
+        }
+      } catch (err) {
+        console.error('Error loading comments:', err);
+      } finally {
+        setCommentsLoading(false);
+      }
+    }
+    loadComments();
+  }, [activeMediaIndex]);
+
+  const handleLike = async (postId: string) => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    const item = filteredResults.find(p => p.id === postId);
+    if (!item) return;
+
+    const current = likesState[postId] || {
+      count: item.likesCount || 0,
+      liked: false
+    };
+
+    const newLiked = !current.liked;
+    const newCount = newLiked ? current.count + 1 : Math.max(0, current.count - 1);
+
+    setLikesState(prev => ({
+      ...prev,
+      [postId]: { count: newCount, liked: newLiked }
+    }));
+
+    try {
+      await toggleLikePost(postId);
+    } catch (err) {
+      console.error('Error toggling like:', err);
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCommentText.trim() || activeMediaIndex === null) return;
+    const post = filteredResults[activeMediaIndex];
+    if (!post) return;
+
+    const text = newCommentText;
+    setNewCommentText('');
+
+    try {
+      const res = await createComment(post.id, text);
+      if (res.success && res.comment) {
+        setComments(prev => [res.comment, ...prev]);
+        // Also update comment count in results locally
+        setResults(prev => prev.map(r => r.id === post.id ? { ...r, commentsCount: (r.commentsCount || 0) + 1 } : r));
+      }
+    } catch (err) {
+      console.error('Error creating comment:', err);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (activeMediaIndex === null) return;
+    const post = filteredResults[activeMediaIndex];
+    if (!post) return;
+
+    try {
+      const res = await deleteComment(commentId);
+      if (res.success) {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        setResults(prev => prev.map(r => r.id === post.id ? { ...r, commentsCount: Math.max(0, (r.commentsCount || 0) - 1) } : r));
+      }
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+    }
+  };
+
+  const handleNext = () => {
+    if (filteredResults.length === 0) return;
+    setActiveMediaIndex(prev => prev === null ? 0 : (prev === filteredResults.length - 1 ? 0 : prev + 1));
+  };
+
+  const handlePrev = () => {
+    if (filteredResults.length === 0) return;
+    setActiveMediaIndex(prev => prev === null ? 0 : (prev === 0 ? filteredResults.length - 1 : prev - 1));
+  };
 
   return (
     <div className="flex h-screen w-full bg-[#05050a] text-white overflow-hidden">
@@ -179,7 +291,7 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
                     <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center gap-2 text-[9px] font-bold text-white z-10 pointer-events-none">
                       <div className="flex items-center gap-0.5">
                         <Heart className="w-3 h-3 fill-pink-500 text-pink-500 shrink-0" />
-                        <span>{item.likesCount}</span>
+                        <span>{likesState[item.id]?.count ?? item.likesCount}</span>
                       </div>
                       <div className="flex items-center gap-0.5">
                         <MessageCircle className="w-3 h-3 fill-purple-500 text-purple-500 shrink-0" />
@@ -231,30 +343,105 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
       {/* OVERLAY TIKTOK-STYLE PLAYBACK POPUP */}
       {activeMediaIndex !== null && filteredResults[activeMediaIndex] && (() => {
         const item = filteredResults[activeMediaIndex];
-        return (
-          <div className="fixed inset-0 z-[100] bg-black/98 flex items-center justify-center p-2 md:p-6 animate-in fade-in duration-200">
-            {/* Backdrop Tap to Close */}
-            <div className="absolute inset-0 cursor-pointer" onClick={() => setActiveMediaIndex(null)} />
+        const isLiked = likesState[item.id]?.liked ?? false;
+        const currentLikes = likesState[item.id]?.count ?? item.likesCount;
 
-            <div className="relative bg-[#09090e] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row z-10 max-w-[800px] w-full h-[80vh] md:h-[85vh] pointer-events-auto">
-              {/* Media Content Player Column */}
-              <div className="relative flex-1 h-1/2 md:h-full bg-black flex items-center justify-center">
+        return (
+          <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center animate-in fade-in duration-200">
+            {/* Desktop Close button outside container */}
+            <button 
+              onClick={() => setActiveMediaIndex(null)} 
+              className="absolute top-6 left-6 p-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors z-50 text-white hidden lg:flex items-center justify-center"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Desktop side navigation arrows */}
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50 hidden lg:flex">
+              <button onClick={handlePrev} className="p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white">
+                <ChevronUp className="w-6 h-6" />
+              </button>
+              <button onClick={handleNext} className="p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-white">
+                <ChevronDown className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* MAIN PLAYBACK WINDOW CONTAINER */}
+            <div className="relative w-full h-full lg:max-w-[850px] lg:h-[85vh] lg:rounded-3xl lg:border lg:border-white/10 lg:shadow-2xl flex flex-col lg:flex-row overflow-hidden bg-black">
+              
+              {/* Media Content Area */}
+              <div className="relative flex-1 h-full bg-black flex items-center justify-center">
                 {item.type === 'video' ? (
                   <video src={item.url} className="w-full h-full object-contain" controls autoPlay loop playsInline />
                 ) : (
                   <img src={item.url} className="w-full h-full object-contain" alt="" />
                 )}
-                {/* Close Button */}
-                <button onClick={() => setActiveMediaIndex(null)} className="absolute top-4 left-4 p-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full hover:bg-black/60 transition-colors z-20 text-white shadow-md">
-                  <X className="w-5 h-5" />
-                </button>
+
+                {/* Mobile top overlay buttons */}
+                <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-40 lg:hidden">
+                  <button onClick={() => setActiveMediaIndex(null)} className="p-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full hover:bg-black/60 transition-colors text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={handlePrev} className="p-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full hover:bg-black/60 transition-colors text-white">
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button onClick={handleNext} className="p-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full hover:bg-black/60 transition-colors text-white">
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* MOBILE INFO OVERLAY (Bottom-left, exactly matches Para ti!) */}
+                <div className="absolute left-4 bottom-4 right-16 z-20 bg-gradient-to-t from-black/70 to-transparent p-3 rounded-xl lg:hidden text-left pointer-events-none">
+                  <div className="flex items-center gap-2 mb-1.5 pointer-events-auto">
+                    <Link href={`/u/${item.username}`} className="flex items-center gap-1.5 group/auth">
+                      <img src={item.avatar} className="w-6 h-6 rounded-full border border-white/30 object-cover" alt="" />
+                      <span className="font-extrabold text-xs text-white">@{item.username}</span>
+                      <BadgeCheck className="text-blue-400 w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                  <p className="text-[11px] text-zinc-100 font-medium mb-1 line-clamp-3">
+                    {item.title}
+                  </p>
+                </div>
+
+                {/* MOBILE RIGHT SIDE ACTION ICONS (Aligned vertically, exactly matches Para ti!) */}
+                <div className="absolute right-3 bottom-24 flex flex-col items-center gap-4.5 z-30 lg:hidden">
+                  {/* Creator Avatar Link */}
+                  <Link href={`/u/${item.username}`} className="w-9 h-9 rounded-full border-2 border-white overflow-hidden bg-zinc-900 shadow-md">
+                    <img src={item.avatar} className="w-full h-full object-cover" alt="" />
+                  </Link>
+
+                  {/* Like Button */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <button 
+                      onClick={() => handleLike(item.id)}
+                      className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg"
+                    >
+                      <Heart className={`w-5.5 h-5.5 transition-colors ${isLiked ? 'text-pink-500 fill-pink-500' : 'text-white'}`} />
+                    </button>
+                    <span className="text-[10px] font-black text-white shadow-md">{currentLikes}</span>
+                  </div>
+
+                  {/* Comment Button */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <button 
+                      onClick={() => setShowCommentsMobile(true)}
+                      className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg"
+                    >
+                      <MessageSquare className="w-5.5 h-5.5 text-white" />
+                    </button>
+                    <span className="text-[10px] font-black text-white shadow-md">{comments.length}</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Publication Details Column */}
-              <div className="w-full md:w-[320px] shrink-0 h-1/2 md:h-full flex flex-col bg-[#0c0c14] border-t md:border-t-0 md:border-l border-white/10 p-5">
+              {/* DESKTOP DETAILS COLUMN (Hidden on mobile) */}
+              <div className="hidden lg:flex w-[320px] shrink-0 h-full flex-col bg-[#0c0c14] border-l border-white/10 p-5">
                 <div className="flex items-center gap-3 pb-4 border-b border-white/5">
-                  <img src={item.avatar} className="w-9 h-9 rounded-full border border-pink-500 bg-zinc-800" alt="" />
-                  <div>
+                  <img src={item.avatar} className="w-9 h-9 rounded-full border border-pink-500 bg-zinc-800 object-cover" alt="" />
+                  <div className="text-left">
                     <h4 className="text-xs font-black text-white flex items-center gap-0.5">
                       @{item.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />
                     </h4>
@@ -262,26 +449,136 @@ export default function BuscarClient({ user, initialQuery }: { user: any; initia
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto py-4 custom-scrollbar text-left">
                   <p className="text-xs text-zinc-200 font-medium mb-3 leading-relaxed">{item.title}</p>
+                  
+                  {/* Desktop comments list */}
+                  <div className="border-t border-white/5 pt-4 mt-4">
+                    <h5 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-3">Comentarios ({comments.length})</h5>
+                    {commentsLoading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : comments.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        {comments.map((comment: any) => (
+                          <div key={comment.id} className="flex gap-2 items-start text-xs text-left">
+                            <img src={comment.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`} className="w-6 h-6 rounded-full object-cover" alt="" />
+                            <div className="flex-1 min-w-0">
+                              <span className="font-extrabold text-white text-[10px]">@{comment.user.username}</span>
+                              <p className="text-zinc-300 text-[10px] break-words">{comment.content}</p>
+                            </div>
+                            {user && (user.id === comment.userId || user.id === item.userId) && (
+                              <button onClick={() => handleDeleteComment(comment.id)} className="text-zinc-500 hover:text-red-500 p-0.5 shrink-0 transition-colors">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-zinc-600 font-bold py-4">No hay comentarios en este post.</p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/5 flex items-center justify-around text-zinc-400">
-                  <div className="flex flex-col items-center gap-1">
-                    <button className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-pink-500 transition-colors border border-white/5">
-                      <Heart className="w-5 h-5 fill-pink-500" />
-                    </button>
-                    <span className="text-[10px] font-bold">{item.likesCount}</span>
+                {/* Desktop interaction buttons & post comment form */}
+                <div className="pt-4 border-t border-white/5 flex flex-col gap-3">
+                  <div className="flex items-center justify-around text-zinc-400">
+                    <div className="flex flex-col items-center gap-1">
+                      <button 
+                        onClick={() => handleLike(item.id)}
+                        className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-pink-500 transition-colors border border-white/5"
+                      >
+                        <Heart className={`w-5 h-5 ${isLiked ? 'fill-pink-500' : ''}`} />
+                      </button>
+                      <span className="text-[10px] font-bold">{currentLikes}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-purple-400 border border-white/5">
+                        <MessageSquare className="w-5 h-5 fill-purple-400/20" />
+                      </div>
+                      <span className="text-[10px] font-bold">{comments.length}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <button className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-purple-400 transition-colors border border-white/5">
-                      <MessageSquare className="w-5 h-5 fill-purple-400" />
+
+                  <form onSubmit={handleAddComment} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      placeholder="Escribe un comentario..."
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-purple-500 text-white placeholder:text-zinc-600"
+                    />
+                    <button type="submit" className="px-3 py-2 bg-purple-600 hover:bg-purple-700 transition-colors text-white font-bold rounded-xl text-xs shrink-0">
+                      Enviar
                     </button>
-                    <span className="text-[10px] font-bold">{item.commentsCount}</span>
-                  </div>
+                  </form>
                 </div>
               </div>
             </div>
+
+            {/* MOBILE SLIDING COMMENTS BOTTOM SHEET (Slides up half way, exactly matches TikTok!) */}
+            {showCommentsMobile && (
+              <>
+                <div 
+                  className="fixed inset-0 bg-black/60 z-[110] transition-opacity animate-in fade-in duration-200"
+                  onClick={() => setShowCommentsMobile(false)}
+                />
+                <div className="fixed bottom-0 left-0 right-0 h-[60%] bg-[#0c0c14]/98 border-t border-white/10 rounded-t-3xl z-[120] flex flex-col overflow-hidden transition-transform duration-300 translate-y-0 text-left">
+                  {/* Drawer Header */}
+                  <div className="p-3 border-b border-white/5 flex items-center justify-between shrink-0">
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-400">
+                      Comentarios ({comments.length})
+                    </span>
+                    <button onClick={() => setShowCommentsMobile(false)} className="text-zinc-500 hover:text-white transition-colors p-1">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Comments List */}
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3">
+                    {commentsLoading ? (
+                      <div className="flex flex-col items-center justify-center p-6 gap-2">
+                        <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[10px] text-zinc-500 font-bold">Cargando comentarios...</span>
+                      </div>
+                    ) : comments.length > 0 ? (
+                      comments.map((comment: any) => (
+                        <div key={comment.id} className="flex gap-2 items-start text-xs text-left">
+                          <img src={comment.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`} className="w-6 h-6 rounded-full object-cover bg-zinc-800" alt="" />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-extrabold text-white text-[10px]">@{comment.user.username}</span>
+                            <p className="text-zinc-300 text-[10px] break-words">{comment.content}</p>
+                          </div>
+                          {user && (user.id === comment.userId || user.id === item.userId) && (
+                            <button onClick={() => handleDeleteComment(comment.id)} className="text-zinc-500 hover:text-red-500 p-0.5 shrink-0 transition-colors">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[10px] text-zinc-500 font-bold text-center py-10">No hay comentarios. ¡Sé el primero en comentar!</p>
+                    )}
+                  </div>
+
+                  {/* Comment Input Footer */}
+                  <form onSubmit={handleAddComment} className="p-3 border-t border-white/5 bg-[#0a0a0f] flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      placeholder="Escribe un comentario..."
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-purple-500 text-white placeholder:text-zinc-600"
+                    />
+                    <button type="submit" className="px-3 py-2 bg-purple-600 hover:bg-purple-700 transition-colors text-white font-bold rounded-xl text-xs shrink-0">
+                      Enviar
+                    </button>
+                  </form>
+                </div>
+              </>
+            )}
           </div>
         );
       })()}
