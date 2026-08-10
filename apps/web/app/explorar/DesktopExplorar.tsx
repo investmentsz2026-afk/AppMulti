@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
+import SidebarNav from '@/components/SidebarNav';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { getUserWalletBalanceAction } from '@/app/actions/stream';
@@ -163,22 +164,7 @@ export default function DesktopExplorar({
           </Link>
         </nav>
 
-        <nav className="flex flex-col gap-1 mb-8">
-          <Link href="/mensajes" className="flex items-center justify-between px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <div className="flex items-center gap-3"><MessageSquare className="w-5 h-5" /> Mensajes</div>
-            <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">12</span>
-          </Link>
-          <Link href="/notificaciones" className="flex items-center justify-between px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <div className="flex items-center gap-3"><Bell className="w-5 h-5" /> Notificaciones</div>
-            <span className="bg-pink-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">8</span>
-          </Link>
-          <Link href={`/u/${user.username}`} className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <User className="w-5 h-5" /> Perfil
-          </Link>
-          <Link href="/wallet" className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <Wallet className="w-5 h-5" /> Wallet
-          </Link>
-        </nav>
+        <SidebarNav username={user.username} />
 
         <button 
           onClick={() => useCreatorStore.getState().open()}

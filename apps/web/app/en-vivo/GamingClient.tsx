@@ -12,17 +12,19 @@ import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { getUpcomingStreamers, getUserWalletBalance } from '@/app/actions/battle';
-import { getUnreadNotificationsCount } from '@/app/actions/social';
+import SidebarNav from '@/components/SidebarNav';
+import { useBadgeCounts } from '@/hooks/useBadgeCounts';
 import { getGameRoomsAction, joinGameRoomAction, submitRoomWinAction } from '@/app/actions/gameroom';
 
 export default function GamingClient({ user }: { user: any }) {
+  const { unreadMessages } = useBadgeCounts();
   const router = useRouter();
   const [mobileFullscreenStream, setMobileFullscreenStream] = useState<any | null>(null);
   const [showQuickActions, setShowQuickActions] = useState(false);
   
   // Game Center state
   const [userCoins, setUserCoins] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  // unreadNotifications removed to use SidebarNav component
   const [realLiveStreamers, setRealLiveStreamers] = useState<any[]>([]);
   const [realRooms, setRealRooms] = useState<any[]>([]);
   const [gamingSubTab, setGamingSubTab] = useState<'active' | 'history'>('active');
@@ -98,8 +100,7 @@ export default function GamingClient({ user }: { user: any }) {
         const balance = await getUserWalletBalance();
         setUserCoins(balance);
 
-        const count = await getUnreadNotificationsCount();
-        setUnreadNotifications(count);
+        // Notifications counts resolved reactively via SidebarNav
 
         const rooms = await getGameRoomsAction();
         setRealRooms(rooms);
@@ -275,22 +276,7 @@ export default function GamingClient({ user }: { user: any }) {
           </Link>
         </nav>
 
-        <nav className="flex flex-col gap-1 mb-8">
-          <Link href="/mensajes" className="flex items-center justify-between px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <div className="flex items-center gap-3"><MessageSquare className="w-5 h-5" /> Mensajes</div>
-            <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">12</span>
-          </Link>
-          <Link href="/notificaciones" className="flex items-center justify-between px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <div className="flex items-center gap-3"><Bell className="w-5 h-5" /> Notificaciones</div>
-            <span className="bg-pink-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">8</span>
-          </Link>
-          <Link href={`/u/${user.username}`} className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <User className="w-5 h-5" /> Perfil
-          </Link>
-          <Link href="/wallet" className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <Wallet className="w-5 h-5" /> Wallet
-          </Link>
-        </nav>
+        <SidebarNav username={user.username} />
 
         <button 
           onClick={() => useCreatorStore.getState().open()}
@@ -748,7 +734,9 @@ export default function GamingClient({ user }: { user: any }) {
           </div>
           <Link href="/mensajes" className="flex flex-col items-center gap-1 text-zinc-500 relative">
             <MessageSquare className="w-6 h-6" />
-            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">12</span>
+            {unreadMessages > 0 && (
+              <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">{unreadMessages}</span>
+            )}
             <span className="text-[10px] font-bold">Mensajes</span>
           </Link>
           <Link href={`/u/${user.username}`} className="flex flex-col items-center gap-1 text-zinc-500">

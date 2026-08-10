@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCreatorStore } from '@/store/useCreatorStore';
+import { useBadgeCounts } from '@/hooks/useBadgeCounts';
 import { getFollowingFeedData } from '@/app/actions/social';
 import { 
   Home, Compass, Plus, MessageSquare, User, 
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 
 export default function MobileFollowing({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
+  const { unreadMessages } = useBadgeCounts();
   const router = useRouter();
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [activeFilter, setActiveFilter] = useState('Todo');
@@ -224,7 +226,9 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
         </div>
         <Link href="/mensajes" className="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 relative">
           <MessageSquare className="w-6 h-6" />
-          <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">12</span>
+          {unreadMessages > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">{unreadMessages}</span>
+          )}
           <span className="text-[10px] font-bold">Mensajes</span>
         </Link>
         <Link href={`/u/${user?.username}`} className="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300">

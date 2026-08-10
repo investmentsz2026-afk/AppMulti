@@ -11,10 +11,12 @@ import { logoutUser } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCreatorStore } from '@/store/useCreatorStore';
+import { useBadgeCounts } from '@/hooks/useBadgeCounts';
 import { useLiveStore } from '@/store/useLiveStore';
 import { getUpcomingStreamers, getOngoingBattles, getTopDonators } from '@/app/actions/battle';
 
 export default function MobileInicio({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
+  const { unreadMessages } = useBadgeCounts();
   const router = useRouter();
   const [showQuickActions, setShowQuickActions] = useState(false);
   const { isLive, streamTitle, viewers } = useLiveStore();
@@ -258,7 +260,9 @@ export default function MobileInicio({ user, setTab, tab }: { user: any, setTab:
 
         <Link href="/mensajes" className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors relative">
           <MessageSquare className="w-6 h-6" />
-          <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">12</span>
+          {unreadMessages > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">{unreadMessages}</span>
+          )}
           <span className="text-[10px] font-bold">Mensajes</span>
         </Link>
         <Link href={`/u/${user?.username}`} className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
