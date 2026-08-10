@@ -864,13 +864,7 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
                     }</span>
                   </div>
 
-                  {/* Share / Send Gift */}
-                  <div className="flex flex-col items-center gap-1 group cursor-pointer">
-                    <button className="w-11 h-11 bg-gradient-to-br from-yellow-500/10 to-amber-500/10 backdrop-blur-md rounded-full flex items-center justify-center hover:from-yellow-500/30 hover:to-amber-500/30 border border-yellow-500/30 transition-colors shadow-lg animate-pulse">
-                      <Gift className="w-5.5 h-5.5 text-yellow-500 fill-yellow-500/20" />
-                    </button>
-                    <span className="text-[10px] font-black text-yellow-500 drop-shadow-md">Regalar</span>
-                  </div>
+
 
                   {/* Share link */}
                   <div 
