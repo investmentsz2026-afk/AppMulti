@@ -13,9 +13,9 @@ import { logoutUser } from '@/app/actions/auth';
 import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment } from '@/app/actions/social';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
-import { submitRechargeRequestAction } from '@/app/actions/admin';
+import { submitRechargeRequestAction, submitWithdrawalRequestAction } from '@/app/actions/admin';
 import { toast } from 'react-hot-toast';
-import { Check, AlertCircle, Coins, CreditCard } from 'lucide-react';
+import { Check, AlertCircle, Coins, CreditCard, Wallet } from 'lucide-react';
 
 // Facebook Custom SVG Icon
 function FacebookIcon({ className }: { className?: string }) {
@@ -337,7 +337,7 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
 
   // Mobile drawer states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [drawerSubView, setDrawerSubView] = useState<'menu' | 'editar' | 'recargar' | 'apk' | 'redes'>('menu');
+  const [drawerSubView, setDrawerSubView] = useState<'menu' | 'editar' | 'recargar' | 'apk' | 'redes' | 'retiro'>('menu');
   
   // Input fields states
   const [profileName, setProfileName] = useState(targetUser?.username || '');
@@ -357,6 +357,11 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
   // Avatar and Cover live preview / state
   const [avatarUrl, setAvatarUrl] = useState(targetUser?.avatar || '');
   const [coverUrl, setCoverUrl] = useState(targetUser?.cover || '');
+
+  // Withdrawal request states
+  const [withdrawCoins, setWithdrawCoins] = useState<number>(100);
+  const [withdrawDetails, setWithdrawDetails] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   const [selectedPack, setSelectedPack] = useState<number | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -862,6 +867,10 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                   <Sparkles className="w-4.5 h-4.5 text-yellow-400" /> Recargar Monedas
                 </button>
 
+                <button onClick={() => setDrawerSubView('retiro')} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-white/10 transition-all">
+                  <Wallet className="w-4.5 h-4.5 text-purple-400" /> Retirar Monedas
+                </button>
+
                 <button onClick={() => setDrawerSubView('apk')} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-white/10 transition-all">
                   <Smartphone className="w-4.5 h-4.5 text-pink-400" /> Descargar APK Móvil
                 </button>
@@ -1082,6 +1091,89 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                 )}
               </div>
             )}
+
+            {/* VIEW: WITHDRAWAL FORM */}
+            {drawerSubView === 'retiro' && (() => {
+              const totalCash = withdrawCoins * 0.01;
+              const payout = totalCash * 0.70;
+              const platformCut = totalCash * 0.30;
+              return (
+                <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                  <div>
+                    <h3 className="text-base font-black text-white flex items-center gap-1.5">
+                      Retirar Monedas <Wallet className="w-5 h-5 text-purple-400" />
+                    </h3>
+                    <p className="text-[10px] text-zinc-400">Canjea tus monedas por dólares reales. Cada moneda equivale a $0.01 USD. (Tarifa de plataforma del 30%).</p>
+                  </div>
+
+                  <div className="space-y-3.5 my-1">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Cantidad de monedas a retirar</label>
+                      <input 
+                        type="number" 
+                        min={1}
+                        value={withdrawCoins} 
+                        onChange={(e) => setWithdrawCoins(Math.max(1, parseInt(e.target.value) || 0))} 
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-purple-500 text-white" 
+                        required 
+                      />
+                    </div>
+
+                    {/* calculations */}
+                    <div className="bg-white/5 border border-white/5 rounded-2xl p-3.5 space-y-1.5 text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-zinc-400">Monto Total:</span>
+                        <span className="text-white font-bold">${totalCash.toFixed(2)} USD</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-400">Tarifa Plataforma (30%):</span>
+                        <span className="text-red-400 font-bold">-${platformCut.toFixed(2)} USD</span>
+                      </div>
+                      <div className="border-t border-white/5 pt-1.5 flex justify-between text-xs font-black">
+                        <span className="text-yellow-500">Recibirás (70%):</span>
+                        <span className="text-yellow-500">${payout.toFixed(2)} USD</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Detalles de Cuenta / Método de Pago</label>
+                      <textarea 
+                        rows={3}
+                        placeholder="Ingresa tu banco, tipo de cuenta, número de cuenta bancaria o correo de PayPal..." 
+                        value={withdrawDetails} 
+                        onChange={(e) => setWithdrawDetails(e.target.value)} 
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs outline-none focus:border-purple-500 text-white resize-none" 
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isWithdrawing || (targetUser.wallet?.balance || 0) < withdrawCoins}
+                    onClick={async () => {
+                      setIsWithdrawing(true);
+                      const res = await submitWithdrawalRequestAction(withdrawCoins, withdrawDetails);
+                      setIsWithdrawing(false);
+                      if (res.error) {
+                        toast.error(res.error);
+                      } else {
+                        toast.success("¡Solicitud de retiro enviada con éxito!");
+                        setWithdrawCoins(100);
+                        setWithdrawDetails('');
+                        setIsDrawerOpen(false);
+                        setTimeout(() => {
+                          window.location.reload();
+                        }, 500);
+                      }
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black rounded-xl shadow-lg shadow-pink-500/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-98 transition-transform"
+                  >
+                    {isWithdrawing ? 'Enviando...' : (targetUser.wallet?.balance || 0) < withdrawCoins ? 'Monedas Insuficientes' : `Enviar solicitud de retiro ($${payout.toFixed(2)} USD)`}
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* VIEW 4: APK DOWNLOAD MOBILE PAGE */}
             {drawerSubView === 'apk' && (

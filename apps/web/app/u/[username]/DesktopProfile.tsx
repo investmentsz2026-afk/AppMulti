@@ -16,7 +16,7 @@ import { addWalletCoins } from '@/app/actions/battle';
 import { getUserWalletBalanceAction } from '@/app/actions/stream';
 import { toast } from 'react-hot-toast';
 import { Coins, CreditCard, HelpCircle } from 'lucide-react';
-import { submitHelpRequestAction, submitRechargeRequestAction } from '@/app/actions/admin';
+import { submitHelpRequestAction, submitRechargeRequestAction, submitWithdrawalRequestAction } from '@/app/actions/admin';
 
 // TikTok Custom SVG Icon
 function TiktokIcon({ className }: { className?: string }) {
@@ -389,6 +389,11 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   const [cardCvv, setCardCvv] = useState('');
   const [cardName, setCardName] = useState('');
   const [googleCode, setGoogleCode] = useState('');
+
+  // Withdrawal request states
+  const [withdrawCoins, setWithdrawCoins] = useState<number>(100);
+  const [withdrawDetails, setWithdrawDetails] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   // Profile fields state
   const [profileName, setProfileName] = useState(targetUser.username || '');
@@ -1063,6 +1068,9 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                 <button onClick={() => setSettingsActiveTab('cuenta')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'cuenta' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
                   Privacidad & Cuenta
                 </button>
+                <button onClick={() => setSettingsActiveTab('retiro')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'retiro' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
+                  Retirar Monedas
+                </button>
               </div>
 
               <button onClick={() => logoutUser()} className="w-full py-2.5 bg-red-950/20 hover:bg-red-900/40 border border-red-500/20 rounded-xl text-xs font-bold text-red-400 flex items-center justify-center gap-2 transition-colors">
@@ -1292,6 +1300,89 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                     )}
                   </div>
                 )}
+
+                {/* RETIRAR MONEDAS TAB */}
+                {settingsActiveTab === 'retiro' && (() => {
+                  const totalCash = withdrawCoins * 0.01;
+                  const payout = totalCash * 0.70;
+                  const platformCut = totalCash * 0.30;
+                  return (
+                    <div className="flex flex-col gap-5 h-full justify-between animate-in fade-in duration-200">
+                      <div>
+                        <h2 className="text-lg font-black text-white mb-1 flex items-center gap-1.5">
+                          Retirar Monedas <Wallet className="w-5 h-5 text-purple-400" />
+                        </h2>
+                        <p className="text-xs text-zinc-400">Canjea tus monedas acumuladas por dinero real. Cada moneda equivale a $0.01 USD. (La plataforma descuenta un 30% de tarifa administrativa).</p>
+                      </div>
+
+                      <div className="space-y-4 my-2">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase">Cantidad de monedas a retirar</label>
+                          <input 
+                            type="number" 
+                            min={1}
+                            value={withdrawCoins} 
+                            onChange={(e) => setWithdrawCoins(Math.max(1, parseInt(e.target.value) || 0))} 
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-purple-500 text-white" 
+                            required 
+                          />
+                        </div>
+
+                        {/* calculations */}
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-zinc-400">Monto Total:</span>
+                            <span className="text-white font-bold">${totalCash.toFixed(2)} USD</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-zinc-400">Tarifa Plataforma (30%):</span>
+                            <span className="text-red-400 font-bold">-${platformCut.toFixed(2)} USD</span>
+                          </div>
+                          <div className="border-t border-white/5 pt-2 flex justify-between text-sm font-black">
+                            <span className="text-yellow-500">Recibirás (70%):</span>
+                            <span className="text-yellow-500">${payout.toFixed(2)} USD</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase">Detalles de Cuenta / Método de Pago</label>
+                          <textarea 
+                            rows={3}
+                            placeholder="Escribe tu banco, tipo de cuenta, número de cuenta bancaria o tu correo de PayPal..." 
+                            value={withdrawDetails} 
+                            onChange={(e) => setWithdrawDetails(e.target.value)} 
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-purple-500 text-white resize-none" 
+                            required 
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isWithdrawing || walletBalance < withdrawCoins}
+                        onClick={async () => {
+                          setIsWithdrawing(true);
+                          const res = await submitWithdrawalRequestAction(withdrawCoins, withdrawDetails);
+                          setIsWithdrawing(false);
+                          if (res.error) {
+                            toast.error(res.error);
+                          } else {
+                            toast.success("¡Solicitud de retiro enviada con éxito! Revisa tus mensajes directos.");
+                            setWithdrawCoins(100);
+                            setWithdrawDetails('');
+                            setIsSettingsOpen(false);
+                            setTimeout(() => {
+                              window.location.reload();
+                            }, 500);
+                          }
+                        }}
+                        className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black rounded-xl hover:scale-[1.01] transition-all shadow-lg shadow-pink-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isWithdrawing ? 'Enviando...' : walletBalance < withdrawCoins ? 'Monedas Insuficientes' : `Enviar solicitud de retiro ($${payout.toFixed(2)} USD)`}
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* GET MOBILE APK WITH QR CODE */}
                 {settingsActiveTab === 'apk' && (

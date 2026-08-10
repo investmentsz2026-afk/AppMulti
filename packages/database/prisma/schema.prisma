@@ -67,6 +67,7 @@ model User {
   createdRooms             GameRoom[]              @relation("CreatedRooms")
   joinedRooms              GameRoom[]              @relation("JoinedRooms")
   rechargeRequests         RechargeRequest[]
+  withdrawalRequests       WithdrawalRequest[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -423,4 +424,17 @@ model RechargeRequest {
   status      String   @default("PENDING") // "PENDING" | "COMPLETED" | "REJECTED"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model WithdrawalRequest {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coins         Int      // Total coins requested to withdraw
+  payoutAmount  Float    // 70% in USD
+  platformCut   Float    // 30% in USD
+  paymentDetails String   // Bank details entered by user
+  status        String   @default("PENDING") // "PENDING" | "COMPLETED" | "REJECTED"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

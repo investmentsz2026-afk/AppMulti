@@ -790,3 +790,218 @@ export async function rejectRechargeRequestAction(requestId: string) {
     return { error: error.message || 'Error al procesar el rechazo.' };
   }
 }
+
+export async function submitWithdrawalRequestAction(coins: number, paymentDetails: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  if (coins <= 0) return { error: 'La cantidad debe ser mayor a cero' };
+  if (!paymentDetails.trim()) return { error: 'Debes ingresar los detalles de pago' };
+
+  try {
+    // 1. Get user wallet
+    const wallet = await prisma.wallet.findUnique({
+      where: { userId: session.id }
+    });
+
+    if (!wallet || wallet.balance < coins) {
+      return { error: 'Saldo insuficiente de monedas' };
+    }
+
+    const totalCash = coins * 0.01;
+    const payoutAmount = totalCash * 0.70;
+    const platformCut = totalCash * 0.30;
+    const platformCutCoins = Math.floor(coins * 0.30);
+
+    // 2. Perform transactions inside db transaction
+    await prisma.$transaction([
+      // Deduct coins from user wallet
+      prisma.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { decrement: coins } }
+      }),
+      // Create Transaction record for withdrawal
+      prisma.transaction.create({
+        data: {
+          amount: -coins,
+          type: 'WITHDRAWAL',
+          walletId: wallet.id
+        }
+      }),
+      // Create WithdrawalRequest record
+      prisma.withdrawalRequest.create({
+        data: {
+          userId: session.id,
+          coins,
+          payoutAmount,
+          platformCut,
+          paymentDetails,
+          status: 'PENDING'
+        }
+      }),
+      // Log platform revenue cut
+      prisma.platformRevenue.create({
+        data: {
+          amount: platformCutCoins,
+          giftName: 'WITHDRAWAL_FEE',
+          senderId: session.id,
+          receiverId: 'PLATFORM'
+        }
+      })
+    ]);
+
+    // 3. Find first admin to send DM notification
+    const admin = await prisma.user.findFirst({
+      where: { role: 'ADMIN' }
+    });
+
+    if (admin) {
+      await prisma.directMessage.create({
+        data: {
+          senderId: admin.id,
+          receiverId: session.id,
+          content: `Hola @${session.username}, recibimos tu solicitud de retiro por ${coins} monedas ($${payoutAmount.toFixed(2)} USD). Nuestro equipo administrativo está procesando la transferencia a los datos ingresados: \n\n${paymentDetails}`
+        }
+      });
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al procesar solicitud de retiro:', error);
+    return { error: error.message || 'Error interno del servidor.' };
+  }
+}
+
+export async function getWithdrawalRequestsAction() {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    throw new Error('No autorizado');
+  }
+
+  try {
+    const list = await prisma.withdrawalRequest.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return list;
+  } catch (error) {
+    console.error('Error fetching withdrawal requests:', error);
+    return [];
+  }
+}
+
+export async function approveWithdrawalRequestAction(requestId: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    const request = await prisma.withdrawalRequest.findUnique({
+      where: { id: requestId }
+    });
+
+    if (!request) {
+      return { error: 'Solicitud no encontrada' };
+    }
+
+    if (request.status !== 'PENDING') {
+      return { error: 'Esta solicitud ya ha sido procesada' };
+    }
+
+    // Update status to COMPLETED
+    await prisma.withdrawalRequest.update({
+      where: { id: requestId },
+      data: { status: 'COMPLETED' }
+    });
+
+    // Send DM from admin to user confirming transfer
+    await prisma.directMessage.create({
+      data: {
+        senderId: session.id,
+        receiverId: request.userId,
+        content: `¡Tu retiro de ${request.coins} monedas por $${request.payoutAmount.toFixed(2)} USD ha sido transferido con éxito! Por favor verifica tu cuenta bancaria o monedero.`
+      }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al aprobar retiro:', error);
+    return { error: error.message || 'Error al procesar la aprobación.' };
+  }
+}
+
+export async function rejectWithdrawalRequestAction(requestId: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    const request = await prisma.withdrawalRequest.findUnique({
+      where: { id: requestId }
+    });
+
+    if (!request) {
+      return { error: 'Solicitud no encontrada' };
+    }
+
+    if (request.status !== 'PENDING') {
+      return { error: 'Esta solicitud ya ha sido procesada' };
+    }
+
+    // Refund coins back to user's wallet
+    let wallet = await prisma.wallet.findUnique({
+      where: { userId: request.userId }
+    });
+
+    if (!wallet) {
+      wallet = await prisma.wallet.create({
+        data: { userId: request.userId, balance: 0 }
+      });
+    }
+
+    await prisma.$transaction([
+      // Refund balance
+      prisma.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { increment: request.coins } }
+      }),
+      // Create Transaction record for refund deposit
+      prisma.transaction.create({
+        data: {
+          amount: request.coins,
+          type: 'DEPOSIT',
+          walletId: wallet.id
+        }
+      }),
+      // Update request status to REJECTED
+      prisma.withdrawalRequest.update({
+        where: { id: requestId },
+        data: { status: 'REJECTED' }
+      })
+    ]);
+
+    // Send DM from admin to user confirming rejection and refund
+    await prisma.directMessage.create({
+      data: {
+        senderId: session.id,
+        receiverId: request.userId,
+        content: `Tu solicitud de retiro por ${request.coins} monedas ha sido rechazada y las monedas han sido devueltas a tu balance. Si crees que esto es un error, por favor ponte en contacto con soporte.`
+      }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al rechazar retiro:', error);
+    return { error: error.message || 'Error al procesar el rechazo.' };
+  }
+}
