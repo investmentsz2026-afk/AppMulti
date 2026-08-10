@@ -10,7 +10,7 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { updateProfile } from '@/app/actions/profile';
-import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction } from '@/app/actions/social';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction, deletePostAction } from '@/app/actions/social';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
 import { getUserWalletBalanceAction } from '@/app/actions/stream';
@@ -1003,6 +1003,31 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                         <span>{formatStat(post.commentsCount || 0)}</span>
                       </div>
                     </div>
+
+                    {isOwnProfile && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm('¿Estás seguro de que deseas eliminar esta publicación?')) {
+                            try {
+                              const res = await deletePostAction(post.id);
+                              if (res.error) {
+                                toast.error(res.error);
+                              } else {
+                                toast.success('Publicación eliminada.');
+                                setTabPosts(prev => prev.filter(p => p.id !== post.id));
+                              }
+                            } catch (err) {
+                              toast.error('Error al eliminar.');
+                            }
+                          }
+                        }}
+                        className="absolute bottom-2.5 right-2.5 p-2 bg-red-600 hover:bg-red-700 text-white rounded-xl z-20 shadow-lg transition-transform hover:scale-110 pointer-events-auto flex items-center justify-center cursor-pointer"
+                        title="Eliminar publicación"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
                     {/* Private badge */}
                     {post.isPrivate && (

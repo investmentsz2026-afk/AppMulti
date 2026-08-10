@@ -1083,3 +1083,33 @@ export async function getFollowingListAction(username: string) {
     return [];
   }
 }
+
+export async function deletePostAction(postId: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autorizado' };
+
+  const userId = session.id as string;
+
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id: postId }
+    });
+
+    if (!post) {
+      return { error: 'La publicación no existe' };
+    }
+
+    if (post.userId !== userId) {
+      return { error: 'No tienes permisos para eliminar esta publicación' };
+    }
+
+    await prisma.post.delete({
+      where: { id: postId }
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error deleting post:', err);
+    return { error: err.message || 'Error al eliminar la publicación' };
+  }
+}

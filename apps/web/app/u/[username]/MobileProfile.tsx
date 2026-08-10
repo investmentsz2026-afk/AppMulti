@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { updateProfile } from '@/app/actions/profile';
 import { logoutUser } from '@/app/actions/auth';
-import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction } from '@/app/actions/social';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction, deletePostAction } from '@/app/actions/social';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
 import { submitRechargeRequestAction, submitWithdrawalRequestAction } from '@/app/actions/admin';
@@ -809,6 +809,31 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                     <span>{formatStat(post.commentsCount || 0)}</span>
                   </div>
                 </div>
+
+                {isOwnProfile && (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (confirm('¿Estás seguro de que deseas eliminar esta publicación?')) {
+                        try {
+                          const res = await deletePostAction(post.id);
+                          if (res.error) {
+                            toast.error(res.error);
+                          } else {
+                            toast.success('Publicación eliminada.');
+                            setTabPosts(prev => prev.filter(p => p.id !== post.id));
+                          }
+                        } catch (err) {
+                          toast.error('Error al eliminar.');
+                        }
+                      }
+                    }}
+                    className="absolute top-8 right-1.5 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg z-20 shadow-lg pointer-events-auto flex items-center justify-center cursor-pointer"
+                    title="Eliminar publicación"
+                  >
+                    <Trash2 className="w-2.5 h-2.5" />
+                  </button>
+                )}
 
                 {/* Title overlay */}
                 <div className="absolute bottom-1.5 left-1.5 right-1.5 text-[8px] font-bold text-white truncate">
