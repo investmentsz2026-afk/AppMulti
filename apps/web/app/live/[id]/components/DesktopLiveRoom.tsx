@@ -8,7 +8,8 @@ import {
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
-import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage, getRealSpectatorsAction, getUserWalletBalanceAction } from '@/app/actions/stream';
+import { toast } from 'react-hot-toast';
+import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage, getRealSpectatorsAction, getUserWalletBalanceAction, sendGiftAction } from '@/app/actions/stream';
 import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
 import { LiveKitRoom, VideoConference, useTracks, VideoTrack } from '@livekit/components-react';
 import { Track } from 'livekit-client';
@@ -94,6 +95,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
+  const [floatingGifts, setFloatingGifts] = useState<any[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isStreamActive, setIsStreamActive] = useState(true);
   const [streamTitleState, setStreamTitleState] = useState(streamTitle);
@@ -273,9 +275,41 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
 
   // 3. Poll Real database Live chat comments
   useEffect(() => {
+    let lastMsgCount = 0;
     async function loadChat() {
       const msgs = await getStreamChatMessages(streamerName);
       setDbChatMessages(msgs);
+      
+      if (msgs.length > lastMsgCount) {
+        if (lastMsgCount > 0) {
+          const newMsgs = msgs.slice(lastMsgCount);
+          newMsgs.forEach((msg: any) => {
+            if (msg.isGift) {
+              let giftName = 'Regalo';
+              let giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=Rose';
+              if (msg.giftId === 'rose') { giftName = 'Rosa'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=Rose'; }
+              else if (msg.giftId === 'white_rose') { giftName = 'Rosa blanca'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=WhiteRose'; }
+              else if (msg.giftId === 'gg') { giftName = 'GG'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=GG'; }
+              else if (msg.giftId === 'retro_controller') { giftName = 'Control Retro'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=Controller'; }
+              else if (msg.giftId === 'adore') { giftName = 'Te adoro'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=Adore'; }
+
+              const animId = Date.now() + Math.random();
+              setFloatingGifts(prev => [...prev, {
+                id: animId,
+                name: giftName,
+                img: giftImg,
+                sender: msg.user?.username || 'Espectador',
+                x: 20 + Math.random() * 60,
+              }]);
+
+              setTimeout(() => {
+                setFloatingGifts(prev => prev.filter(g => g.id !== animId));
+              }, 4000);
+            }
+          });
+        }
+        lastMsgCount = msgs.length;
+      }
     }
     loadChat();
     const interval = setInterval(loadChat, 2000);
@@ -294,6 +328,41 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
     if (res.success && res.message) {
       setDbChatMessages(prev => [...prev, res.message]);
     }
+  };
+
+  const handleSendGift = async (gift: { id: string, name: string, price: number, img: string }) => {
+    if (streamerName === user?.username) {
+      toast.error('No puedes enviarte regalos a ti mismo.');
+      return;
+    }
+
+    const confirmSend = window.confirm(`¿Confirmar envío de ${gift.name} por ${gift.price} monedas?`);
+    if (!confirmSend) return;
+
+    const res = await sendGiftAction(streamerName, gift.name, gift.price, gift.id);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+
+    toast.success(`¡Enviaste ${gift.name} a ${streamerName}!`);
+    if (res.newBalance !== undefined) {
+      setWalletBalance(res.newBalance);
+    }
+
+    // Spawn floating animation locally immediately
+    const animId = Date.now() + Math.random();
+    setFloatingGifts(prev => [...prev, {
+      id: animId,
+      name: gift.name,
+      img: gift.img,
+      sender: user?.username || 'Espectador',
+      x: 20 + Math.random() * 60,
+    }]);
+
+    setTimeout(() => {
+      setFloatingGifts(prev => prev.filter(g => g.id !== animId));
+    }, 4000);
   };
 
 
@@ -523,6 +592,47 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
               className="w-full h-full object-contain" 
             />
           )}
+
+          {/* Floating Gifts Overlay */}
+          <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
+            {floatingGifts.map((gift) => (
+              <div
+                key={gift.id}
+                style={{ left: `${gift.x}%` }}
+                className="absolute bottom-10 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-pink-500/30 text-white font-bold text-xs animate-float-gift shadow-lg"
+              >
+                <img src={gift.img} className="w-6 h-6 animate-bounce" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-pink-400">@{gift.sender}</span>
+                  <span className="text-[9px]">envió {gift.name}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <style>{`
+            @keyframes floatGift {
+              0% {
+                transform: translateY(0) scale(0.8);
+                opacity: 0;
+              }
+              10% {
+                opacity: 1;
+                transform: translateY(-20px) scale(1);
+              }
+              90% {
+                opacity: 1;
+                transform: translateY(-200px) scale(1);
+              }
+              100% {
+                transform: translateY(-300px) scale(0.8);
+                opacity: 0;
+              }
+            }
+            .animate-float-gift {
+              animation: floatGift 4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            }
+          `}</style>
           
           {/* Player Controls Overlay (Hover) */}
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/80 to-transparent flex items-center px-6 gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -540,13 +650,17 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
         <div className="h-24 bg-[#09090e] border-t border-white/5 flex items-center px-4 gap-2 shrink-0">
           <div className="flex gap-2 flex-1 overflow-x-auto custom-scrollbar pb-2 pt-2">
              {[
-               { name: 'Rosa', price: '1', img: 'https://api.dicebear.com/7.x/icons/svg?seed=Rose' },
-               { name: 'Rosa blanca', price: '1', img: 'https://api.dicebear.com/7.x/icons/svg?seed=WhiteRose' },
-               { name: 'GG', price: '1', img: 'https://api.dicebear.com/7.x/icons/svg?seed=GG' },
-               { name: 'Control Retro', price: '100', img: 'https://api.dicebear.com/7.x/icons/svg?seed=Controller' },
-               { name: 'Te adoro', price: '1', img: 'https://api.dicebear.com/7.x/icons/svg?seed=Adore' },
+               { id: 'rose', name: 'Rosa', price: 1, img: 'https://api.dicebear.com/7.x/icons/svg?seed=Rose' },
+               { id: 'white_rose', name: 'Rosa blanca', price: 5, img: 'https://api.dicebear.com/7.x/icons/svg?seed=WhiteRose' },
+               { id: 'gg', name: 'GG', price: 10, img: 'https://api.dicebear.com/7.x/icons/svg?seed=GG' },
+               { id: 'retro_controller', name: 'Control Retro', price: 100, img: 'https://api.dicebear.com/7.x/icons/svg?seed=Controller' },
+               { id: 'adore', name: 'Te adoro', price: 500, img: 'https://api.dicebear.com/7.x/icons/svg?seed=Adore' },
              ].map((gift, i) => (
-                <button key={i} className="flex flex-col items-center justify-center w-[88px] h-[72px] bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all group shrink-0">
+                <button 
+                  key={i} 
+                  onClick={() => handleSendGift(gift)}
+                  className="flex flex-col items-center justify-center w-[88px] h-[72px] bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all group shrink-0"
+                >
                   <img src={gift.img} className="w-8 h-8 mb-1 group-hover:scale-110 transition-transform" />
                   <span className="text-[10px] font-bold text-zinc-300">{gift.name}</span>
                   <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-black">

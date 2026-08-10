@@ -5,7 +5,8 @@ import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Fl
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
-import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction } from '@/app/actions/stream';
+import { toast } from 'react-hot-toast';
+import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, sendGiftAction, getUserWalletBalanceAction } from '@/app/actions/stream';
 import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
 import { LiveKitRoom, VideoConference, useTracks, VideoTrack } from '@livekit/components-react';
 import { Track } from 'livekit-client';
@@ -91,6 +92,9 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   const { posts: dbPosts } = usePublicPosts();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [floatingGifts, setFloatingGifts] = useState<any[]>([]);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [showGiftModal, setShowGiftModal] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [isStreamActive, setIsStreamActive] = useState(true);
   const [streamTitleState, setStreamTitleState] = useState(streamTitle);
@@ -110,6 +114,14 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   }, [streamerName, user]);
 
   useEffect(() => {
+    async function loadBalance() {
+      const bal = await getUserWalletBalanceAction();
+      setWalletBalance(bal);
+    }
+    loadBalance();
+  }, []);
+
+  useEffect(() => {
     async function getLKToken() {
       if (!isStreamActive || !streamerName || !user?.username) return;
       try {
@@ -126,10 +138,42 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   }, [isStreamActive, streamerName, user?.username]);
 
   useEffect(() => {
+    let lastMsgCount = 0;
     async function loadChatMessages() {
       try {
         const msgs = await getStreamChatMessages(streamerName);
         setDbChatMessages(msgs || []);
+
+        if (msgs && msgs.length > lastMsgCount) {
+          if (lastMsgCount > 0) {
+            const newMsgs = msgs.slice(lastMsgCount);
+            newMsgs.forEach((msg: any) => {
+              if (msg.isGift) {
+                let giftName = 'Regalo';
+                let giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=Rose';
+                if (msg.giftId === 'rose') { giftName = 'Rosa'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=Rose'; }
+                else if (msg.giftId === 'white_rose') { giftName = 'Rosa blanca'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=WhiteRose'; }
+                else if (msg.giftId === 'gg') { giftName = 'GG'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=GG'; }
+                else if (msg.giftId === 'retro_controller') { giftName = 'Control Retro'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=Controller'; }
+                else if (msg.giftId === 'adore') { giftName = 'Te adoro'; giftImg = 'https://api.dicebear.com/7.x/icons/svg?seed=Adore'; }
+
+                const animId = Date.now() + Math.random();
+                setFloatingGifts(prev => [...prev, {
+                  id: animId,
+                  name: giftName,
+                  img: giftImg,
+                  sender: msg.user?.username || 'Espectador',
+                  x: 20 + Math.random() * 60,
+                }]);
+
+                setTimeout(() => {
+                  setFloatingGifts(prev => prev.filter(g => g.id !== animId));
+                }, 4000);
+              }
+            });
+          }
+          lastMsgCount = msgs.length;
+        }
       } catch (err) {
         console.error('Error loading chat messages:', err);
       }
@@ -265,6 +309,41 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
       console.error('Error sending message:', err);
     }
     setInputMessage('');
+  };
+
+  const handleSendGift = async (gift: { id: string, name: string, price: number, img: string }) => {
+    if (streamerName === user?.username) {
+      toast.error('No puedes enviarte regalos a ti mismo.');
+      return;
+    }
+
+    const confirmSend = window.confirm(`¿Confirmar envío de ${gift.name} por ${gift.price} monedas?`);
+    if (!confirmSend) return;
+
+    const res = await sendGiftAction(streamerName, gift.name, gift.price, gift.id);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+
+    toast.success(`¡Enviaste ${gift.name} a ${streamerName}!`);
+    if (res.newBalance !== undefined) {
+      setWalletBalance(res.newBalance);
+    }
+
+    // Spawn floating animation locally immediately
+    const animId = Date.now() + Math.random();
+    setFloatingGifts(prev => [...prev, {
+      id: animId,
+      name: gift.name,
+      img: gift.img,
+      sender: user?.username || 'Espectador',
+      x: 20 + Math.random() * 60,
+    }]);
+
+    setTimeout(() => {
+      setFloatingGifts(prev => prev.filter(g => g.id !== animId));
+    }, 4000);
   };
 
 
@@ -422,6 +501,47 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
               className="w-full h-auto aspect-video object-cover" 
             />
           )}
+
+          {/* Floating Gifts Overlay */}
+          <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
+            {floatingGifts.map((gift) => (
+              <div
+                key={gift.id}
+                style={{ left: `${gift.x}%` }}
+                className="absolute bottom-20 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-pink-500/30 text-white font-bold text-xs animate-float-gift shadow-lg"
+              >
+                <img src={gift.img} className="w-6 h-6 animate-bounce" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-pink-400">@{gift.sender}</span>
+                  <span className="text-[9px]">envió {gift.name}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <style>{`
+            @keyframes floatGift {
+              0% {
+                transform: translateY(0) scale(0.8);
+                opacity: 0;
+              }
+              10% {
+                opacity: 1;
+                transform: translateY(-20px) scale(1);
+              }
+              90% {
+                opacity: 1;
+                transform: translateY(-200px) scale(1);
+              }
+              100% {
+                transform: translateY(-300px) scale(0.8);
+                opacity: 0;
+              }
+            }
+            .animate-float-gift {
+              animation: floatGift 4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            }
+          `}</style>
       </div>
 
       {/* Top Gradient for readability */}
@@ -553,7 +673,11 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
            </div>
         </button>
         
-        <button type="button" className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform">
+        <button 
+          type="button" 
+          onClick={() => setShowGiftModal(true)}
+          className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform"
+        >
            <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.5)]">
              <Gift className="w-4 h-4 fill-white text-white" />
            </div>
@@ -563,6 +687,58 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
           <Share2 className="w-5 h-5 text-white fill-white" />
         </button>
       </form>
+
+      {/* Mobile Gifts Slider Sheet */}
+      {showGiftModal && (
+        <div className="absolute inset-0 bg-black/50 z-40 flex flex-col justify-end" onClick={() => setShowGiftModal(false)}>
+          <div 
+            className="bg-[#0b0b14] rounded-t-3xl border-t border-white/10 p-6 flex flex-col gap-4 animate-slide-up max-h-[50%]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-white/5">
+              <span className="font-black text-sm text-pink-400">Enviar Regalos 🎁</span>
+              <span className="text-[10px] text-zinc-400 font-bold">Saldo: {walletBalance} Monedas</span>
+            </div>
+            
+            <div className="grid grid-cols-5 gap-3 py-2 overflow-y-auto">
+              {[
+                { id: 'rose', name: 'Rosa', price: 1, img: 'https://api.dicebear.com/7.x/icons/svg?seed=Rose' },
+                { id: 'white_rose', name: 'Rosa blanca', price: 5, img: 'https://api.dicebear.com/7.x/icons/svg?seed=WhiteRose' },
+                { id: 'gg', name: 'GG', price: 10, img: 'https://api.dicebear.com/7.x/icons/svg?seed=GG' },
+                { id: 'retro_controller', name: 'Control Retro', price: 100, img: 'https://api.dicebear.com/7.x/icons/svg?seed=Controller' },
+                { id: 'adore', name: 'Te adoro', price: 500, img: 'https://api.dicebear.com/7.x/icons/svg?seed=Adore' },
+              ].map((gift, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    handleSendGift(gift);
+                    setShowGiftModal(false);
+                  }}
+                  className="flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 p-2 rounded-xl border border-white/5 transition-all group shrink-0"
+                >
+                  <img src={gift.img} className="w-8 h-8 mb-1 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-black text-zinc-300 truncate w-full text-center">{gift.name}</span>
+                  <span className="text-[8px] text-yellow-500 font-black">{gift.price} C</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-up {
+          animation: slideUp 0.3s ease-out forwards;
+        }
+      `}</style>
 
     </div>
   );

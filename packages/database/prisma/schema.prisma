@@ -403,3 +403,12 @@ model GameRoom {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+model PlatformRevenue {
+  id          String   @id @default(cuid())
+  amount      Int      // 30% cut
+  giftName    String
+  senderId    String
+  receiverId  String
+  createdAt   DateTime @default(now())
+}

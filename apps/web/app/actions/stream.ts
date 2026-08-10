@@ -374,3 +374,109 @@ export async function getUserWalletBalanceAction() {
     return 0;
   }
 }
+
+export async function sendGiftAction(streamerUsername: string, giftName: string, giftPrice: number, giftId: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  const userId = session.id;
+
+  try {
+    // 1. Get sender wallet
+    const senderWallet = await prisma.wallet.findUnique({
+      where: { userId },
+    });
+
+    if (!senderWallet || senderWallet.balance < giftPrice) {
+      return { error: 'Monedas insuficientes para enviar este regalo.' };
+    }
+
+    // 2. Find streamer
+    const streamer = await prisma.user.findUnique({
+      where: { username: streamerUsername },
+      include: {
+        stream: true,
+        wallet: true,
+      },
+    });
+
+    if (!streamer) {
+      return { error: 'Streamer no encontrado.' };
+    }
+
+    if (!streamer.wallet) {
+      await prisma.wallet.create({
+        data: { userId: streamer.id, balance: 0 },
+      });
+    }
+
+    // Calculate cuts
+    const platformCut = Math.floor(giftPrice * 0.30);
+    const creatorShare = giftPrice - platformCut; // 70%
+
+    // 3. Update databases in a transaction
+    await prisma.$transaction([
+      // Deduct from sender
+      prisma.wallet.update({
+        where: { userId },
+        data: { balance: { decrement: giftPrice } },
+      }),
+      // Add to creator (70%)
+      prisma.wallet.update({
+        where: { userId: streamer.id },
+        data: { balance: { increment: creatorShare } },
+      }),
+      // Record platform revenue (30%)
+      prisma.platformRevenue.create({
+        data: {
+          amount: platformCut,
+          giftName,
+          senderId: userId,
+          receiverId: streamer.id,
+        },
+      }),
+      // Create Transaction record for sender
+      prisma.transaction.create({
+        data: {
+          amount: -giftPrice,
+          type: 'GIFT_SENT',
+          walletId: senderWallet.id,
+          referenceId: streamer.id,
+        },
+      }),
+    ]);
+
+    // Log transaction for receiver (need target wallet ID)
+    const receiverWallet = await prisma.wallet.findUnique({
+      where: { userId: streamer.id }
+    });
+    if (receiverWallet) {
+      await prisma.transaction.create({
+        data: {
+          amount: creatorShare,
+          type: 'GIFT_RECEIVED',
+          walletId: receiverWallet.id,
+          referenceId: userId,
+        }
+      });
+    }
+
+    // 4. Send message in stream chat to show visual notice
+    if (streamer.stream) {
+      await prisma.message.create({
+        data: {
+          content: `Envió ${giftName} 🎁`,
+          userId,
+          streamId: streamer.stream.id,
+          isGift: true,
+          giftId: giftId,
+        },
+      });
+    }
+
+    return { success: true, newBalance: senderWallet.balance - giftPrice };
+  } catch (error: any) {
+    console.error('Error al enviar regalo:', error);
+    return { error: error.message || 'Error interno del servidor.' };
+  }
+}

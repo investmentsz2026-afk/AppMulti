@@ -97,6 +97,7 @@ export default function TransmitirClient({ user }: { user: any }) {
   const autoShareScreen = searchParams.get('shareScreen') === 'true';
 
   // Setup view state
+  const [activeTab, setActiveTab] = useState<'chat' | 'gifts'>('chat');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Gaming');
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
@@ -634,7 +635,9 @@ export default function TransmitirClient({ user }: { user: any }) {
           user: m.user.username,
           text: m.content,
           badge: m.user.username === user.username ? 'Creador' : undefined,
-          color: m.user.username === user.username ? 'text-red-400' : 'text-purple-400'
+          color: m.user.username === user.username ? 'text-red-400' : 'text-purple-400',
+          isGift: m.isGift,
+          giftId: m.giftId,
         }));
         setComments(formatted);
       } catch (err) {
@@ -683,7 +686,9 @@ export default function TransmitirClient({ user }: { user: any }) {
         user: m.user.username,
         text: m.content,
         badge: m.user.username === user.username ? 'Creador' : undefined,
-        color: m.user.username === user.username ? 'text-red-400' : 'text-purple-400'
+        color: m.user.username === user.username ? 'text-red-400' : 'text-purple-400',
+        isGift: m.isGift,
+        giftId: m.giftId,
       }));
       setComments(formatted);
     } catch (err) {
@@ -1134,41 +1139,86 @@ export default function TransmitirClient({ user }: { user: any }) {
           {/* Right panel: Live Stream Chat (Twitch style layout) */}
           <div className="hidden lg:flex w-full lg:w-[360px] bg-[#0c0b18] border-t lg:border-t-0 lg:border-l border-white/5 flex-col justify-between shrink-0 lg:h-full z-20">
             
-            {/* Chat header */}
-            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-[#090812]">
-              <span className="font-black text-sm uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-purple-400" /> Chat de Transmisión
-              </span>
+            {/* Chat/Gifts tabs header */}
+            <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between bg-[#090812] shrink-0">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className={`text-xs font-black px-3 py-1.5 rounded-full transition-all ${
+                    activeTab === 'chat'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Chat
+                </button>
+                <button
+                  onClick={() => setActiveTab('gifts')}
+                  className={`text-xs font-black px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
+                    activeTab === 'gifts'
+                      ? 'bg-pink-600 text-white shadow-md'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Award className="w-3.5 h-3.5 text-pink-400" /> Regalos
+                </button>
+              </div>
               <div className="flex items-center gap-1 text-[11px] font-bold text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20">
                 <Users className="w-3.5 h-3.5" /> {viewers}
               </div>
             </div>
 
-            {/* Chat comments messages scroll */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4">
-              
-              <div className="bg-white/5 text-zinc-400 border border-white/5 rounded-2xl p-3 text-xs font-semibold text-center mb-2 leading-relaxed">
-                ¡Bienvenido a tu stream! Interactúa con tu comunidad y cumple con las normas.
-              </div>
-
-              {comments.map((msg) => (
-                <div key={msg.id} className="flex gap-2.5 items-start text-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user}`} className="w-7 h-7 rounded-full bg-zinc-800 shrink-0 mt-0.5 border border-white/10" />
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      {msg.badge && (
-                        <span className="text-[8px] px-1 py-0.2 bg-purple-600 text-white rounded font-black uppercase tracking-wider">
-                          {msg.badge}
-                        </span>
-                      )}
-                      <span className="text-zinc-400 text-xs font-bold">{msg.user}</span>
-                    </div>
-                    <p className="text-white text-[13px] leading-snug">{msg.text}</p>
-                  </div>
+            {/* Content view based on activeTab */}
+            {activeTab === 'chat' ? (
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4">
+                
+                <div className="bg-white/5 text-zinc-400 border border-white/5 rounded-2xl p-3 text-xs font-semibold text-center mb-2 leading-relaxed">
+                  ¡Bienvenido a tu stream! Interactúa con tu comunidad y cumple con las normas.
                 </div>
-              ))}
-              <div ref={desktopChatEndRef} />
-            </div>
+
+                {comments.map((msg) => (
+                  <div key={msg.id} className="flex gap-2.5 items-start text-sm animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user}`} className="w-7 h-7 rounded-full bg-zinc-800 shrink-0 mt-0.5 border border-white/10" />
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        {msg.badge && (
+                          <span className="text-[8px] px-1 py-0.2 bg-purple-600 text-white rounded font-black uppercase tracking-wider">
+                            {msg.badge}
+                          </span>
+                        )}
+                        <span className="text-zinc-400 text-xs font-bold">{msg.user}</span>
+                      </div>
+                      <p className="text-white text-[13px] leading-snug">{msg.text}</p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={desktopChatEndRef} />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-4">
+                <div className="bg-pink-500/5 text-pink-300 border border-pink-500/10 rounded-2xl p-3 text-xs font-semibold text-center mb-2">
+                  🎁 Historial de Regalos Recibidos
+                </div>
+                {comments.filter(c => c.isGift).length > 0 ? (
+                  comments.filter(c => c.isGift).map((msg) => (
+                    <div key={msg.id} className="flex items-center justify-between bg-white/5 border border-white/5 p-3 rounded-xl gap-3 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2">
+                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user}`} className="w-6 h-6 rounded-full bg-zinc-800" />
+                        <span className="text-xs font-bold text-zinc-300">@{msg.user}</span>
+                      </div>
+                      <span className="text-xs font-black text-pink-400 bg-pink-500/10 px-2.5 py-1 rounded-full border border-pink-500/20">
+                        {msg.text}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 text-xs gap-2 py-10">
+                    <Award className="w-8 h-8 opacity-40 animate-pulse text-pink-500" />
+                    <span>Aún no has recibido regalos en este live.</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Chat message input form */}
             <form onSubmit={handleSendChat} className="p-4 border-t border-white/5 bg-[#090812] flex gap-2">

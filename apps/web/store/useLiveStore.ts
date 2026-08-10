@@ -7,6 +7,8 @@ export interface ChatComment {
   text: string;
   badge?: string;
   color?: string;
+  isGift?: boolean;
+  giftId?: string;
 }
 
 interface LiveState {

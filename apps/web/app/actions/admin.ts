@@ -571,3 +571,50 @@ export async function getRealExploreDataAction() {
     };
   }
 }
+
+export async function getPlatformRevenueAction() {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    throw new Error('No autorizado');
+  }
+
+  try {
+    const revenues = await prisma.platformRevenue.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const totalRevenue = revenues.reduce((sum: number, item: any) => sum + item.amount, 0);
+
+    const resolvedRevenues = await Promise.all(revenues.map(async (rev: any) => {
+      const sender = await prisma.user.findUnique({
+        where: { id: rev.senderId },
+        select: { username: true }
+      });
+      const receiver = await prisma.user.findUnique({
+        where: { id: rev.receiverId },
+        select: { username: true }
+      });
+      return {
+        id: rev.id,
+        amount: rev.amount,
+        giftName: rev.giftName,
+        senderName: sender?.username || 'Usuario eliminado',
+        receiverName: receiver?.username || 'Streamer eliminado',
+        createdAt: rev.createdAt
+      };
+    }));
+
+    return {
+      totalRevenue,
+      transactionsCount: revenues.length,
+      transactions: resolvedRevenues
+    };
+  } catch (error) {
+    console.error('Error fetching platform revenues:', error);
+    return {
+      totalRevenue: 0,
+      transactionsCount: 0,
+      transactions: []
+    };
+  }
+}

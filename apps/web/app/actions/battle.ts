@@ -373,12 +373,25 @@ export async function updateBattlePoints(
         data: { balance: { decrement: giftCost } }
       });
 
-      // Transfer to receiver wallet (streamer)
+      const platformCut = Math.floor(giftCost * 0.30);
+      const creatorShare = giftCost - platformCut;
+
+      // Transfer to receiver wallet (streamer) (70%)
       const receiverUserId = playerNum === 1 ? battle.stream1.userId : battle.stream2.userId;
       await prisma.wallet.upsert({
         where: { userId: receiverUserId },
-        update: { balance: { increment: giftCost } },
-        create: { userId: receiverUserId, balance: giftCost }
+        update: { balance: { increment: creatorShare } },
+        create: { userId: receiverUserId, balance: creatorShare }
+      });
+
+      // Record platform revenue (30%)
+      await prisma.platformRevenue.create({
+        data: {
+          amount: platformCut,
+          giftName,
+          senderId: session.id,
+          receiverId: receiverUserId,
+        },
       });
 
       // Log transaction for sender
@@ -399,7 +412,7 @@ export async function updateBattlePoints(
       if (receiverWallet) {
         await prisma.transaction.create({
           data: {
-            amount: giftCost,
+            amount: creatorShare,
             type: 'GIFT_RECEIVED',
             walletId: receiverWallet.id,
             giftId: giftId,
