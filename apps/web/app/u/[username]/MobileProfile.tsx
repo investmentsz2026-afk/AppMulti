@@ -1652,21 +1652,21 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                 </div>
 
                 {/* Write Comment Form */}
-                <form onSubmit={handleCreateComment} className="p-2 border-t border-white/5 bg-[#07070b] shrink-0">
-                  <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-2.5 h-9 focus-within:border-purple-500 transition-colors gap-2">
-                    <Smile className="w-4.5 h-4.5 text-zinc-400 shrink-0" />
+                <form onSubmit={handleCreateComment} className="p-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))] border-t border-white/5 bg-[#07070b] shrink-0">
+                  <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 h-11 focus-within:border-purple-500 transition-colors gap-2.5">
+                    <Smile className="w-5 h-5 text-zinc-400 shrink-0" />
                     <input 
                       type="text" 
                       placeholder="Añadir comentario..." 
                       value={newCommentText}
                       onChange={(e) => setNewCommentText(e.target.value)}
-                      className="bg-transparent border-none outline-none flex-1 text-[11px] text-white placeholder-zinc-500 font-medium w-full min-w-0"
+                      className="bg-transparent border-none outline-none flex-1 text-xs text-white placeholder-zinc-500 font-semibold w-full min-w-0"
                       maxLength={300}
                     />
                     <button 
                       type="submit" 
                       disabled={!newCommentText.trim()}
-                      className="text-[11px] font-black text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-40 shrink-0"
+                      className="text-xs font-black text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-40 shrink-0"
                     >
                       Publicar
                     </button>
