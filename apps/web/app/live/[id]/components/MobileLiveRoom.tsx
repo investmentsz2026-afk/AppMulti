@@ -453,13 +453,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                     e.currentTarget.play().catch(() => {});
                   }}
                   className="w-full h-full object-cover animate-fade-in"
-                  src={
-                    (streamTitleState || '').toLowerCase().includes('valorant')
-                      ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
-                      : (streamTitleState || '').toLowerCase().includes('free fire')
-                      ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
-                      : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
-                  }
+                  src="/uploads/1779484645064-rwef26.mp4"
                 />
               )}
             </div>
