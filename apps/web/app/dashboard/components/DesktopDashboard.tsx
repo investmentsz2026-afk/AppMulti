@@ -121,18 +121,7 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
              <span className="font-black text-lg">{realCoins.toLocaleString()}</span>
            </div>
            <button onClick={() => router.push(`/u/${user.username}?settings=monedas`)} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
-        </div>
-
-        <div className="bg-[#12152b] rounded-xl p-4 mb-8 border border-white/5">
-           <div className="flex items-center justify-between mb-2">
-             <span className="text-xs font-bold text-zinc-400">Nivel 24</span>
-             <span className="text-[10px] font-black text-purple-400">75%</span>
-           </div>
-           <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
-             <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 w-[75%]" />
-           </div>
-           <span className="text-[9px] text-zinc-500 font-medium">Siguiente nivel: 2,150 XP</span>
-        </div>
+         </div>
 
         <div className="mt-auto bg-gradient-to-br from-purple-900/40 to-[#0a0a0f] rounded-xl p-4 border border-purple-500/20 text-center relative overflow-hidden">
            <Gift className="w-12 h-12 text-purple-500/20 absolute -right-2 -bottom-2" />
@@ -175,9 +164,9 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
                <img src={user.avatar} className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10" alt={user.username} />
                <div>
                  <div className="text-sm font-bold flex items-center gap-1">
-                   {user.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />
+                   {user.username} {user.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 inline" />}
                  </div>
-                 <div className="text-[10px] text-zinc-500 font-medium">Nivel 24</div>
+                 <div className="text-[10px] text-zinc-500 font-medium">@{user.username}</div>
                </div>
                <button onClick={handleLogout} className="ml-2 text-zinc-600 hover:text-red-400 transition-colors" title="Cerrar sesión">
                  <LogOut className="w-4 h-4" />

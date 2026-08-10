@@ -39,6 +39,7 @@ model User {
   statusActive  Boolean   @default(true)
   canPost       Boolean   @default(true)
   canChat       Boolean   @default(true)
+  isVerified    Boolean   @default(false)
   
   // Relations
   stream        Stream?

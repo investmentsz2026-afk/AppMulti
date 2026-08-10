@@ -61,6 +61,34 @@ export async function toggleUserStatusAction(userId: string) {
   }
 }
 
+// Toggle user isVerified badge
+export async function toggleUserVerificationAction(userId: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return { error: 'Usuario no encontrado' };
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { isVerified: !user.isVerified }
+    });
+
+    revalidatePath('/admin/users');
+    return { success: true, isVerified: updated.isVerified };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
 // Update user role
 export async function updateUserRoleAction(userId: string, newRole: 'USER' | 'STREAMER' | 'ADMIN' | 'MODERATOR') {
   const session = await getSession();

@@ -105,6 +105,9 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   const [helpMessage, setHelpMessage] = useState('');
   const [sendingHelp, setSendingHelp] = useState(false);
 
+  const [verificationMsg, setVerificationMsg] = useState('Hola equipo de administración, solicito la verificación oficial de mi perfil de creador en LiveX.');
+  const [sendingVerification, setSendingVerification] = useState(false);
+
   const handleSubmitHelp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!helpTitle.trim() || !helpMessage.trim()) return;
@@ -652,22 +655,11 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
            <button onClick={() => { setSettingsActiveTab('monedas'); setIsSettingsOpen(true); }} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
 
-        {/* XP Progress Card */}
-        <div className="bg-[#12152b] rounded-xl p-4 mb-8 border border-white/5">
-           <div className="flex items-center justify-between mb-2">
-             <span className="text-xs font-bold text-zinc-400">Nivel 24</span>
-             <span className="text-[10px] font-black text-purple-400">75%</span>
-           </div>
-           <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
-             <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 w-[75%]" />
-           </div>
-        </div>
-
-        <div className="mt-auto flex items-center gap-2 px-2 py-3 border-t border-white/5">
+         <div className="mt-auto flex items-center gap-2 px-2 py-3 border-t border-white/5">
           <img src={sessionUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${sessionUser.username}`} className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10" alt="" />
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold flex items-center gap-1 truncate">{sessionUser.username} <BadgeCheck className="w-3 h-3 text-blue-400 shrink-0" /></div>
-            <div className="text-[10px] text-zinc-500">Nivel 24 · 75% XP</div>
+            <div className="text-xs font-bold flex items-center gap-1 truncate">{sessionUser.username} {sessionUser.isVerified && <BadgeCheck className="w-3 h-3 text-blue-400 shrink-0 inline" />}</div>
+            <div className="text-[10px] text-zinc-500">@{sessionUser.username}</div>
           </div>
           <button onClick={() => logoutUser()} className="text-zinc-600 hover:text-red-400 transition-colors"><LogOut className="w-3.5 h-3.5" /></button>
         </div>
@@ -813,7 +805,7 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                   <div className="flex flex-col md:flex-row items-center gap-2.5 mb-1.5">
                     <h1 className="text-2xl font-black flex items-center gap-1.5 text-white">
                       {creator.name} 
-                      <BadgeCheck className="w-6 h-6 text-blue-400 fill-transparent shrink-0" />
+                      {targetUser?.isVerified && <BadgeCheck className="w-6 h-6 text-blue-400 fill-transparent shrink-0" />}
                       <div className="w-5 h-5 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center border border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.3)] shrink-0">
                         <Trophy className="w-3 h-3 text-black fill-black" />
                       </div>
@@ -1127,6 +1119,9 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                 </button>
                 <button onClick={() => setSettingsActiveTab('retiro')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'retiro' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
                   Retirar Monedas
+                </button>
+                <button onClick={() => setSettingsActiveTab('verificado')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'verificado' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
+                  Solicitar Verificado
                 </button>
                 <button onClick={() => setSettingsActiveTab('terminos')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'terminos' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
                   Términos & Condiciones
@@ -1537,6 +1532,74 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                       <h4 className="text-white font-extrabold text-xs">5. Limitación de Responsabilidad</h4>
                       <p>LiveX se proporciona "tal cual" y "según disponibilidad". No garantizamos que el servicio sea ininterrumpido, libre de errores o seguro. No nos hacemos responsables por pérdidas de datos, fallos del sistema o comportamientos de otros usuarios en línea.</p>
                     </div>
+                  </div>
+                )}
+
+                {/* VERIFICATION REQUEST TAB */}
+                {settingsActiveTab === 'verificado' && (
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <h2 className="text-lg font-black text-white mb-1 flex items-center gap-2">
+                        Insignia de Verificación <BadgeCheck className="w-5 h-5 text-blue-400" />
+                      </h2>
+                      <p className="text-xs text-zinc-400">Solicita la verificación oficial para tu cuenta de creador en LiveX.</p>
+                    </div>
+
+                    <div className="bg-[#07070b]/60 border border-white/5 rounded-2xl p-4 flex flex-col gap-2">
+                      <h3 className="text-xs font-black text-white uppercase tracking-wider">Requisitos para la verificación:</h3>
+                      <ul className="text-xs text-zinc-400 space-y-1.5 font-medium">
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-400 font-bold">1.</span>
+                          <span>Tener perfil completo con foto de avatar y biografía.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-400 font-bold">2.</span>
+                          <span>Ser usuario activo en publicaciones o transmisiones en vivo.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-purple-400 font-bold">3.</span>
+                          <span>Cumplir las Normas de la Comunidad y Términos de Servicio.</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <form 
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!verificationMsg.trim()) return;
+                        setSendingVerification(true);
+                        try {
+                          const res = await submitHelpRequestAction('Solicitud de Verificación de Cuenta', verificationMsg);
+                          if (res.error) {
+                            toast.error(res.error);
+                          } else {
+                            toast.success('¡Solicitud enviada al equipo de administración!');
+                            setVerificationMsg('');
+                          }
+                        } catch (err) {
+                          toast.error('Error al enviar la solicitud.');
+                        } finally {
+                          setSendingVerification(false);
+                        }
+                      }}
+                      className="flex flex-col gap-3"
+                    >
+                      <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Mensaje de Solicitud para Soporte / Admin</label>
+                      <textarea
+                        value={verificationMsg}
+                        onChange={(e) => setVerificationMsg(e.target.value)}
+                        className="w-full bg-[#07070b]/80 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-purple-500 h-20 resize-none"
+                        placeholder="Escribe aquí las razones por las cuales solicitas la verificación..."
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={sendingVerification}
+                        className="py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg cursor-pointer"
+                      >
+                        {sendingVerification ? 'Enviando...' : 'Enviar Solicitud a Administración'}
+                      </button>
+                    </form>
                   </div>
                 )}
 
@@ -2067,16 +2130,8 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                   <span className="font-extrabold text-white text-right">{levelInfo.xp} XP</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-400">Publicaciones subidas:</span>
-                  <span className="font-extrabold text-purple-400 text-right">{levelInfo.postsCount} (+{levelInfo.postsCount * 50} XP)</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-400">Likes recibidos:</span>
-                  <span className="font-extrabold text-pink-400 text-right">{levelInfo.totalLikesReceived} (+{levelInfo.totalLikesReceived * 10} XP)</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-400">Monedas recargadas:</span>
-                  <span className="font-extrabold text-yellow-500 text-right">{levelInfo.totalCoinsRecharged} (+{levelInfo.totalCoinsRecharged} XP)</span>
+                  <span className="text-zinc-400">Regalos donados en Lives:</span>
+                  <span className="font-extrabold text-pink-400 text-right">{levelInfo.totalGiftsCoins || 0} monedas (+{levelInfo.totalGiftsCoins || 0} XP)</span>
                 </div>
               </div>
 
@@ -2084,16 +2139,8 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                 <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-2">¿Cómo subir de nivel?</h4>
                 <ul className="text-xs text-zinc-400 flex flex-col gap-2 pl-1">
                   <li className="flex items-start gap-2">
-                    <span className="text-purple-400 font-black">⚡</span>
-                    <span><strong>Sube videos:</strong> Recibes <strong>50 XP</strong> por cada publicación subida en tu perfil.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-pink-400 font-black">❤️</span>
-                    <span><strong>Consigue Likes:</strong> Recibes <strong>10 XP</strong> por cada me gusta que te den otros usuarios.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-500 font-black">🪙</span>
-                    <span><strong>Recarga Monedas:</strong> Recibes <strong>1 XP</strong> por cada moneda que recargues (ej. 100 monedas = 100 XP).</span>
+                    <span className="text-pink-400 font-black">🎁</span>
+                    <span><strong>Donar Regalos en Lives:</strong> Recibes <strong>1 XP</strong> por cada moneda enviada en regalos durante transmisiones en vivo.</span>
                   </li>
                 </ul>
               </div>

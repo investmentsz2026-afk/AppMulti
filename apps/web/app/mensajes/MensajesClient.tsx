@@ -579,8 +579,8 @@ export default function MensajesClient({ sessionUser }: { sessionUser: any }) {
         <div className="mt-auto flex items-center gap-2 px-2 py-3 border-t border-white/5">
           <img src={sessionUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${sessionUser.username}`} className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10" alt="" />
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold flex items-center gap-1 truncate">{sessionUser.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" /></div>
-            <div className="text-[10px] text-zinc-500">Nivel 24 · 75% XP</div>
+            <div className="text-xs font-bold flex items-center gap-1 truncate">{sessionUser.username} {sessionUser.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0 inline" />}</div>
+            <div className="text-[10px] text-zinc-500">@{sessionUser.username}</div>
           </div>
           <button onClick={() => logoutUser()} className="text-zinc-600 hover:text-red-400 transition-colors"><LogOut className="w-3.5 h-3.5" /></button>
         </div>

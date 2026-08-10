@@ -12,7 +12,8 @@ import {
   addUserCoinsAction,
   toggleUserPostRestrictionAction,
   toggleUserChatRestrictionAction,
-  sendSystemNotificationAction
+  sendSystemNotificationAction,
+  toggleUserVerificationAction
 } from '@/app/actions/admin';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
@@ -100,6 +101,23 @@ export default function AdminUsersPage() {
       }
     } catch (err) {
       toast.error('Error al actualizar restricción de chat.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const handleToggleVerification = async (userId: string) => {
+    setUpdatingUserId(userId);
+    try {
+      const res = await toggleUserVerificationAction(userId);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(res.isVerified ? 'Insignia de verificado activada.' : 'Insignia de verificado desactivada.');
+        loadUsers();
+      }
+    } catch (err) {
+      toast.error('Error al actualizar verificado.');
     } finally {
       setUpdatingUserId(null);
     }
@@ -246,6 +264,7 @@ export default function AdminUsersPage() {
                   <th className="px-6 py-4.5">Usuario / Correo</th>
                   <th className="px-6 py-4.5">Fecha Registro</th>
                   <th className="px-6 py-4.5">Rol de Sistema</th>
+                  <th className="px-6 py-4.5">Verificado</th>
                   <th className="px-6 py-4.5">Monedas 💎</th>
                   <th className="px-6 py-4.5">Restricciones</th>
                   <th className="px-6 py-4.5">Estado Cuenta</th>
@@ -275,7 +294,7 @@ export default function AdminUsersPage() {
                             <span className="text-sm font-black text-white flex items-center gap-1.5 truncate">
                               {user.username} 
                               {user.role === 'ADMIN' && <Shield className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500/10" />}
-                              {user.role === 'STREAMER' && <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />}
+                              {user.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 inline shrink-0" />}
                             </span>
                             <span className="text-xs text-zinc-500 truncate block mt-0.5">{user.email}</span>
                           </div>
@@ -300,6 +319,22 @@ export default function AdminUsersPage() {
                           <option value="MODERATOR" className="bg-zinc-950 text-white">MODERATOR</option>
                           <option value="ADMIN" className="bg-zinc-950 text-white">ADMIN</option>
                         </select>
+                      </td>
+
+                      {/* Verification Badge Toggle */}
+                      <td className="px-6 py-4">
+                        <button 
+                          onClick={() => handleToggleVerification(user.id)}
+                          disabled={updatingUserId === user.id}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border transition-all cursor-pointer ${
+                            user.isVerified 
+                              ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20' 
+                              : 'bg-zinc-800/60 border-white/5 text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          <BadgeCheck className={`w-4 h-4 ${user.isVerified ? 'text-blue-400' : 'text-zinc-600'}`} />
+                          {user.isVerified ? 'Verificado' : 'Sin verificar'}
+                        </button>
                       </td>
 
                       {/* Coins balance */}

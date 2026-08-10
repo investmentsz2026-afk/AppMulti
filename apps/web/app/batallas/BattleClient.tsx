@@ -568,23 +568,11 @@ export default function BattleClient({ user }: { user: any }) {
             <button onClick={() => router.push(`/u/${user.username}?settings=monedas`)} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
 
-        {/* Rewards / Levels progress bar */}
-        <div className="bg-[#12152b]/50 border border-white/5 rounded-2xl p-4 mb-8">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-black text-zinc-400 uppercase tracking-wider">Progreso</span>
-            <span className="text-[10px] font-black text-pink-400">Nivel 24</span>
-          </div>
-          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
-            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 w-[75%]" />
-          </div>
-          <span className="text-[9px] text-zinc-500 font-bold">75% para Nivel 25</span>
-        </div>
-
-        <div className="mt-auto flex items-center gap-2 px-2 py-3 border-t border-white/5">
+         <div className="mt-auto flex items-center gap-2 px-2 py-3 border-t border-white/5">
           <img src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10" alt="" />
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold flex items-center gap-1 truncate">{user.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" /></div>
-            <div className="text-[10px] text-zinc-500">Nivel 24 · XP al día</div>
+            <div className="text-xs font-bold flex items-center gap-1 truncate">{user.username} {user.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0 inline" />}</div>
+            <div className="text-[10px] text-zinc-500">@{user.username}</div>
           </div>
           <button onClick={() => logoutUser()} className="text-zinc-600 hover:text-red-400 transition-colors shrink-0"><LogOut className="w-3.5 h-3.5" /></button>
         </div>

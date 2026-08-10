@@ -300,16 +300,7 @@ export default function GamingClient({ user }: { user: any }) {
            <button onClick={() => router.push(`/u/${user.username}?settings=monedas`)} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
 
-        {/* XP Progress Card */}
-        <div className="bg-[#12152b] rounded-xl p-4 mb-8 border border-white/5">
-           <div className="flex items-center justify-between mb-2">
-             <span className="text-xs font-bold text-zinc-400">Nivel 24</span>
-             <span className="text-[10px] font-black text-purple-400">75%</span>
-           </div>
-           <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
-             <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 w-[75%]" />
-           </div>
-        </div>
+
       </aside>
 
       {/* ----------------- CENTRAL WORKSPACE AND FEED ----------------- */}

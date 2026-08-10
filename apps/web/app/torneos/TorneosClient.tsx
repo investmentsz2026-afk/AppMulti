@@ -567,19 +567,13 @@ export default function TorneosClient({ user }: { user: any }) {
           </button>
         </div>
 
-        {/* Level preview panel */}
-        <div className="bg-[#12152b] rounded-xl p-4 border border-white/5 mt-auto">
-          <div className="flex items-center gap-2 mb-2">
-            <img src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`} className="w-7 h-7 rounded-full bg-zinc-800 border border-white/10" alt="" />
-            <div>
-              <div className="text-[11px] font-bold flex items-center gap-0.5">{user?.username} <BadgeCheck className="w-3 h-3 text-blue-400" /></div>
-              <div className="text-[9px] text-zinc-500 font-semibold">Nivel 24</div>
-            </div>
+         <div className="mt-auto flex items-center gap-2 px-2 py-3 border-t border-white/5">
+          <img src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`} className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10" alt="" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-bold flex items-center gap-1 truncate">{user?.username} {user?.isVerified && <BadgeCheck className="w-3 h-3 text-blue-400 shrink-0 inline" />}</div>
+            <div className="text-[10px] text-zinc-500">@{user?.username}</div>
           </div>
-          <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mb-1">
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-full w-[75%]" />
-          </div>
-          <div className="text-[8px] text-zinc-500 text-right font-bold">75% para nivel 25</div>
+          <button onClick={() => logoutUser()} className="text-zinc-600 hover:text-red-400 transition-colors shrink-0"><LogOut className="w-3.5 h-3.5" /></button>
         </div>
 
       </aside>

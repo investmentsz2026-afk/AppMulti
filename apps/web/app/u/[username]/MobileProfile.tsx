@@ -380,7 +380,9 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
 
   // Mobile drawer states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [drawerSubView, setDrawerSubView] = useState<'menu' | 'editar' | 'recargar' | 'apk' | 'redes' | 'retiro' | 'terminos'>('menu');
+  const [drawerSubView, setDrawerSubView] = useState<'menu' | 'editar' | 'recargar' | 'apk' | 'redes' | 'retiro' | 'terminos' | 'verificado'>('menu');
+  const [verificationMsg, setVerificationMsg] = useState('Hola equipo de administración, solicito la verificación oficial de mi perfil de creador en LiveX.');
+  const [sendingVerification, setSendingVerification] = useState(false);
   
   // Input fields states
   const [profileName, setProfileName] = useState(targetUser?.username || '');
@@ -656,7 +658,7 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
             {/* Profile Info */}
             <h2 className="text-lg font-black mt-2.5 flex items-center gap-1">
               {creator.name}
-              <BadgeCheck className="w-5 h-5 text-blue-400 fill-transparent" />
+              {targetUser?.isVerified && <BadgeCheck className="w-5 h-5 text-blue-400 fill-transparent" />}
               <div className="w-4 h-4 bg-gradient-to-br from-yellow-500 to-amber-600 rounded flex items-center justify-center border border-yellow-300 shadow-[0_0_8px_rgba(234,179,8,0.3)]">
                 <Trophy className="w-2.5 h-2.5 text-black fill-black" />
               </div>
@@ -979,6 +981,10 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
 
                 <button onClick={() => setDrawerSubView('apk')} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-white/10 transition-all">
                   <Smartphone className="w-4.5 h-4.5 text-pink-400" /> Descargar APK Móvil
+                </button>
+
+                <button onClick={() => setDrawerSubView('verificado')} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-white/10 transition-all">
+                  <BadgeCheck className="w-4.5 h-4.5 text-blue-400" /> Solicitar Verificado
                 </button>
 
                 <button onClick={() => setDrawerSubView('terminos')} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-white/10 transition-all">
@@ -1341,6 +1347,64 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                   <h4 className="text-white font-extrabold text-[11px]">5. Limitación de Responsabilidad</h4>
                   <p>LiveX se proporciona "tal cual" y "según disponibilidad". No garantizamos que el servicio sea ininterrumpido, libre de errores o seguro. No nos hacemos responsables por pérdidas de datos, fallos del sistema o comportamientos de otros usuarios en línea.</p>
                 </div>
+              </div>
+            )}
+
+            {/* VIEW 6: VERIFICATION REQUEST */}
+            {drawerSubView === 'verificado' && (
+              <div className="flex flex-col gap-4 overflow-hidden max-h-[70vh]">
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-1.5">Insignia de Verificación <BadgeCheck className="w-5 h-5 text-blue-400" /></h3>
+                  <p className="text-[10px] text-zinc-400">Solicita la verificación oficial para tu cuenta de creador en LiveX.</p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2">
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider">Requisitos:</h4>
+                  <ul className="text-[11px] text-zinc-400 space-y-1 font-medium">
+                    <li>1. Perfil completo (foto y biografía).</li>
+                    <li>2. Usuario activo en publicaciones o lives.</li>
+                    <li>3. Cumplir con los términos y normas.</li>
+                  </ul>
+                </div>
+
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!verificationMsg.trim()) return;
+                    setSendingVerification(true);
+                    try {
+                      const res = await submitHelpRequestAction('Solicitud de Verificación de Cuenta', verificationMsg);
+                      if (res.error) {
+                        toast.error(res.error);
+                      } else {
+                        toast.success('¡Solicitud enviada al equipo de administración!');
+                        setIsDrawerOpen(false);
+                        setVerificationMsg('');
+                      }
+                    } catch (err) {
+                      toast.error('Error al enviar la solicitud.');
+                    } finally {
+                      setSendingVerification(false);
+                    }
+                  }}
+                  className="flex flex-col gap-3"
+                >
+                  <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">Mensaje para Administración</label>
+                  <textarea
+                    value={verificationMsg}
+                    onChange={(e) => setVerificationMsg(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-purple-500 h-20 resize-none"
+                    placeholder="Describe por qué deseas la verificación..."
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={sendingVerification}
+                    className="py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                  >
+                    {sendingVerification ? 'Enviando...' : 'Enviar Solicitud'}
+                  </button>
+                </form>
               </div>
             )}
 
@@ -1814,16 +1878,8 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                 <span className="font-extrabold text-white">{levelInfo.xp} XP</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-zinc-400">Publicaciones:</span>
-                <span className="font-extrabold text-purple-400">+{levelInfo.postsCount * 50} XP</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-zinc-400">Likes recibidos:</span>
-                <span className="font-extrabold text-pink-400">+{levelInfo.totalLikesReceived * 10} XP</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-zinc-400">Monedas recargadas:</span>
-                <span className="font-extrabold text-yellow-500">+{levelInfo.totalCoinsRecharged} XP</span>
+                <span className="text-zinc-400">Regalos donados en Lives:</span>
+                <span className="font-extrabold text-pink-400">+{levelInfo.totalGiftsCoins || 0} XP</span>
               </div>
             </div>
 
@@ -1831,16 +1887,8 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
               <h4 className="text-[9px] font-black uppercase tracking-wider text-zinc-500 mb-2">¿Cómo subir de nivel?</h4>
               <ul className="text-xs text-zinc-400 flex flex-col gap-1.5 pl-0.5">
                 <li className="flex items-start gap-1.5">
-                  <span className="text-purple-400 font-black">⚡</span>
-                  <span><strong>Sube videos:</strong> +50 XP por publicación.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-pink-400 font-black">❤️</span>
-                  <span><strong>Consigue Likes:</strong> +10 XP por me gusta recibido.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-yellow-500 font-black">🪙</span>
-                  <span><strong>Recarga Monedas:</strong> +1 XP por cada moneda recargada.</span>
+                  <span className="text-pink-400 font-black">🎁</span>
+                  <span><strong>Donar Regalos en Lives:</strong> +1 XP por cada moneda donada en transmisiones en vivo.</span>
                 </li>
               </ul>
             </div>

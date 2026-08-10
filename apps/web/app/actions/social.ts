@@ -1139,30 +1139,30 @@ export async function getUserLevelInfoAction(username: string) {
       where: { username }
     });
     if (!user) {
-      return { level: 1, xp: 0, nextLevelXp: 200, prevLevelXp: 0, progressPercentage: 0, postsCount: 0, totalLikesReceived: 0, totalCoinsRecharged: 0 };
+      return { level: 1, xp: 0, nextLevelXp: 200, prevLevelXp: 0, progressPercentage: 0, totalGiftsCoins: 0, title: 'CREADOR INICIANTE' };
     }
 
-    const postsCount = await prisma.post.count({
+    const userWallet = await prisma.wallet.findUnique({
       where: { userId: user.id }
     });
 
-    const totalLikesReceived = await prisma.postLike.count({
-      where: { post: { userId: user.id } }
-    });
+    let totalGiftsCoins = 0;
+    if (userWallet) {
+      const giftTxAggregate = await prisma.transaction.aggregate({
+        where: {
+          walletId: userWallet.id,
+          type: 'GIFT_SENT'
+        },
+        _sum: { amount: true }
+      });
+      totalGiftsCoins = Math.abs(giftTxAggregate._sum.amount || 0);
+    }
 
-    const rechargeAggregate = await prisma.rechargeRequest.aggregate({
-      where: { userId: user.id, status: 'COMPLETED' },
-      _sum: { coins: true }
-    });
-
-    const totalCoinsRecharged = rechargeAggregate._sum.coins || 0;
-
-    // Formula: 1 video/post = 50 XP, 1 like received = 10 XP, 1 recharged coin = 1 XP
-    const xp = (postsCount * 50) + (totalLikesReceived * 10) + totalCoinsRecharged;
+    // Formula: Level increases ONLY by donating gifts in live streams (1 coin donated = 1 XP)
+    const xp = totalGiftsCoins;
 
     // Calculate level scale
     // XP for level L: 100 * (L - 1) * L
-    // Let's loop to find current level
     let level = 1;
     while (true) {
       const nextLevelXp = 100 * level * (level + 1);
@@ -1195,13 +1195,11 @@ export async function getUserLevelInfoAction(username: string) {
       xpNeededForNextLevel,
       xpInCurrentLevel,
       progressPercentage,
-      postsCount,
-      totalLikesReceived,
-      totalCoinsRecharged,
+      totalGiftsCoins,
       title
     };
   } catch (err) {
     console.error('Error fetching level info:', err);
-    return { level: 1, xp: 0, nextLevelXp: 200, prevLevelXp: 0, progressPercentage: 0, postsCount: 0, totalLikesReceived: 0, totalCoinsRecharged: 0, title: 'CREADOR INICIANTE' };
+    return { level: 1, xp: 0, nextLevelXp: 200, prevLevelXp: 0, xpNeededForNextLevel: 200, xpInCurrentLevel: 0, progressPercentage: 0, totalGiftsCoins: 0, title: 'CREADOR INICIANTE' };
   }
 }
