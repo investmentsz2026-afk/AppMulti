@@ -17,6 +17,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       username: true,
       avatar: true,
       role: true,
+      isVerified: true,
     }
   });
 

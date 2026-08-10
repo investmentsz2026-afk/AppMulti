@@ -18,6 +18,7 @@ export default async function DashboardPage() {
       username: true,
       avatar: true,
       role: true,
+      isVerified: true,
     }
   });
 

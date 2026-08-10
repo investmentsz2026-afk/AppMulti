@@ -26,6 +26,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       bio: true,
       cover: true,
       role: true,
+      isVerified: true,
       tiktokActive: true,
       tiktokUrl: true,
       instagramActive: true,
@@ -50,6 +51,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       username: true,
       avatar: true,
       role: true,
+      isVerified: true,
     }
   });
 

@@ -14,6 +14,7 @@ import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, togg
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
 import { submitRechargeRequestAction, submitWithdrawalRequestAction, submitHelpRequestAction } from '@/app/actions/admin';
+import { getUserWalletBalanceAction } from '@/app/actions/stream';
 import { toast } from 'react-hot-toast';
 import { Check, AlertCircle, Coins, CreditCard, Wallet, HelpCircle } from 'lucide-react';
 import { useBadgeCounts } from '@/hooks/useBadgeCounts';
@@ -64,6 +65,18 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
   const [levelInfo, setLevelInfo] = useState<any>(null);
   const [showLevelInfoModal, setShowLevelInfoModal] = useState(false);
   const [showAvatarZoom, setShowAvatarZoom] = useState(false);
+
+  const [walletBalance, setWalletBalance] = useState<number>(targetUser?.wallet?.balance || sessionUser?.wallet?.balance || 0);
+
+  useEffect(() => {
+    async function loadBalance() {
+      if (isOwnProfile) {
+        const bal = await getUserWalletBalanceAction();
+        setWalletBalance(bal);
+      }
+    }
+    loadBalance();
+  }, [isOwnProfile]);
 
   // Support / Help Ticket State
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -594,6 +607,18 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
           </button>
           {isOwnProfile && (
             <>
+            <button 
+              onClick={() => {
+                setDrawerSubView('recargar');
+                setIsDrawerOpen(true);
+              }}
+              className="flex items-center gap-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 px-2.5 py-1 rounded-full text-yellow-400 font-black text-xs transition-colors cursor-pointer active:scale-95 shadow-sm"
+              title="Tus Monedas - Toca para recargar"
+            >
+              <Coins className="w-3.5 h-3.5 text-yellow-400" />
+              <span>{walletBalance.toLocaleString()}</span>
+            </button>
+
             <button className="cursor-pointer" onClick={() => setIsHelpOpen(true)} title="Soporte / Ayuda">
               <HelpCircle className="w-5 h-5 text-purple-400" />
             </button>
@@ -762,6 +787,30 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                 >
                   <MessageSquare className="w-3.5 h-3.5 text-purple-400" /> Mensaje
                 </Link>
+              </div>
+            )}
+
+            {/* Coins Balance Banner for Own Profile */}
+            {isOwnProfile && (
+              <div 
+                onClick={() => {
+                  setDrawerSubView('recargar');
+                  setIsDrawerOpen(true);
+                }}
+                className="w-full max-w-sm bg-gradient-to-r from-yellow-500/10 via-amber-500/5 to-purple-500/10 border border-yellow-500/30 rounded-2xl p-3 mb-3 flex items-center justify-between cursor-pointer active:scale-98 transition-all shadow-[0_0_15px_rgba(234,179,8,0.08)]"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-yellow-400 shrink-0">
+                    <Coins className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Tus Monedas LiveX</span>
+                    <span className="text-sm font-black text-yellow-400 leading-tight">{walletBalance.toLocaleString()} Monedas</span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/40 text-yellow-300 text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors">
+                  Recargar
+                </span>
               </div>
             )}
 

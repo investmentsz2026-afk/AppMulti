@@ -646,7 +646,7 @@ export async function getUserByUsername(username: string) {
   try {
     return await prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true, avatar: true }
+      select: { id: true, username: true, avatar: true, isVerified: true }
     });
   } catch (err) {
     return null;
@@ -1062,7 +1062,8 @@ export async function getFollowersListAction(username: string) {
             id: true,
             username: true,
             avatar: true,
-            bio: true
+            bio: true,
+            isVerified: true
           }
         }
       }
@@ -1090,7 +1091,8 @@ export async function getFollowingListAction(username: string) {
             id: true,
             username: true,
             avatar: true,
-            bio: true
+            bio: true,
+            isVerified: true
           }
         }
       }
