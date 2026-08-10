@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { updateProfile } from '@/app/actions/profile';
 import { logoutUser } from '@/app/actions/auth';
-import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment } from '@/app/actions/social';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction } from '@/app/actions/social';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
 import { submitRechargeRequestAction, submitWithdrawalRequestAction } from '@/app/actions/admin';
@@ -363,6 +363,28 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
   const [withdrawDetails, setWithdrawDetails] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
+  // Followers / Following modal states
+  const [showFollowsModal, setShowFollowsModal] = useState(false);
+  const [followsModalType, setFollowsModalType] = useState<'followers' | 'following'>('followers');
+  const [followsList, setFollowsList] = useState<any[]>([]);
+  const [loadingFollows, setLoadingFollows] = useState(false);
+
+  const openFollowsModal = async (type: 'followers' | 'following') => {
+    setFollowsModalType(type);
+    setShowFollowsModal(true);
+    setLoadingFollows(true);
+    try {
+      const list = type === 'followers' 
+        ? await getFollowersListAction(targetUsername)
+        : await getFollowingListAction(targetUsername);
+      setFollowsList(list);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingFollows(false);
+    }
+  };
+
   const [selectedPack, setSelectedPack] = useState<number | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -641,12 +663,12 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
 
             {/* Stats Row */}
             <div className="flex w-full max-w-xs items-center justify-around bg-white/5 p-3 rounded-2xl border border-white/5 mb-5">
-              <div className="text-center">
+              <div onClick={() => openFollowsModal('followers')} className="text-center cursor-pointer active:scale-95 transition-transform">
                 <span className="font-black text-sm text-white block leading-none">{formatStat(stats.followers)}</span>
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Seguidores</span>
               </div>
               <div className="h-6 w-px bg-white/10" />
-              <div className="text-center">
+              <div onClick={() => openFollowsModal('following')} className="text-center cursor-pointer active:scale-95 transition-transform">
                 <span className="font-black text-sm text-white block leading-none">{formatStat(stats.following)}</span>
                 <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Siguiendo</span>
               </div>
@@ -1275,6 +1297,66 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
       )}
 
       {/* Floating Toast Notification */}
+      {/* Followers / Following List Modal */}
+      {showFollowsModal && (
+        <div className="fixed inset-0 z-[110] bg-black/85 backdrop-blur-md flex items-center justify-end flex-col animate-in fade-in duration-200">
+          <div className="absolute inset-0 cursor-pointer" onClick={() => setShowFollowsModal(false)} />
+          
+          <div className="bg-[#0b0a12] border-t border-purple-500/20 rounded-t-[32px] w-full p-6 relative overflow-hidden animate-in slide-in-from-bottom duration-250 z-10 flex flex-col max-h-[70vh]">
+            <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto -mt-2 mb-4" />
+
+            <div className="flex justify-between items-center mb-4 shrink-0">
+              <h3 className="text-base font-black text-white uppercase tracking-wider">
+                {followsModalType === 'followers' ? 'Seguidores' : 'Siguiendo'}
+              </h3>
+              <button 
+                onClick={() => setShowFollowsModal(false)}
+                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3.5 pr-1 pb-6">
+              {loadingFollows ? (
+                <div className="text-center py-10 text-xs font-bold text-zinc-500 animate-pulse">
+                  Cargando lista...
+                </div>
+              ) : followsList && followsList.length > 0 ? (
+                followsList.map((usr) => (
+                  <div key={usr.id} className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={usr.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${usr.username}`} 
+                        className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 object-cover" 
+                      />
+                      <div className="text-left">
+                        <div className="text-xs font-bold text-white flex items-center gap-1">
+                          @{usr.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0 fill-transparent" />
+                        </div>
+                        <div className="text-[10px] text-zinc-500 line-clamp-1 max-w-[150px]">{usr.bio || 'Sin biografía.'}</div>
+                      </div>
+                    </div>
+                    <Link 
+                      href={`/u/${usr.username}`}
+                      onClick={() => setShowFollowsModal(false)}
+                      className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all"
+                    >
+                      Ver perfil
+                    </Link>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10 text-xs font-bold text-zinc-500">
+                  No hay usuarios para mostrar.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showToast && (
         <div className="fixed bottom-20 left-4 right-4 z-50 bg-[#0e0c1f] border border-purple-500/50 text-white rounded-2xl px-4 py-3 shadow-[0_0_25px_rgba(168,85,247,0.3)] flex items-center gap-3 animate-bounce">
           <Sparkles className="w-4.5 h-4.5 text-yellow-400 shrink-0" />

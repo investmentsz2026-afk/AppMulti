@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Compass, Play, Settings, Share2, 
-  Heart, MessageSquare, Gift, User, Star, Plus, Shield, Trophy, Tv, Flame
+  Heart, MessageSquare, Gift, User, Star, Plus, Shield, Trophy, Tv, Flame, Send
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
@@ -713,17 +713,20 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                 </div>
               ))
             ) : (
-              <div className="text-[10px] text-zinc-500 font-bold text-center py-2">No hay espectadores en la sala.</div>
+              <div className="text-[10px] text-zinc-500 font-bold text-center py-2">No hay espectadores</div>
             )}
           </div>
         </div>
 
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
+        <div 
+          className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
            <div className="bg-white/5 text-zinc-400 rounded-xl p-3 text-xs font-medium w-full text-center mb-2">
              ¡Bienvenido al chat! Sé respetuoso.
            </div>
-
+ 
            {dbChatMessages.map(msg => (
              <div key={msg.id} className="flex gap-2 items-start text-sm animate-fade-in">
                <img 
@@ -745,7 +748,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
              </div>
            ))}
         </div>
-
+ 
         {/* Chat Input */}
         <form onSubmit={handleSendMessage} className="p-4 border-t border-white/5 bg-[#0c0c11]">
           <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 h-10 focus-within:border-pink-500 transition-colors">
@@ -756,9 +759,11 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
               onChange={(e) => setInputMessage(e.target.value)}
               className="bg-transparent border-none outline-none flex-1 text-sm text-white placeholder-zinc-500"
             />
-            <button type="submit" className="w-6 h-6 rounded-full bg-pink-600 hover:bg-pink-500 flex items-center justify-center transition-colors">
-              <Share2 className="w-3 h-3 text-white" />
-            </button>
+            {inputMessage.trim() !== '' && (
+              <button type="submit" className="w-7 h-7 rounded-full bg-pink-600 hover:bg-pink-500 flex items-center justify-center transition-colors active:scale-95 cursor-pointer">
+                <Send className="w-3.5 h-3.5 text-white fill-current" />
+              </button>
+            )}
           </div>
         </form>
 

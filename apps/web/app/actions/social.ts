@@ -1011,3 +1011,59 @@ export async function toggleFollowByUsername(streamerUsername: string) {
     return { error: err.message };
   }
 }
+
+export async function getFollowersListAction(username: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username }
+    });
+    if (!user) return [];
+
+    const follows = await prisma.follow.findMany({
+      where: { followingId: user.id },
+      include: {
+        follower: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            bio: true
+          }
+        }
+      }
+    });
+
+    return follows.map(f => f.follower);
+  } catch (err) {
+    console.error('Error fetching followers list:', err);
+    return [];
+  }
+}
+
+export async function getFollowingListAction(username: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username }
+    });
+    if (!user) return [];
+
+    const follows = await prisma.follow.findMany({
+      where: { followerId: user.id },
+      include: {
+        following: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            bio: true
+          }
+        }
+      }
+    });
+
+    return follows.map(f => f.following);
+  } catch (err) {
+    console.error('Error fetching following list:', err);
+    return [];
+  }
+}

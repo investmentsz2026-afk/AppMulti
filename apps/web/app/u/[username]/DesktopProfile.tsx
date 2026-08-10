@@ -10,7 +10,7 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { updateProfile } from '@/app/actions/profile';
-import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment } from '@/app/actions/social';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction } from '@/app/actions/social';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
 import { getUserWalletBalanceAction } from '@/app/actions/stream';
@@ -394,6 +394,28 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   const [withdrawCoins, setWithdrawCoins] = useState<number>(100);
   const [withdrawDetails, setWithdrawDetails] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  // Followers / Following modal states
+  const [showFollowsModal, setShowFollowsModal] = useState(false);
+  const [followsModalType, setFollowsModalType] = useState<'followers' | 'following'>('followers');
+  const [followsList, setFollowsList] = useState<any[]>([]);
+  const [loadingFollows, setLoadingFollows] = useState(false);
+
+  const openFollowsModal = async (type: 'followers' | 'following') => {
+    setFollowsModalType(type);
+    setShowFollowsModal(true);
+    setLoadingFollows(true);
+    try {
+      const list = type === 'followers' 
+        ? await getFollowersListAction(targetUser.username)
+        : await getFollowingListAction(targetUser.username);
+      setFollowsList(list);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingFollows(false);
+    }
+  };
 
   // Profile fields state
   const [profileName, setProfileName] = useState(targetUser.username || '');
@@ -800,14 +822,14 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
 
                   {/* Followers Stats */}
                   <div className="flex justify-center md:justify-start items-center gap-6">
-                    <div>
-                      <span className="font-black text-lg text-white block leading-none">{formatStat(stats.followers)}</span>
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Seguidores</span>
+                    <div onClick={() => openFollowsModal('followers')} className="cursor-pointer group">
+                      <span className="font-black text-lg text-white block leading-none group-hover:text-pink-500 transition-colors">{formatStat(stats.followers)}</span>
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider group-hover:text-zinc-400 transition-colors">Seguidores</span>
                     </div>
                     <div className="border-l border-white/5 h-8" />
-                    <div>
-                      <span className="font-black text-lg text-white block leading-none">{formatStat(stats.following)}</span>
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Siguiendo</span>
+                    <div onClick={() => openFollowsModal('following')} className="cursor-pointer group">
+                      <span className="font-black text-lg text-white block leading-none group-hover:text-pink-500 transition-colors">{formatStat(stats.following)}</span>
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider group-hover:text-zinc-400 transition-colors">Siguiendo</span>
                     </div>
                     <div className="border-l border-white/5 h-8" />
                     <div>
@@ -1521,6 +1543,64 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                   {isPurchasing ? 'Enviando solicitud...' : 'Enviar solicitud de compra al administrador'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Followers / Following List Modal */}
+      {showFollowsModal && (
+        <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="absolute inset-0 cursor-pointer" onClick={() => setShowFollowsModal(false)} />
+          
+          <div className="bg-[#0b0a12] border border-white/10 rounded-3xl max-w-md w-full p-6 relative overflow-hidden animate-in zoom-in-95 duration-200 z-10 flex flex-col max-h-[80vh]">
+            <div className="flex justify-between items-center mb-4 shrink-0">
+              <h3 className="text-base font-black text-white uppercase tracking-wider">
+                {followsModalType === 'followers' ? 'Seguidores' : 'Siguiendo'}
+              </h3>
+              <button 
+                onClick={() => setShowFollowsModal(false)}
+                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3.5 pr-1">
+              {loadingFollows ? (
+                <div className="text-center py-10 text-xs font-bold text-zinc-500 animate-pulse">
+                  Cargando lista...
+                </div>
+              ) : followsList && followsList.length > 0 ? (
+                followsList.map((usr) => (
+                  <div key={usr.id} className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={usr.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${usr.username}`} 
+                        className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 object-cover" 
+                      />
+                      <div className="text-left">
+                        <div className="text-xs font-bold text-white flex items-center gap-1">
+                          @{usr.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0 fill-transparent" />
+                        </div>
+                        <div className="text-[10px] text-zinc-500 line-clamp-1 max-w-[180px]">{usr.bio || 'Sin biografía.'}</div>
+                      </div>
+                    </div>
+                    <Link 
+                      href={`/u/${usr.username}`}
+                      onClick={() => setShowFollowsModal(false)}
+                      className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all"
+                    >
+                      Ver perfil
+                    </Link>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10 text-xs font-bold text-zinc-500">
+                  No hay usuarios para mostrar.
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Flame } from 'lucide-react';
+import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Flame, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
@@ -617,7 +617,10 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
 
       {/* Chat Area */}
       <div className="absolute bottom-[70px] left-4 right-16 top-1/2 z-20 flex flex-col justify-end pointer-events-none">
-        <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-4 pb-4 max-h-full pointer-events-auto">
+        <div 
+          className="flex flex-col gap-3 overflow-y-auto pr-4 pb-4 max-h-full pointer-events-auto [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {/* Welcome Message */}
           <div className="bg-yellow-500/20 border border-yellow-500/30 text-yellow-500 rounded-xl p-2 text-xs font-bold w-fit shadow-md backdrop-blur-sm">
             ¡Bienvenido a LiveX! Protegemos a nuestra comunidad. Se amable.
@@ -655,6 +658,14 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
             onChange={(e) => setInputMessage(e.target.value)}
             className="bg-transparent border-none outline-none w-full text-sm text-white placeholder-zinc-400"
           />
+          {inputMessage.trim() !== '' && (
+            <button 
+              type="submit" 
+              className="ml-2 text-pink-500 hover:text-pink-400 active:scale-95 transition-all cursor-pointer"
+            >
+              <Send className="w-4 h-4 fill-current" />
+            </button>
+          )}
         </div>
         
         {/* Quick Action Buttons */}
