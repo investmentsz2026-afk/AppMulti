@@ -1128,6 +1128,9 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                 <button onClick={() => setSettingsActiveTab('retiro')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'retiro' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
                   Retirar Monedas
                 </button>
+                <button onClick={() => setSettingsActiveTab('terminos')} className={`px-4 py-2.5 rounded-xl text-xs font-bold text-left transition-colors ${settingsActiveTab === 'terminos' ? 'bg-[#18112d] text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white'}`}>
+                  Términos & Condiciones
+                </button>
               </div>
 
               <button onClick={() => logoutUser()} className="w-full py-2.5 bg-red-950/20 hover:bg-red-900/40 border border-red-500/20 rounded-xl text-xs font-bold text-red-400 flex items-center justify-center gap-2 transition-colors">
@@ -1506,6 +1509,33 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                         </div>
                         <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-[10px] font-bold rounded-full border border-green-500/20">Público</span>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TERMS & CONDITIONS TAB */}
+                {settingsActiveTab === 'terminos' && (
+                  <div className="flex flex-col gap-4 h-full overflow-hidden">
+                    <div>
+                      <h2 className="text-lg font-black text-white mb-1">Términos & Condiciones</h2>
+                      <p className="text-xs text-zinc-400">Consulta los términos de servicio legales de la plataforma LiveX.</p>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto bg-[#07070b]/60 border border-white/5 rounded-2xl p-5 text-xs text-zinc-400 font-semibold space-y-4 leading-relaxed custom-scrollbar h-[260px]">
+                      <h4 className="text-white font-extrabold text-xs">1. Aceptación de los Términos</h4>
+                      <p>Al acceder, registrarse o utilizar la plataforma LiveX, usted acepta de manera incondicional cumplir con los presentes Términos y Condiciones. Si no está de acuerdo con alguna de las cláusulas, por favor no utilice el servicio.</p>
+                      
+                      <h4 className="text-white font-extrabold text-xs">2. Elegibilidad y Cuentas</h4>
+                      <p>Debe tener al menos 18 años para crear una cuenta. Usted es responsable de mantener la seguridad y confidencialidad de su contraseña y de todas las actividades que ocurran bajo su cuenta.</p>
+                      
+                      <h4 className="text-white font-extrabold text-xs">3. Reglas de Conducta y Contenido</h4>
+                      <p>Queda estrictamente prohibido transmitir o publicar cualquier tipo de contenido acosador, difamatorio, pornográfico, ilegal o que infrinja los derechos de autor de terceros. LiveX se reserva el derecho de eliminar cualquier contenido y suspender cuentas infractoras inmediatamente sin previo aviso.</p>
+                      
+                      <h4 className="text-white font-extrabold text-xs">4. Monedas Virtuales y Batallas</h4>
+                      <p>LiveX opera un sistema de monedas virtuales. Las recargas de monedas no son reembolsables ni transferibles. Las batallas y duelos virtuales son con fines de entretenimiento y propósitos de interactividad social de los creadores.</p>
+                      
+                      <h4 className="text-white font-extrabold text-xs">5. Limitación de Responsabilidad</h4>
+                      <p>LiveX se proporciona "tal cual" y "según disponibilidad". No garantizamos que el servicio sea ininterrumpido, libre de errores o seguro. No nos hacemos responsables por pérdidas de datos, fallos del sistema o comportamientos de otros usuarios en línea.</p>
                     </div>
                   </div>
                 )}

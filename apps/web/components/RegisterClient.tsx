@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight, Play, Eye, EyeOff, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Play, Eye, EyeOff, CheckCircle2, ArrowLeft, X } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -18,6 +18,7 @@ export default function RegisterClient() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const router = useRouter();
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -47,9 +48,8 @@ export default function RegisterClient() {
     } finally {
       setLoading(false);
     }
-  };
-
-  return (
+  };  return (
+    <>
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-background relative">
       {/* Background for Mobile */}
       <div className="lg:hidden absolute inset-0 z-0">
@@ -112,10 +112,10 @@ export default function RegisterClient() {
         </div>
         <div className="lg:hidden flex flex-col items-center gap-3 mb-8 mt-4">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-xl">
-                <Play className="text-white fill-white w-5 h-5" />
-              </div>
-              <span className="text-2xl font-black tracking-tighter text-white">LiveX</span>
+               <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-xl">
+                 <Play className="text-white fill-white w-5 h-5" />
+               </div>
+               <span className="text-2xl font-black tracking-tighter text-white">LiveX</span>
             </div>
             <div className="text-center mt-2">
                <h2 className="text-3xl font-black text-white mb-1">Crear cuenta</h2>
@@ -203,9 +203,10 @@ export default function RegisterClient() {
               </div>
 
               <div className="flex items-center gap-3 px-1 py-2">
-                 <input type="checkbox" className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-purple-600" required />
-                 <span className="text-[10px] text-zinc-500 font-bold">
-                    Acepto los <span className="text-purple-500">Términos de servicio</span> y la <span className="text-purple-500">Política de privacidad</span>
+                 <input type="checkbox" className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-purple-600 cursor-pointer" required />
+                 <span className="text-[10px] text-zinc-500 font-bold flex items-center gap-1.5">
+                    <span>Acepto los Términos de servicio y Política de privacidad</span>
+                    <button type="button" onClick={() => setShowTermsModal(true)} className="text-purple-500 hover:text-purple-400 underline font-black uppercase tracking-wider text-[9px] cursor-pointer">Ver</button>
                  </span>
               </div>
 
@@ -251,5 +252,50 @@ export default function RegisterClient() {
         </motion.div>
       </div>
     </div>
+
+    {/* ═══ TERMS AND CONDITIONS MODAL ═══ */}
+    {showTermsModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div className="absolute inset-0 cursor-pointer" onClick={() => setShowTermsModal(false)} />
+        <div className="bg-[#0e1129] border border-white/10 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl relative z-10 flex flex-col max-h-[85vh] text-left">
+          <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
+            <h3 className="text-xs font-black text-white uppercase tracking-widest">Términos y Condiciones - LiveX</h3>
+            <button 
+              type="button"
+              onClick={() => setShowTermsModal(false)}
+              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 text-[11px] text-zinc-400 font-semibold space-y-4 leading-relaxed custom-scrollbar">
+            <h4 className="text-white font-extrabold text-xs">1. Aceptación de los Términos</h4>
+            <p>Al acceder, registrarse o utilizar la plataforma LiveX, usted acepta de manera incondicional cumplir con los presentes Términos y Condiciones. Si no está de acuerdo con alguna de las cláusulas, por favor no utilice el servicio.</p>
+            
+            <h4 className="text-white font-extrabold text-xs">2. Elegibilidad y Cuentas</h4>
+            <p>Debe tener al menos 18 años para crear una cuenta. Usted es responsable de mantener la seguridad y confidencialidad de su contraseña y de todas las actividades que ocurran bajo su cuenta.</p>
+            
+            <h4 className="text-white font-extrabold text-xs">3. Reglas de Conducta y Contenido</h4>
+            <p>Queda estrictamente prohibido transmitir o publicar cualquier tipo de contenido acosador, difamatorio, pornográfico, ilegal o que infrinja los derechos de autor de terceros. LiveX se reserva el derecho de eliminar cualquier contenido y suspender cuentas infractoras inmediatamente sin previo aviso.</p>
+            
+            <h4 className="text-white font-extrabold text-xs">4. Monedas Virtuales y Batallas</h4>
+            <p>LiveX opera un sistema de monedas virtuales. Las recargas de monedas no son reembolsables ni transferibles. Las batallas y duelos virtuales son con fines de entretenimiento y propósitos de interactividad social de los creadores.</p>
+            
+            <h4 className="text-white font-extrabold text-xs">5. Limitación de Responsabilidad</h4>
+            <p>LiveX se proporciona "tal cual" y "según disponibilidad". No garantizamos que el servicio sea ininterrumpido, libre de errores o seguro. No nos hacemos responsables por pérdidas de datos, fallos del sistema o comportamientos de otros usuarios en línea.</p>
+          </div>
+          <div className="p-4 border-t border-white/5 bg-[#050816] flex justify-end shrink-0">
+            <button 
+              type="button"
+              onClick={() => setShowTermsModal(false)}
+              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-[10px] font-black text-white shadow-lg shadow-pink-500/10 hover:scale-102 active:scale-95 transition-all cursor-pointer"
+            >
+              Aceptar y Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

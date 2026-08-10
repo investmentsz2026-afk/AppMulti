@@ -380,7 +380,7 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
 
   // Mobile drawer states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [drawerSubView, setDrawerSubView] = useState<'menu' | 'editar' | 'recargar' | 'apk' | 'redes' | 'retiro'>('menu');
+  const [drawerSubView, setDrawerSubView] = useState<'menu' | 'editar' | 'recargar' | 'apk' | 'redes' | 'retiro' | 'terminos'>('menu');
   
   // Input fields states
   const [profileName, setProfileName] = useState(targetUser?.username || '');
@@ -981,6 +981,10 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                   <Smartphone className="w-4.5 h-4.5 text-pink-400" /> Descargar APK Móvil
                 </button>
 
+                <button onClick={() => setDrawerSubView('terminos')} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-white/10 transition-all">
+                  <Shield className="w-4.5 h-4.5 text-zinc-400" /> Términos & Condiciones
+                </button>
+
                 <button onClick={() => triggerToast('¡Configuración de cuenta activa! 🔒')} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-white/10 transition-all">
                   <Shield className="w-4.5 h-4.5 text-blue-400" /> Privacidad & Seguridad
                 </button>
@@ -1310,6 +1314,33 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                 <button onClick={() => { triggerToast('Descargando APK de LiveX... 🚀'); setIsDrawerOpen(false); }} className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black rounded-xl shadow-lg shadow-pink-500/20 flex items-center justify-center gap-1.5">
                   <Smartphone className="w-4 h-4" /> Descargar APK para Android
                 </button>
+              </div>
+            )}
+
+            {/* VIEW 5: TERMS & CONDITIONS TAB */}
+            {drawerSubView === 'terminos' && (
+              <div className="flex flex-col gap-4 overflow-hidden max-h-[70vh]">
+                <div>
+                  <h3 className="text-base font-black text-white">Términos & Condiciones</h3>
+                  <p className="text-[10px] text-zinc-400">Consulta los términos de servicio legales de la plataforma LiveX.</p>
+                </div>
+
+                <div className="flex-1 overflow-y-auto bg-white/5 border border-white/10 rounded-2xl p-4 text-[11px] text-zinc-400 font-semibold space-y-4 leading-relaxed custom-scrollbar max-h-[300px]">
+                  <h4 className="text-white font-extrabold text-[11px]">1. Aceptación de los Términos</h4>
+                  <p>Al acceder, registrarse o utilizar la plataforma LiveX, usted acepta de manera incondicional cumplir con los presentes Términos y Condiciones. Si no está de acuerdo con alguna de las cláusulas, por favor no utilice el servicio.</p>
+                  
+                  <h4 className="text-white font-extrabold text-[11px]">2. Elegibilidad y Cuentas</h4>
+                  <p>Debe tener al menos 18 años para crear una cuenta. Usted es responsable de mantener la seguridad y confidencialidad de su contraseña y de todas las actividades que ocurran bajo su cuenta.</p>
+                  
+                  <h4 className="text-white font-extrabold text-[11px]">3. Reglas de Conducta y Contenido</h4>
+                  <p>Queda estrictamente prohibido transmitir o publicar cualquier tipo de contenido acosador, difamatorio, pornográfico, ilegal o que infrinja los derechos de autor de terceros. LiveX se reserva el derecho de eliminar cualquier contenido y suspender cuentas infractoras inmediatamente sin previo aviso.</p>
+                  
+                  <h4 className="text-white font-extrabold text-[11px]">4. Monedas Virtuales y Batallas</h4>
+                  <p>LiveX opera un sistema de monedas virtuales. Las recargas de monedas no son reembolsables ni transferibles. Las batallas y duelos virtuales son con fines de entretenimiento y propósitos de interactividad social de los creadores.</p>
+                  
+                  <h4 className="text-white font-extrabold text-[11px]">5. Limitación de Responsabilidad</h4>
+                  <p>LiveX se proporciona "tal cual" y "según disponibilidad". No garantizamos que el servicio sea ininterrumpido, libre de errores o seguro. No nos hacemos responsables por pérdidas de datos, fallos del sistema o comportamientos de otros usuarios en línea.</p>
+                </div>
               </div>
             )}
 
