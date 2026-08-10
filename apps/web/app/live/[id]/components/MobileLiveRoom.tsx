@@ -85,6 +85,15 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   }, [streamerName]);
 
   useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.load();
+      videoRef.current.play().catch(err => {
+        console.warn("Autoplay failed for fallback video:", err);
+      });
+    }
+  }, [isStreamActive, streamTitleState, remoteCameraStream, remoteScreenStream]);
+
+  useEffect(() => {
     let activeStream: MediaStream | null = null;
     if (isLive && streamerName === user?.username) {
       if (typeof window !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -440,6 +449,9 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                   playsInline
                   muted
                   loop
+                  onCanPlay={(e) => {
+                    e.currentTarget.play().catch(() => {});
+                  }}
                   className="w-full h-full object-cover animate-fade-in"
                   src={
                     (streamTitleState || '').toLowerCase().includes('valorant')

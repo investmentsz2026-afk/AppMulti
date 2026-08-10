@@ -214,7 +214,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
         console.warn("Autoplay failed for fallback video:", err);
       });
     }
-  }, [isStreamActive, streamTitleState]);
+  }, [isStreamActive, streamTitleState, remoteCameraStream, remoteScreenStream]);
 
   // 3. Poll Real database Live chat comments
   useEffect(() => {
@@ -550,7 +550,10 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                   playsInline
                   muted
                   loop
-                  className="w-full h-full object-cover"
+                  onCanPlay={(e) => {
+                    e.currentTarget.play().catch(() => {});
+                  }}
+                  className="w-full h-full object-cover animate-fade-in"
                   src={
                     (streamTitleState || '').toLowerCase().includes('valorant')
                       ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4'
