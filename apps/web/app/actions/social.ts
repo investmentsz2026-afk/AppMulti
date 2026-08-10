@@ -965,6 +965,15 @@ export async function getFollowingFeedData() {
             username: true,
             avatar: true
           }
+        },
+        likes: {
+          where: { userId }
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true
+          }
         }
       }
     });
@@ -977,7 +986,17 @@ export async function getFollowingFeedData() {
       title: post.title,
       duration: post.type === 'VIDEO' ? '00:15' : undefined,
       views: post.type === 'VIDEO' ? '1.2K' : undefined,
-      img: post.url
+      img: post.url,
+      dbId: post.id,
+      mediaUrl: post.url,
+      userId: post.userId,
+      user: {
+        username: post.user.username,
+        avatar: post.user.avatar
+      },
+      likesCount: post._count.likes,
+      commentsCount: post._count.comments,
+      isLiked: post.likes.length > 0
     }));
 
     return {

@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useBadgeCounts } from '@/hooks/useBadgeCounts';
-import { getFollowingFeedData } from '@/app/actions/social';
+import { getFollowingFeedData, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment } from '@/app/actions/social';
 import { 
   Home, Compass, Plus, MessageSquare, User, 
   Search, Crown, Heart, MessageCircle, Share2, 
   Gift, Play, BadgeCheck, Trophy, Sparkles, X, ChevronRight, Swords,
-  Coins, Sword, Tv
+  Coins, Sword, Tv, Smile, Trash2, ChevronUp, ChevronDown
 } from 'lucide-react';
 
 export default function MobileFollowing({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
@@ -21,6 +21,13 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
   const [followingCount, setFollowingCount] = useState(0);
   const [liveStreamers, setLiveStreamers] = useState<any[]>([]);
   const [feedItems, setFeedItems] = useState<any[]>([]);
+
+  // Fullscreen player state
+  const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
 
   useEffect(() => {
     async function loadFollowingData() {
@@ -36,10 +43,111 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
     loadFollowingData();
   }, []);
 
+  // Fetch comments when modal comments panel is open
+  useEffect(() => {
+    if (activeMediaIndex === null || !showComments) return;
+    const post = feedItems[activeMediaIndex];
+    if (!post) return;
+
+    async function fetchComments() {
+      setCommentsLoading(true);
+      try {
+        const data = await getPostComments(post.id);
+        setComments(data);
+      } catch (err) {
+        console.error('Error fetching comments:', err);
+      } finally {
+        setCommentsLoading(false);
+      }
+    }
+    fetchComments();
+  }, [activeMediaIndex, showComments, feedItems]);
+
+  const handleLikePostInModal = async (postId: string) => {
+    setFeedItems(prev => prev.map(p => {
+      if (p.id === postId) {
+        const newLiked = !p.isLiked;
+        return { ...p, isLiked: newLiked, likesCount: newLiked ? p.likesCount + 1 : Math.max(0, p.likesCount - 1) };
+      }
+      return p;
+    }));
+    try {
+      const res = await toggleLikePost(postId);
+      if (res.success) {
+        setFeedItems(prev => prev.map(p => p.id === postId ? { ...p, isLiked: res.liked, likesCount: res.count } : p));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleCreateComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeMediaIndex === null) return;
+    const post = feedItems[activeMediaIndex];
+    if (!post || !newCommentText.trim()) return;
+    try {
+      const res = await createComment(post.id, newCommentText);
+      if (res.success && res.comment) {
+        setComments(prev => [res.comment, ...prev]);
+        setNewCommentText('');
+        setFeedItems(prev => prev.map(p => p.id === post.id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleToggleLikeComment = async (commentId: string) => {
+    setComments(prev => prev.map(c => {
+      if (c.id === commentId) { const nl = !c.isLiked; return { ...c, isLiked: nl, likesCount: nl ? c.likesCount + 1 : Math.max(0, c.likesCount - 1) }; }
+      return c;
+    }));
+    try {
+      const res = await toggleLikeComment(commentId);
+      if (res.success) { setComments(prev => prev.map(c => c.id === commentId ? { ...c, isLiked: res.liked, likesCount: res.count } : c)); }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('¿Eliminar este comentario?')) return;
+    try {
+      const res = await deleteComment(commentId);
+      if (res.success) {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        if (activeMediaIndex !== null) {
+          const post = feedItems[activeMediaIndex];
+          setFeedItems(prev => prev.map(p => p.id === post.id ? { ...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1) } : p));
+        }
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const formatStat = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toLocaleString();
+  };
+
+  // Swipe handler for fullscreen player
+  const touchStartY = React.useRef(0);
+  const handleTouchStart = (e: React.TouchEvent) => { if (e.touches[0]) touchStartY.current = e.touches[0].clientY; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!e.changedTouches[0]) return;
+    const diff = touchStartY.current - e.changedTouches[0].clientY;
+    if (Math.abs(diff) < 60) return;
+    if (diff > 0) {
+      // Swipe up → next
+      let idx = (activeMediaIndex ?? 0) + 1;
+      while (idx < feedItems.length) { if (feedItems[idx].type !== 'live') { setActiveMediaIndex(idx); return; } idx++; }
+    } else {
+      // Swipe down → prev
+      let idx = (activeMediaIndex ?? 0) - 1;
+      while (idx >= 0) { if (feedItems[idx].type !== 'live') { setActiveMediaIndex(idx); return; } idx--; }
+    }
+  };
+
   return (
+    <>
     <div className="flex flex-col h-[100dvh] w-full bg-[#05050a] text-white overflow-hidden relative">
       
-      {/* Top Header (Exactly matches the 3rd reference screenshot!) */}
+      {/* Top Header */}
       <div className="h-[70px] shrink-0 pt-4 px-4 flex items-center justify-between z-20 bg-[#05050a] border-b border-white/5">
         <div className="flex items-center gap-1.5 shrink-0">
           <div className="w-7 h-7 bg-gradient-to-br from-purple-600 to-pink-600 rounded flex items-center justify-center">
@@ -48,7 +156,7 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
           <span className="text-xs font-black tracking-tighter">LiveX</span>
         </div>
         
-        {/* Navigation Tabs (Siguiendo, Para ti, Batallas, Explorar) */}
+        {/* Navigation Tabs */}
         <div className="flex items-center gap-4 text-[13px] sm:text-[14px] font-bold overflow-x-auto scrollbar-none py-1 pr-2 shrink-0 max-w-[65%]">
           <button 
             onClick={() => setTab('siguiendo')}
@@ -89,7 +197,7 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
           </span>
         </div>
 
-        {/* Lives horizontal carrousel (Instagram/TikTok style circles) */}
+        {/* Lives horizontal carrousel */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
@@ -104,22 +212,17 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
                 key={streamer.id} 
                 className="flex flex-col items-center shrink-0 snap-start w-16 cursor-pointer"
               >
-                {/* Glowing Avatar circle */}
                 <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-purple-600 via-pink-600 to-red-500 shadow-md">
                   <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#05050a] bg-zinc-800">
                     <img src={streamer.avatar} className="w-full h-full object-cover" alt="" />
                   </div>
-                  {/* Live tag at the bottom of circle */}
                   <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[7px] font-black px-1 rounded border border-[#05050a] tracking-tighter uppercase">
                     LIVE
                   </span>
                 </div>
-                
-                {/* Name */}
                 <span className="text-[10px] font-bold mt-2 truncate w-full text-center text-zinc-200">
                   {streamer.name}
                 </span>
-                {/* Viewers */}
                 <span className="text-[8px] font-medium text-zinc-500 mt-0.5">
                   ▷ {streamer.views}
                 </span>
@@ -157,7 +260,18 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
               return false;
             })
             .map(item => (
-              <div key={item.id} className="flex flex-col bg-[#0c0c14] border border-white/5 rounded-2xl overflow-hidden shadow-md">
+              <div 
+                key={item.id} 
+                onClick={() => {
+                  if (item.type === 'live') {
+                    router.push(`/live/${item.name}`);
+                  } else {
+                    const idx = feedItems.findIndex(x => x.id === item.id);
+                    if (idx !== -1) { setActiveMediaIndex(idx); setShowComments(false); }
+                  }
+                }}
+                className="flex flex-col bg-[#0c0c14] border border-white/5 rounded-2xl overflow-hidden shadow-md cursor-pointer active:scale-[0.97] transition-transform"
+              >
                 
                 {/* Visual Preview */}
                 <div className="relative aspect-[3/4] overflow-hidden">
@@ -237,7 +351,7 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
         </Link>
       </div>
 
-      {/* ----------------- MOBILE QUICK ACTIONS OVERLAY (Vision Pro/Esports Style) ----------------- */}
+      {/* Quick Actions Overlay */}
       {showQuickActions && (
         <div className="fixed inset-0 z-50 bg-[#05050ad9] backdrop-blur-xl flex flex-col justify-end p-6 animate-in fade-in duration-200">
           
@@ -260,12 +374,8 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
 
             <div className="grid grid-cols-2 gap-3 mb-6">
               
-              {/* 1. Transmitir en vivo */}
               <button 
-                onClick={() => {
-                  setShowQuickActions(false);
-                  router.push('/transmitir');
-                }}
+                onClick={() => { setShowQuickActions(false); router.push('/transmitir'); }}
                 className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-purple-600/10 to-indigo-600/10 border border-purple-500/20 hover:border-purple-500/50 transition-all hover:scale-[1.02] text-center"
               >
                 <div className="w-10 h-10 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 mb-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
@@ -275,12 +385,8 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
                 <span className="text-[9px] text-zinc-500 font-semibold">Transmitir ahora</span>
               </button>
 
-              {/* 2. Subir video o imagen */}
               <button 
-                onClick={() => {
-                  setShowQuickActions(false);
-                  useCreatorStore.getState().open('upload');
-                }}
+                onClick={() => { setShowQuickActions(false); useCreatorStore.getState().open('upload'); }}
                 className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-pink-600/10 to-rose-600/10 border border-pink-500/20 hover:border-pink-500/50 transition-all hover:scale-[1.02] text-center"
               >
                 <div className="w-10 h-10 rounded-full bg-pink-600/20 flex items-center justify-center text-pink-400 mb-1.5 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
@@ -290,12 +396,8 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
                 <span className="text-[9px] text-zinc-500 font-semibold">Subir video</span>
               </button>
 
-              {/* 3. Batallas PvP */}
               <button 
-                onClick={() => {
-                  setShowQuickActions(false);
-                  router.push('/batallas');
-                }}
+                onClick={() => { setShowQuickActions(false); router.push('/batallas'); }}
                 className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-rose-600/10 to-red-600/10 border border-rose-500/20 hover:border-rose-500/50 transition-all hover:scale-[1.02] text-center"
               >
                 <div className="w-10 h-10 rounded-full bg-rose-600/20 flex items-center justify-center text-rose-400 mb-1.5 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
@@ -305,12 +407,8 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
                 <span className="text-[9px] text-zinc-500 font-semibold">Duelos en vivo</span>
               </button>
 
-              {/* 4. Crear Sala */}
               <button 
-                onClick={() => {
-                  setShowQuickActions(false);
-                  useCreatorStore.getState().open('room');
-                }}
+                onClick={() => { setShowQuickActions(false); useCreatorStore.getState().open('room'); }}
                 className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-yellow-600/10 to-amber-600/10 border border-yellow-500/20 hover:border-yellow-500/50 transition-all hover:scale-[1.02] text-center"
               >
                 <div className="w-10 h-10 rounded-full bg-yellow-600/20 flex items-center justify-center text-yellow-400 mb-1.5 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
@@ -320,12 +418,8 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
                 <span className="text-[9px] text-zinc-500 font-semibold">Salas de juego</span>
               </button>
 
-              {/* 5. Recargar monedas */}
               <button 
-                onClick={() => {
-                  setShowQuickActions(false);
-                  useCreatorStore.getState().open('coins');
-                }}
+                onClick={() => { setShowQuickActions(false); useCreatorStore.getState().open('coins'); }}
                 className="col-span-2 flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-amber-600/10 to-yellow-600/10 border border-amber-500/20 hover:border-amber-500/50 transition-all hover:scale-[1.01] text-left"
               >
                 <div className="flex items-center gap-3">
@@ -348,5 +442,208 @@ export default function MobileFollowing({ user, setTab, tab }: { user: any, setT
       )}
 
     </div>
+
+    {/* ═══════ FULLSCREEN MEDIA PLAYER MODAL ═══════ */}
+    {activeMediaIndex !== null && feedItems[activeMediaIndex] && (() => {
+      const post = feedItems[activeMediaIndex];
+      const hasPrev = feedItems.slice(0, activeMediaIndex).some(x => x.type !== 'live');
+      const hasNext = feedItems.slice(activeMediaIndex + 1).some(x => x.type !== 'live');
+
+      return (
+        <div 
+          className="fixed inset-0 z-[60] bg-black flex flex-col"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Top bar */}
+          <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 pt-[calc(12px+env(safe-area-inset-top,0px))] pb-2 bg-gradient-to-b from-black/70 to-transparent">
+            <button 
+              onClick={() => { setActiveMediaIndex(null); setShowComments(false); }}
+              className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white border border-white/10"
+            >
+              <ChevronDown className="w-5 h-5" />
+            </button>
+            <span className="text-xs font-black text-white/80">Siguiendo</span>
+            <div className="w-9" />
+          </div>
+
+          {/* Media content */}
+          <div className="flex-1 flex items-center justify-center overflow-hidden relative">
+            {post.type === 'video' || post.type === 'short' ? (
+              <video 
+                key={post.id}
+                src={post.mediaUrl} 
+                className="w-full h-full object-contain" 
+                controls 
+                autoPlay 
+                loop 
+                playsInline 
+              />
+            ) : (
+              <img 
+                key={post.id}
+                src={post.mediaUrl} 
+                className="w-full h-full object-contain" 
+                alt={post.title} 
+              />
+            )}
+
+            {/* Right side action buttons */}
+            <div className="absolute right-3 bottom-[120px] flex flex-col items-center gap-5 z-20">
+              {/* Like */}
+              <button 
+                onClick={() => handleLikePostInModal(post.id)}
+                className="flex flex-col items-center gap-0.5"
+              >
+                <div className={`w-11 h-11 rounded-full flex items-center justify-center ${post.isLiked ? 'bg-pink-500/20' : 'bg-black/40 backdrop-blur-sm'} border border-white/10`}>
+                  <Heart className={`w-6 h-6 ${post.isLiked ? 'fill-pink-500 text-pink-500' : 'text-white'}`} />
+                </div>
+                <span className="text-[10px] font-bold text-white">{formatStat(post.likesCount || 0)}</span>
+              </button>
+
+              {/* Comments */}
+              <button 
+                onClick={() => setShowComments(true)}
+                className="flex flex-col items-center gap-0.5"
+              >
+                <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <MessageCircle className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-white">{formatStat(post.commentsCount || 0)}</span>
+              </button>
+
+              {/* Share */}
+              <button className="flex flex-col items-center gap-0.5">
+                <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <Share2 className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-white">Compartir</span>
+              </button>
+            </div>
+
+            {/* Bottom info overlay */}
+            <div className="absolute bottom-0 left-0 right-16 p-4 bg-gradient-to-t from-black/80 via-black/30 to-transparent z-10 pointer-events-none">
+              <div className="flex items-center gap-2 mb-1.5">
+                <img src={post.avatar} className="w-8 h-8 rounded-full border border-white/10 object-cover" alt="" />
+                <span className="text-xs font-black text-white">@{post.name}</span>
+              </div>
+              <p className="text-[11px] text-zinc-200 font-semibold line-clamp-2">{post.title}</p>
+            </div>
+
+            {/* Swipe hint */}
+            {hasNext && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+                <ChevronUp className="w-5 h-5 text-white/30" />
+              </div>
+            )}
+          </div>
+
+          {/* ═══════ COMMENTS BOTTOM SHEET ═══════ */}
+          {showComments && (
+            <div className="fixed inset-0 z-[70] flex flex-col justify-end">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setShowComments(false)} />
+              
+              <div className="relative z-10 bg-[#0b0b12] border-t border-white/10 rounded-t-3xl max-h-[65vh] flex flex-col animate-in slide-in-from-bottom duration-300">
+                {/* Handle bar */}
+                <div className="flex justify-center pt-3 pb-1">
+                  <div className="w-10 h-1 bg-white/20 rounded-full" />
+                </div>
+
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 pb-3 border-b border-white/5">
+                  <span className="text-xs font-black text-white">{formatStat(post.commentsCount || 0)} comentarios</span>
+                  <button onClick={() => setShowComments(false)} className="text-zinc-400 hover:text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Comments List */}
+                <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar">
+                  {commentsLoading ? (
+                    <div className="flex flex-col items-center justify-center p-8 gap-2">
+                      <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[10px] text-zinc-500 font-bold">Cargando...</span>
+                    </div>
+                  ) : comments.length > 0 ? (
+                    comments.map((comment: any) => {
+                      const canDelete = (user && user.id === comment.userId) || (user && user.id === post.userId);
+                      return (
+                        <div key={comment.id} className="flex gap-2 items-start text-xs group/cmt">
+                          <Link href={`/u/${comment.user.username}`}>
+                            <img 
+                              src={comment.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`} 
+                              className="w-8 h-8 rounded-full border border-white/10 bg-zinc-800 shrink-0" 
+                              alt="" 
+                            />
+                          </Link>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Link href={`/u/${comment.user.username}`}>
+                                <span className="font-extrabold text-white text-[11px] hover:text-purple-400">@{comment.user.username}</span>
+                              </Link>
+                              <span className="text-[8px] text-zinc-500">
+                                {new Date(comment.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              </span>
+                            </div>
+                            <p className="text-zinc-300 break-words pr-2 leading-relaxed text-[11px]">{comment.content}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button onClick={() => handleToggleLikeComment(comment.id)} className="p-0.5">
+                              <Heart className={`w-3.5 h-3.5 ${comment.isLiked ? 'fill-pink-500 text-pink-500' : 'text-zinc-500'}`} />
+                            </button>
+                            {canDelete && (
+                              <button onClick={() => handleDeleteComment(comment.id)} className="p-0.5 text-zinc-500 hover:text-red-500 opacity-0 group-hover/cmt:opacity-100">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-8 text-center gap-1.5">
+                      <MessageSquare className="w-8 h-8 text-zinc-600" />
+                      <h4 className="text-[11px] font-bold text-zinc-500">Sin comentarios todavía</h4>
+                      <p className="text-[9px] text-zinc-600">¡Sé el primero en comentar!</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Write Comment Form */}
+                <form onSubmit={handleCreateComment} className="p-3 border-t border-white/5 bg-[#07070b] pb-[calc(12px+env(safe-area-inset-bottom,0px))]">
+                  <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 h-11 focus-within:border-purple-500 transition-colors gap-2">
+                    <Smile className="w-4.5 h-4.5 text-zinc-400 shrink-0" />
+                    <input 
+                      type="text" 
+                      placeholder="Añadir comentario..." 
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      className="bg-transparent border-none outline-none flex-1 text-xs text-white placeholder-zinc-500 font-medium w-full min-w-0"
+                      maxLength={300}
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={!newCommentText.trim()}
+                      className="text-xs font-black text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-40 shrink-0"
+                    >
+                      Publicar
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 overflow-x-auto py-1 px-1 max-w-full custom-scrollbar">
+                    {['❤️', '🔥', '👏', '🙌', '😂', '😍', '😮', '🎉', '💡', '🎮', '⭐️'].map(emoji => (
+                      <button key={emoji} type="button" onClick={() => setNewCommentText(prev => prev + emoji)} className="text-sm hover:scale-125 transition-transform">
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    })()}
+    </>
   );
 }
+
