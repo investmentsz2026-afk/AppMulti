@@ -10,12 +10,12 @@ import {
 } from 'lucide-react';
 import { updateProfile } from '@/app/actions/profile';
 import { logoutUser } from '@/app/actions/auth';
-import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction, deletePostAction } from '@/app/actions/social';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction, deletePostAction, getUserLevelInfoAction } from '@/app/actions/social';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
-import { submitRechargeRequestAction, submitWithdrawalRequestAction } from '@/app/actions/admin';
+import { submitRechargeRequestAction, submitWithdrawalRequestAction, submitHelpRequestAction } from '@/app/actions/admin';
 import { toast } from 'react-hot-toast';
-import { Check, AlertCircle, Coins, CreditCard, Wallet } from 'lucide-react';
+import { Check, AlertCircle, Coins, CreditCard, Wallet, HelpCircle } from 'lucide-react';
 import { useBadgeCounts } from '@/hooks/useBadgeCounts';
 
 // Facebook Custom SVG Icon
@@ -61,6 +61,34 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
   const [activeTab, setActiveTab] = useState('Videos');
   const router = useRouter();
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
+  const [levelInfo, setLevelInfo] = useState<any>(null);
+  const [showLevelInfoModal, setShowLevelInfoModal] = useState(false);
+
+  // Support / Help Ticket State
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [helpTitle, setHelpTitle] = useState('Apelación de Restricción');
+  const [helpMessage, setHelpMessage] = useState('');
+  const [sendingHelp, setSendingHelp] = useState(false);
+
+  const handleSubmitHelp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!helpTitle.trim() || !helpMessage.trim()) return;
+    setSendingHelp(true);
+    try {
+      const res = await submitHelpRequestAction(helpTitle, helpMessage);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success('Tu solicitud de soporte ha sido enviada al administrador.');
+        setIsHelpOpen(false);
+        setHelpMessage('');
+      }
+    } catch (err) {
+      toast.error('Error al enviar la solicitud.');
+    } finally {
+      setSendingHelp(false);
+    }
+  };
 
   const handleLikePostInModal = async (postId: string) => {
     if (!sessionUser) {
@@ -331,6 +359,18 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
   const settingsTab = searchParams.get('settings');
 
   useEffect(() => {
+    async function loadLevelInfo() {
+      try {
+        const info = await getUserLevelInfoAction(targetUser.username);
+        setLevelInfo(info);
+      } catch (err) {
+        console.error('Error loading level info:', err);
+      }
+    }
+    loadLevelInfo();
+  }, [targetUser.username]);
+
+  useEffect(() => {
     if (settingsTab === 'monedas') {
       setDrawerSubView('recargar');
       setIsDrawerOpen(true);
@@ -533,6 +573,7 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
   ];
 
   return (
+    <>
     <div className="flex flex-col h-[100dvh] w-full bg-[#05050a] text-white overflow-hidden relative">
       
       {/* Top Header */}
@@ -549,9 +590,14 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
             <Upload className="w-5 h-5" />
           </button>
           {isOwnProfile && (
+            <>
+            <button className="cursor-pointer" onClick={() => setIsHelpOpen(true)} title="Soporte / Ayuda">
+              <HelpCircle className="w-5 h-5 text-purple-400" />
+            </button>
             <button className="cursor-pointer" onClick={() => { setDrawerSubView('menu'); setIsDrawerOpen(true); }}>
               <Menu className="w-5 h-5" />
             </button>
+            </>
           )}
         </div>
       </div>
@@ -712,19 +758,22 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
             )}
 
             {/* XP Level System Card */}
-            <div className="w-full max-w-sm bg-[#171333]/70 border border-purple-500/20 rounded-2xl p-3.5 mb-5 shadow-[0_0_12px_rgba(147,51,234,0.05)]">
+            <div 
+              onClick={() => isOwnProfile && setShowLevelInfoModal(true)}
+              className={`w-full max-w-sm bg-[#171333]/70 border border-purple-500/20 rounded-2xl p-3.5 mb-5 shadow-[0_0_12px_rgba(147,51,234,0.05)] ${isOwnProfile ? 'active:scale-98 transition-transform cursor-pointer' : ''}`}
+            >
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center border border-purple-400 shrink-0">
                   <Shield className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black text-white leading-tight">Nivel {creator.level}</h3>
-                  <p className="text-[9px] text-purple-300 font-bold uppercase tracking-wider">{creator.levelName}</p>
+                  <h3 className="text-xs font-black text-white leading-tight">Nivel {levelInfo?.level ?? 1}</h3>
+                  <p className="text-[9px] text-purple-300 font-bold uppercase tracking-wider">{levelInfo?.title ?? 'CREADOR INICIANTE'}</p>
                 </div>
               </div>
               {/* Progress bar */}
               <div className="h-1.5 bg-white/10 rounded-full overflow-hidden flex">
-                <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style={{ width: `${creator.xpProgress}%` }} />
+                <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style={{ width: `${levelInfo?.progressPercentage ?? 0}%` }} />
               </div>
             </div>
 
@@ -928,6 +977,10 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
 
                 <button onClick={() => triggerToast('¡Configuración de cuenta activa! 🔒')} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-white/10 transition-all">
                   <Shield className="w-4.5 h-4.5 text-blue-400" /> Privacidad & Seguridad
+                </button>
+
+                <button onClick={() => { setIsHelpOpen(true); setIsDrawerOpen(false); }} className="w-full p-4 bg-[#141226]/50 border border-purple-500/20 rounded-2xl text-sm font-bold text-left flex items-center gap-3 active:bg-purple-950/20 transition-all">
+                  <HelpCircle className="w-4.5 h-4.5 text-purple-400" /> Soporte / Ayuda
                 </button>
 
                 <button onClick={() => logoutUser()} className="w-full p-4 bg-red-950/20 border border-red-500/20 rounded-2xl text-sm font-black text-red-400 flex items-center justify-center gap-2 active:bg-red-900/20 transition-all mt-4">
@@ -1696,5 +1749,141 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
       })()}
 
     </div>
+
+    {/* LEVEL INFO MODAL */}
+    {showLevelInfoModal && levelInfo && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm transition-opacity p-4">
+        <div className="absolute inset-0 cursor-pointer" onClick={() => setShowLevelInfoModal(false)} />
+        
+        <div className="relative w-full max-w-sm bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(139,92,246,0.25)] z-10 animate-in zoom-in-95 p-5">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500" />
+          <button onClick={() => setShowLevelInfoModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="flex flex-col items-center text-center gap-4 mt-2">
+            <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center border-2 border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+              <Shield className="w-7 h-7 text-white animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white">Tu Sistema de Nivel</h3>
+              <p className="text-xs text-purple-400 font-extrabold uppercase tracking-wider mt-0.5">{levelInfo.title} (Nivel {levelInfo.level})</p>
+            </div>
+            
+            <div className="w-full bg-[#12121a] rounded-xl p-3.5 border border-white/5 flex flex-col gap-2.5 text-left">
+              <h4 className="text-[9px] font-black uppercase tracking-wider text-zinc-500 mb-0.5">Tus Estadísticas de Nivel</h4>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-400">Total XP acumulada:</span>
+                <span className="font-extrabold text-white">{levelInfo.xp} XP</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-400">Publicaciones:</span>
+                <span className="font-extrabold text-purple-400">+{levelInfo.postsCount * 50} XP</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-400">Likes recibidos:</span>
+                <span className="font-extrabold text-pink-400">+{levelInfo.totalLikesReceived * 10} XP</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-400">Monedas recargadas:</span>
+                <span className="font-extrabold text-yellow-500">+{levelInfo.totalCoinsRecharged} XP</span>
+              </div>
+            </div>
+
+            <div className="w-full text-left">
+              <h4 className="text-[9px] font-black uppercase tracking-wider text-zinc-500 mb-2">¿Cómo subir de nivel?</h4>
+              <ul className="text-xs text-zinc-400 flex flex-col gap-1.5 pl-0.5">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-purple-400 font-black">⚡</span>
+                  <span><strong>Sube videos:</strong> +50 XP por publicación.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-pink-400 font-black">❤️</span>
+                  <span><strong>Consigue Likes:</strong> +10 XP por me gusta recibido.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-yellow-500 font-black">🪙</span>
+                  <span><strong>Recarga Monedas:</strong> +1 XP por cada moneda recargada.</span>
+                </li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => setShowLevelInfoModal(false)}
+              className="w-full mt-1.5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* SUPPORT HELP MODAL */}
+    {isHelpOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm transition-opacity p-4">
+        <div className="absolute inset-0 cursor-pointer" onClick={() => setIsHelpOpen(false)} />
+        
+        <div className="relative w-full max-w-sm bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(139,92,246,0.25)] z-10 animate-in zoom-in-95 p-5">
+          <div className="absolute top-0 left-0 w-full h-1 bg-purple-500" />
+          <button onClick={() => setIsHelpOpen(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+          
+          <form onSubmit={handleSubmitHelp} className="flex flex-col gap-4">
+            <h3 className="text-sm font-black text-white flex items-center gap-1.5 mt-1">
+              <HelpCircle className="w-5 h-5 text-purple-400" /> Contactar Soporte / Ayuda
+            </h3>
+            <p className="text-[10px] text-zinc-400 -mt-1 leading-relaxed text-left">
+              Describe tu duda, petición o solicitud de apelación. El administrador la revisará y te responderá mediante las notificaciones.
+            </p>
+            
+            <div className="flex flex-col gap-1 text-left">
+              <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Asunto</label>
+              <select
+                value={helpTitle}
+                onChange={(e) => setHelpTitle(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white font-bold outline-none focus:border-purple-500 transition-colors"
+              >
+                <option value="Apelación de Restricción" className="bg-zinc-950 text-white">Apelación de Restricción de Cuenta</option>
+                <option value="Problemas con Monedas" className="bg-zinc-950 text-white">Problema con Monedas / Saldo</option>
+                <option value="Reportar un Bug" className="bg-zinc-950 text-white">Reportar un Error / Bug</option>
+                <option value="Otro Asunto" className="bg-zinc-950 text-white">Otro Asunto</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1 text-left">
+              <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Mensaje Detallado</label>
+              <textarea 
+                required
+                rows={3}
+                value={helpMessage}
+                onChange={(e) => setHelpMessage(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-medium outline-none focus:border-purple-500 transition-colors resize-none leading-relaxed"
+                placeholder="Detalla aquí tu problema o solicitud..."
+              />
+            </div>
+
+            <div className="flex gap-2.5 mt-1">
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(false)}
+                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black text-xs uppercase tracking-wider rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={sendingHelp}
+                className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-colors shadow-lg shadow-purple-600/20"
+              >
+                {sendingHelp ? 'Enviando...' : 'Enviar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

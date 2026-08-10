@@ -10,7 +10,7 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { updateProfile } from '@/app/actions/profile';
-import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction, deletePostAction } from '@/app/actions/social';
+import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment, getFollowersListAction, getFollowingListAction, deletePostAction, getUserLevelInfoAction } from '@/app/actions/social';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
 import { getUserWalletBalanceAction } from '@/app/actions/stream';
@@ -62,6 +62,8 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   const [activeFilter, setActiveFilter] = useState('Más recientes');
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   const [walletBalance, setWalletBalance] = useState(0);
+  const [levelInfo, setLevelInfo] = useState<any>(null);
+  const [showLevelInfoModal, setShowLevelInfoModal] = useState(false);
 
   useEffect(() => {
     async function loadBalance() {
@@ -70,6 +72,18 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
     }
     loadBalance();
   }, []);
+
+  useEffect(() => {
+    async function loadLevelInfo() {
+      try {
+        const info = await getUserLevelInfoAction(targetUser.username);
+        setLevelInfo(info);
+      } catch (err) {
+        console.error('Error loading level info:', err);
+      }
+    }
+    loadLevelInfo();
+  }, [targetUser.username]);
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -827,23 +841,27 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
               </div>
 
               {/* XP Level System MMORPG Card */}
-              <div className="bg-[#171333]/80 border border-purple-500/30 rounded-2xl p-4 w-full md:w-[260px] backdrop-blur-md shadow-[0_0_20px_rgba(147,51,234,0.1)] shrink-0">
+              <div 
+                onClick={() => isOwnProfile && setShowLevelInfoModal(true)}
+                className={`bg-[#171333]/80 border border-purple-500/30 rounded-2xl p-4 w-full md:w-[260px] backdrop-blur-md shadow-[0_0_20px_rgba(147,51,234,0.1)] shrink-0 transition-transform ${isOwnProfile ? 'hover:scale-[1.03] cursor-pointer' : ''}`}
+                title={isOwnProfile ? "Haz clic para ver cómo subir de nivel" : undefined}
+              >
                 <div className="flex items-center gap-3 mb-2.5">
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center border border-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.3)] shrink-0">
                     <Shield className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white leading-tight">Nivel {creator.level}</h3>
-                    <p className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">{creator.levelName}</p>
+                    <h3 className="text-sm font-black text-white leading-tight">Nivel {levelInfo?.level ?? 1}</h3>
+                    <p className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">{levelInfo?.title ?? 'CREADOR INICIANTE'}</p>
                   </div>
                 </div>
                 {/* XP Progress Bar */}
                 <div className="flex items-center justify-between text-[10px] text-zinc-400 font-bold mb-1.5">
-                  <span>{creator.xpProgress}% para nivel {creator.level + 1}</span>
-                  <span className="text-purple-400">{creator.xpProgress}%</span>
+                  <span>{levelInfo?.progressPercentage ?? 0}% para nivel {(levelInfo?.level ?? 1) + 1}</span>
+                  <span className="text-purple-400">{levelInfo?.progressPercentage ?? 0}%</span>
                 </div>
                 <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-gradient-to-r from-purple-500 via-purple-400 to-pink-500 rounded-full" style={{ width: `${creator.xpProgress}%` }} />
+                  <div className="h-full bg-gradient-to-r from-purple-500 via-purple-400 to-pink-500 rounded-full" style={{ width: `${levelInfo?.progressPercentage ?? 0}%` }} />
                 </div>
               </div>
 
@@ -1982,6 +2000,75 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* LEVEL INFO MODAL */}
+      {showLevelInfoModal && levelInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm transition-opacity p-4">
+          <div className="absolute inset-0 cursor-pointer" onClick={() => setShowLevelInfoModal(false)} />
+          
+          <div className="relative w-full max-w-md bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(139,92,246,0.25)] z-10 animate-in zoom-in-95 p-6">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500" />
+            <button onClick={() => setShowLevelInfoModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center gap-4 mt-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center border-2 border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.4)]">
+                <Shield className="w-8 h-8 text-white animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white">Tu Sistema de Nivel</h3>
+                <p className="text-xs text-purple-400 font-extrabold uppercase tracking-wider mt-0.5">{levelInfo.title} (Nivel {levelInfo.level})</p>
+              </div>
+              
+              <div className="w-full bg-[#12121a] rounded-2xl p-4 border border-white/5 flex flex-col gap-3 text-left">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1">Tus Estadísticas de Nivel</h4>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-400">Total XP acumulada:</span>
+                  <span className="font-extrabold text-white text-right">{levelInfo.xp} XP</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-400">Publicaciones subidas:</span>
+                  <span className="font-extrabold text-purple-400 text-right">{levelInfo.postsCount} (+{levelInfo.postsCount * 50} XP)</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-400">Likes recibidos:</span>
+                  <span className="font-extrabold text-pink-400 text-right">{levelInfo.totalLikesReceived} (+{levelInfo.totalLikesReceived * 10} XP)</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-400">Monedas recargadas:</span>
+                  <span className="font-extrabold text-yellow-500 text-right">{levelInfo.totalCoinsRecharged} (+{levelInfo.totalCoinsRecharged} XP)</span>
+                </div>
+              </div>
+
+              <div className="w-full text-left">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-2">¿Cómo subir de nivel?</h4>
+                <ul className="text-xs text-zinc-400 flex flex-col gap-2 pl-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-400 font-black">⚡</span>
+                    <span><strong>Sube videos:</strong> Recibes <strong>50 XP</strong> por cada publicación subida en tu perfil.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-pink-400 font-black">❤️</span>
+                    <span><strong>Consigue Likes:</strong> Recibes <strong>10 XP</strong> por cada me gusta que te den otros usuarios.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-yellow-500 font-black">🪙</span>
+                    <span><strong>Recarga Monedas:</strong> Recibes <strong>1 XP</strong> por cada moneda que recargues (ej. 100 monedas = 100 XP).</span>
+                  </li>
+                </ul>
+              </div>
+
+              <button
+                onClick={() => setShowLevelInfoModal(false)}
+                className="w-full mt-2 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg hover:opacity-90 active:scale-[0.98]"
+              >
+                Entendido
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1113,3 +1113,76 @@ export async function deletePostAction(postId: string) {
     return { error: err.message || 'Error al eliminar la publicación' };
   }
 }
+
+export async function getUserLevelInfoAction(username: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username }
+    });
+    if (!user) {
+      return { level: 1, xp: 0, nextLevelXp: 200, prevLevelXp: 0, progressPercentage: 0, postsCount: 0, totalLikesReceived: 0, totalCoinsRecharged: 0 };
+    }
+
+    const postsCount = await prisma.post.count({
+      where: { userId: user.id }
+    });
+
+    const totalLikesReceived = await prisma.postLike.count({
+      where: { post: { userId: user.id } }
+    });
+
+    const rechargeAggregate = await prisma.rechargeRequest.aggregate({
+      where: { userId: user.id, status: 'COMPLETED' },
+      _sum: { coins: true }
+    });
+
+    const totalCoinsRecharged = rechargeAggregate._sum.coins || 0;
+
+    // Formula: 1 video/post = 50 XP, 1 like received = 10 XP, 1 recharged coin = 1 XP
+    const xp = (postsCount * 50) + (totalLikesReceived * 10) + totalCoinsRecharged;
+
+    // Calculate level scale
+    // XP for level L: 100 * (L - 1) * L
+    // Let's loop to find current level
+    let level = 1;
+    while (true) {
+      const nextLevelXp = 100 * level * (level + 1);
+      if (xp >= nextLevelXp) {
+        level++;
+      } else {
+        break;
+      }
+    }
+
+    const prevLevelXp = 100 * (level - 1) * level;
+    const nextLevelXp = 100 * level * (level + 1);
+    const xpInCurrentLevel = xp - prevLevelXp;
+    const xpNeededForNextLevel = nextLevelXp - prevLevelXp;
+
+    const progressPercentage = Math.min(100, Math.max(0, Math.round((xpInCurrentLevel / xpNeededForNextLevel) * 100)));
+
+    // Calculate user title prefix based on level
+    let title = 'CREADOR INICIANTE';
+    if (level >= 30) title = 'LEYENDA SUPREMA';
+    else if (level >= 20) title = 'STREAM QUEEN';
+    else if (level >= 10) title = 'CREADOR EXPERTO';
+    else if (level >= 5) title = 'CREADOR PRO';
+
+    return {
+      level,
+      xp,
+      nextLevelXp,
+      prevLevelXp,
+      xpNeededForNextLevel,
+      xpInCurrentLevel,
+      progressPercentage,
+      postsCount,
+      totalLikesReceived,
+      totalCoinsRecharged,
+      title
+    };
+  } catch (err) {
+    console.error('Error fetching level info:', err);
+    return { level: 1, xp: 0, nextLevelXp: 200, prevLevelXp: 0, progressPercentage: 0, postsCount: 0, totalLikesReceived: 0, totalCoinsRecharged: 0, title: 'CREADOR INICIANTE' };
+  }
+}
