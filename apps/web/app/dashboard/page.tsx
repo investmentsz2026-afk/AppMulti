@@ -25,6 +25,10 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
+  if (dbUser.role === 'ADMIN') {
+    redirect('/admin');
+  }
+
   return (
     <DashboardClient user={dbUser} />
   );
