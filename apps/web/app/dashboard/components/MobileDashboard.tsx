@@ -14,6 +14,7 @@ import { useBadgeCounts } from '@/hooks/useBadgeCounts';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts, DBPost } from '@/hooks/usePosts';
 import { toggleLikePost, toggleFollowUser, getFollowingUserIds, getPostComments, createComment, toggleLikeComment, deleteComment, sendDirectMessage, getConversations } from '@/app/actions/social';
+import { checkStreamStatus } from '@/app/actions/stream';
 
 // Extremely premium mixed-media posts (Streams, Videos, Cosplay/Images, Live Battles)
 const FEED_POSTS = [
@@ -177,6 +178,23 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
     }
     loadFollows();
   }, []);
+
+  // Sync live status with DB on mount to ensure closed streams disappear immediately
+  useEffect(() => {
+    async function syncLiveStatus() {
+      if (user?.username) {
+        try {
+          const res = await checkStreamStatus(user.username);
+          if (!res.isLive && useLiveStore.getState().isLive) {
+            useLiveStore.getState().stopLive();
+          }
+        } catch (err) {
+          console.error('Error syncing live status:', err);
+        }
+      }
+    }
+    syncLiveStatus();
+  }, [user?.username]);
 
   const userStream = isLive && user ? {
     id: 'my-live-stream-post',

@@ -289,6 +289,10 @@ export default function TransmitirClient({ user }: { user: any }) {
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach(track => track.stop());
       }
+      if (useLiveStore.getState().isLive) {
+        updateStreamStatus(false).catch(() => {});
+        useLiveStore.getState().stopLive();
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

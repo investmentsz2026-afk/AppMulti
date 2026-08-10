@@ -14,12 +14,29 @@ import { useCreatorStore } from '@/store/useCreatorStore';
 import { useBadgeCounts } from '@/hooks/useBadgeCounts';
 import { useLiveStore } from '@/store/useLiveStore';
 import { getUpcomingStreamers, getOngoingBattles, getTopDonators } from '@/app/actions/battle';
+import { checkStreamStatus } from '@/app/actions/stream';
 
 export default function MobileInicio({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const { unreadMessages } = useBadgeCounts();
   const router = useRouter();
   const [showQuickActions, setShowQuickActions] = useState(false);
   const { isLive, streamTitle, viewers } = useLiveStore();
+
+  useEffect(() => {
+    async function syncLiveStatus() {
+      if (user?.username) {
+        try {
+          const res = await checkStreamStatus(user.username);
+          if (!res.isLive && useLiveStore.getState().isLive) {
+            useLiveStore.getState().stopLive();
+          }
+        } catch (err) {
+          console.error('Error syncing live status:', err);
+        }
+      }
+    }
+    syncLiveStatus();
+  }, [user?.username]);
 
   const [liveStreamers, setLiveStreamers] = useState<any[]>([]);
   const [activeBattles, setActiveBattles] = useState<any[]>([]);
