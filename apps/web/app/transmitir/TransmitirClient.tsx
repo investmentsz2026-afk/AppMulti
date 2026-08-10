@@ -786,8 +786,8 @@ export default function TransmitirClient({ user }: { user: any }) {
           <div className="flex-none lg:flex-1 flex flex-col p-4 sm:p-8 relative bg-black justify-center items-center">
             
             {/* Header / Back Link */}
-            <div className="absolute top-4 left-4 lg:top-6 lg:left-6 z-20">
-              <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm font-bold hover:bg-white/10 transition-colors">
+            <div className="absolute top-0 left-0 pt-[max(14px,env(safe-area-inset-top,14px))] px-4 sm:px-6 z-30">
+              <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors shadow-lg">
                 <ArrowLeft className="w-4 h-4" /> Volver a Inicio
               </Link>
             </div>
@@ -991,14 +991,14 @@ export default function TransmitirClient({ user }: { user: any }) {
             )}
 
             {/* Live Stats floating overlays inside the stream area */}
-            <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
+            <div className="absolute top-0 left-0 right-0 pt-[max(14px,env(safe-area-inset-top,14px))] px-4 sm:px-6 pb-3 z-30 flex justify-between items-center bg-gradient-to-b from-black/90 via-black/50 to-transparent">
               
               {/* Host Streamer Info */}
               <div className="flex flex-col gap-1.5 max-w-[60%] sm:max-w-none">
-                <div className="flex items-center bg-black/45 backdrop-blur-md rounded-full pr-3 sm:pr-4 p-1 gap-2 sm:gap-3 border border-white/10 shadow-lg">
-                  <img src={user.avatar} className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border border-pink-500 bg-zinc-800" />
+                <div className="flex items-center bg-black/60 backdrop-blur-md rounded-full pr-3 sm:pr-4 p-1 gap-2 sm:gap-3 border border-white/15 shadow-lg">
+                  <img src={user.avatar} className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border border-pink-500 bg-zinc-800 shrink-0" />
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] sm:text-xs font-black leading-tight flex items-center gap-1.5 truncate">
+                    <span className="text-[10px] sm:text-xs font-black leading-tight flex items-center gap-1.5 truncate text-white">
                       {user.username} <Shield className="w-2.5 h-2.5 sm:w-3 h-3 text-blue-400 shrink-0" />
                     </span>
                     <span className="text-[8px] sm:text-[10px] text-zinc-300 font-bold flex items-center gap-0.5 truncate">
@@ -1008,11 +1008,11 @@ export default function TransmitirClient({ user }: { user: any }) {
                 </div>
 
                 {/* Badge indicator */}
-                <div className="flex gap-1.5">
-                  <span className="px-2 py-0.5 bg-red-600 text-[8px] sm:text-[9px] font-black rounded uppercase tracking-wider flex items-center gap-1 shadow-lg">
-                    <span className="w-1 h-1 bg-white rounded-full animate-ping" /> LIVE
+                <div className="flex gap-1.5 items-center">
+                  <span className="px-2 py-0.5 bg-red-600 text-[8px] sm:text-[9px] font-black text-white rounded uppercase tracking-wider flex items-center gap-1 shadow-lg">
+                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" /> LIVE
                   </span>
-                  <span className="px-2 py-0.5 bg-black/45 backdrop-blur-md text-[8px] sm:text-[9px] font-black rounded flex items-center gap-1 border border-white/10 shadow-lg">
+                  <span className="px-2 py-0.5 bg-black/60 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white rounded flex items-center gap-1 border border-white/15 shadow-lg">
                     <Eye className="w-3 h-3 sm:w-3.5 h-3.5 text-zinc-300 animate-pulse" /> {dbViewers}
                   </span>
                 </div>
@@ -1021,10 +1021,11 @@ export default function TransmitirClient({ user }: { user: any }) {
               {/* End live button on top right */}
               <button 
                 onClick={handleStopLive}
-                className="p-2 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-black rounded-full flex items-center gap-1.5 shadow-lg border border-red-500/20 active:scale-95 transition-transform"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-black rounded-full flex items-center gap-1.5 shadow-xl border border-red-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
+                title="Finalizar En Vivo"
               >
-                <X className="w-4 h-4" />
-                <span className="hidden sm:inline">Finalizar En Vivo</span>
+                <X className="w-4 h-4 text-white stroke-[2.5]" />
+                <span className="text-[11px] sm:text-xs uppercase tracking-wider font-extrabold">Finalizar</span>
               </button>
             </div>
 

@@ -551,7 +551,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
       <div className="absolute bottom-0 left-0 right-0 h-96 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-10" />
 
       {/* Top Bar Overlay */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-start">
+      <div className="absolute top-0 left-0 right-0 pt-[max(14px,env(safe-area-inset-top,14px))] px-4 pb-3 z-30 flex justify-between items-start bg-gradient-to-b from-black/90 via-black/40 to-transparent">
          <div className="flex flex-col gap-2">
            {/* Host Info */}
            <div className="flex items-center bg-black/40 backdrop-blur-md rounded-full pr-1 p-1 gap-2 border border-white/10 shadow-lg">
