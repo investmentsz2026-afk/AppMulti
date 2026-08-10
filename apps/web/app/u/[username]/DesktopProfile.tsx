@@ -11,12 +11,12 @@ import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { updateProfile } from '@/app/actions/profile';
 import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment } from '@/app/actions/social';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
 import { getUserWalletBalanceAction } from '@/app/actions/stream';
 import { toast } from 'react-hot-toast';
 import { Coins, CreditCard, HelpCircle } from 'lucide-react';
-import { submitHelpRequestAction } from '@/app/actions/admin';
+import { submitHelpRequestAction, submitRechargeRequestAction } from '@/app/actions/admin';
 
 // TikTok Custom SVG Icon
 function TiktokIcon({ className }: { className?: string }) {
@@ -71,6 +71,16 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   }, []);
   
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const settingsTab = searchParams.get('settings');
+
+  useEffect(() => {
+    if (settingsTab === 'monedas') {
+      setSettingsActiveTab('monedas');
+      setIsSettingsOpen(true);
+    }
+  }, [settingsTab]);
+
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
 
   // Support / Help Ticket State
@@ -648,9 +658,12 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
             <button className="text-zinc-400 hover:text-yellow-400"><Crown className="w-4.5 h-4.5" /></button>
             <button className="text-zinc-400 hover:text-white relative"><Bell className="w-4.5 h-4.5" /><span className="absolute -top-1 -right-1 w-2 h-2 bg-pink-500 rounded-full" /></button>
             <div className="flex items-center gap-2 pl-4 border-l border-white/10">
-              <div className="flex items-center gap-1.5 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">
+              <div 
+                onClick={() => { setSettingsActiveTab('monedas'); setIsSettingsOpen(true); }}
+                className="flex items-center gap-1.5 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20 cursor-pointer hover:bg-yellow-500/20 transition-all"
+              >
                 <div className="w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center"><span className="text-[7px] font-black text-black">L</span></div>
-                <span className="text-xs font-bold text-yellow-400">12.5K</span>
+                <span className="text-xs font-bold text-yellow-400">{walletBalance.toLocaleString()}</span>
               </div>
               <img src={sessionUser.avatar} className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10" alt="" />
               <div className="text-xs">
@@ -1235,12 +1248,12 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
 
                     <div className="grid grid-cols-3 gap-3 my-2">
                       {[
-                        { coins: 100, price: '0.99', popular: false },
-                        { coins: 500, price: '4.99', popular: false },
-                        { coins: 1200, price: '9.99', popular: true },
-                        { coins: 3500, price: '29.99', popular: false },
-                        { coins: 6500, price: '49.99', popular: false },
-                        { coins: 14000, price: '99.99', popular: true },
+                        { coins: 100, price: '1.00', popular: false },
+                        { coins: 500, price: '5.00', popular: false },
+                        { coins: 1000, price: '10.00', popular: true },
+                        { coins: 3000, price: '30.00', popular: false },
+                        { coins: 5000, price: '50.00', popular: false },
+                        { coins: 10000, price: '100.00', popular: true },
                       ].map((pack) => (
                         <div
                           key={pack.coins}
@@ -1386,86 +1399,37 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                   <h4 className="text-sm font-black text-white">{selectedPack} Monedas</h4>
                 </div>
                 <div className="text-right font-black text-yellow-500">
-                  ${selectedPack === 100 ? '0.99' : selectedPack === 500 ? '4.99' : selectedPack === 1200 ? '9.99' : selectedPack === 3500 ? '29.99' : selectedPack === 6500 ? '49.99' : '99.99'} USD
+                  ${selectedPack === 100 ? '1.00' : selectedPack === 500 ? '5.00' : selectedPack === 1000 ? '10.00' : selectedPack === 3000 ? '30.00' : selectedPack === 5000 ? '50.00' : '100.00'} USD
                 </div>
               </div>
 
-              {!selectedPaymentMethod ? (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-zinc-400">Método de Pago</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button 
-                      type="button" 
-                      onClick={() => setSelectedPaymentMethod('paypal')}
-                      className="p-3 bg-[#003087]/10 hover:bg-[#003087]/20 border border-[#003087]/30 rounded-xl text-center flex flex-col items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <span className="text-lg">💳</span>
-                      <span className="text-[10px] font-black text-[#0070ba]">PayPal</span>
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setSelectedPaymentMethod('card')}
-                      className="p-3 bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/20 rounded-xl text-center flex flex-col items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <CreditCard className="w-5 h-5 text-purple-400" />
-                      <span className="text-[10px] font-black text-white">Tarjeta</span>
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setSelectedPaymentMethod('google')}
-                      className="p-3 bg-[#34a853]/10 hover:bg-[#34a853]/20 border border-[#34a853]/30 rounded-xl text-center flex flex-col items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <span className="text-lg">🎟️</span>
-                      <span className="text-[10px] font-black text-[#34a853]">Google</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={async (e) => {
-                  e.preventDefault();
-                  setIsProcessingPayment(true);
-                  await new Promise(r => setTimeout(r, 2000));
-                  const res = await addWalletCoins(selectedPack);
-                  setIsProcessingPayment(false);
-                  if (res.success) {
-                    triggerToast(`💎 ¡Recarga exitosa de +${selectedPack} monedas!`);
-                    setShowCheckoutModal(false);
-                    setSelectedPaymentMethod(null);
-                    setSelectedPack(null);
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 500);
-                  } else {
-                    alert('Error al recargar');
-                  }
-                }} className="space-y-4">
-                  {selectedPaymentMethod === 'paypal' && (
-                    <div className="space-y-2">
-                      <input type="email" placeholder="Correo PayPal" value={paypalEmail} onChange={e => setPaypalEmail(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none" required />
-                      <input type="password" placeholder="Contraseña" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none" required />
-                    </div>
-                  )}
-                  {selectedPaymentMethod === 'card' && (
-                    <div className="space-y-2">
-                      <input type="text" placeholder="Número Tarjeta" value={cardNumber} onChange={e => setCardNumber(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none" required />
-                      <div className="grid grid-cols-2 gap-2">
-                        <input type="text" placeholder="MM/AA" value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none text-center" required />
-                        <input type="password" placeholder="CVV" value={cardCvv} onChange={e => setCardCvv(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none text-center" required />
-                      </div>
-                    </div>
-                  )}
-                  {selectedPaymentMethod === 'google' && (
-                    <input type="text" placeholder="Código Google Play" value={googleCode} onChange={e => setGoogleCode(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none" required />
-                  )}
+              <div className="space-y-4">
+                <p className="text-xs text-zinc-300 leading-relaxed bg-purple-500/10 border border-purple-500/20 p-3 rounded-xl">
+                  Para recargar tus monedas, envía una solicitud de compra a la plataforma. 
+                  Una vez enviada, te llegará un mensaje directo de nuestro equipo de soporte con los datos de cuenta bancaria/métodos para realizar el depósito y verificar tu comprobante.
+                </p>
 
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => setSelectedPaymentMethod(null)} className="flex-1 py-2 border border-white/10 rounded-xl text-xs font-bold text-zinc-400 hover:bg-white/5 cursor-pointer">Atrás</button>
-                    <button type="submit" disabled={isProcessingPayment} className="flex-1 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs rounded-xl flex items-center justify-center gap-1 cursor-pointer">
-                      {isProcessingPayment ? 'Procesando...' : 'Confirmar'}
-                    </button>
-                  </div>
-                </form>
-              )}
+                <button 
+                  type="button" 
+                  disabled={isPurchasing}
+                  onClick={async () => {
+                    setIsPurchasing(true);
+                    const price = selectedPack === 100 ? 1.00 : selectedPack === 500 ? 5.00 : selectedPack === 1000 ? 10.00 : selectedPack === 3000 ? 30.00 : selectedPack === 5000 ? 50.00 : 100.00;
+                    const res = await submitRechargeRequestAction(selectedPack || 100, price);
+                    setIsPurchasing(false);
+                    if (res.error) {
+                      toast.error(res.error);
+                    } else {
+                      toast.success("¡Solicitud enviada! Revisa tu historial de mensajes, te llegará un mensaje de la plataforma.");
+                      setShowCheckoutModal(false);
+                      setSelectedPack(null);
+                    }
+                  }}
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-xs rounded-xl flex items-center justify-center gap-1 cursor-pointer active:scale-98 transition-transform shadow-lg shadow-pink-500/20"
+                >
+                  {isPurchasing ? 'Enviando solicitud...' : 'Enviar solicitud de compra al administrador'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

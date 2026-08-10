@@ -9,6 +9,7 @@ import {
   Sparkles, Flame, Send, X, Coins, Sparkle, Clock, Award, Lock
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
+import { useRouter } from 'next/navigation';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import {
   getLiveStreamers,
@@ -46,6 +47,7 @@ const AVAILABLE_GIFTS: GiftType[] = [
 ];
 
 export default function BattleClient({ user }: { user: any }) {
+  const router = useRouter();
   // Wallet & User Status
   const [userCoins, setUserCoins] = useState(0);
   const [userIsLive, setUserIsLive] = useState(false);
@@ -572,7 +574,7 @@ export default function BattleClient({ user }: { user: any }) {
              </div>
              <span className="font-black text-lg">{userCoins.toLocaleString()}</span>
            </div>
-           <button onClick={() => handleRechargeCoins(500)} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
+            <button onClick={() => router.push(`/u/${user.username}?settings=monedas`)} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
 
         {/* Rewards / Levels progress bar */}

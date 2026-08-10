@@ -139,7 +139,7 @@ export default function DesktopDashboard({ user, setTab, tab }: { user: any, set
              </div>
              <span className="font-black text-lg">{realCoins.toLocaleString()}</span>
            </div>
-           <button className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
+           <button onClick={() => router.push(`/u/${user.username}?settings=monedas`)} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
 
         <div className="bg-[#12152b] rounded-xl p-4 mb-8 border border-white/5">

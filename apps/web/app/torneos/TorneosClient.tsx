@@ -560,7 +560,7 @@ export default function TorneosClient({ user }: { user: any }) {
             <span className="font-black text-lg">{userCoins.toLocaleString()}</span>
           </div>
           <button 
-            onClick={() => setShowCoinStoreModal(true)}
+            onClick={() => router.push(`/u/${user?.username}?settings=monedas`)}
             className="text-[10px] font-black text-purple-400 uppercase tracking-widest hover:text-purple-300 transition-colors cursor-pointer"
           >
             Comprar monedas

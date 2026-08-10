@@ -618,3 +618,175 @@ export async function getPlatformRevenueAction() {
     };
   }
 }
+
+export async function submitRechargeRequestAction(coins: number, priceAmount: number) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  try {
+    // 1. Create recharge request
+    const request = await prisma.rechargeRequest.create({
+      data: {
+        userId: session.id,
+        coins,
+        priceAmount,
+        status: 'PENDING'
+      }
+    });
+
+    // 2. Find first admin user to send the system direct message
+    const admin = await prisma.user.findFirst({
+      where: { role: 'ADMIN' }
+    });
+
+    if (admin) {
+      // Send DM from admin to user
+      await prisma.directMessage.create({
+        data: {
+          senderId: admin.id,
+          receiverId: session.id,
+          content: `Hola @${session.username}, recibimos tu solicitud para recargar ${coins} monedas ($${priceAmount.toFixed(2)} USD). Por favor realiza el depósito o transferencia y responde enviando el comprobante aquí para acreditar tus monedas.`
+        }
+      });
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al solicitar recarga:', error);
+    return { error: error.message || 'Error interno del servidor.' };
+  }
+}
+
+export async function getRechargeRequestsAction() {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    throw new Error('No autorizado');
+  }
+
+  try {
+    const list = await prisma.rechargeRequest.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return list;
+  } catch (error) {
+    console.error('Error fetching recharge requests:', error);
+    return [];
+  }
+}
+
+export async function approveRechargeRequestAction(requestId: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    const request = await prisma.rechargeRequest.findUnique({
+      where: { id: requestId }
+    });
+
+    if (!request) {
+      return { error: 'Solicitud no encontrada' };
+    }
+
+    if (request.status !== 'PENDING') {
+      return { error: 'Esta solicitud ya ha sido procesada' };
+    }
+
+    // 1. Get user wallet
+    let wallet = await prisma.wallet.findUnique({
+      where: { userId: request.userId }
+    });
+
+    if (!wallet) {
+      wallet = await prisma.wallet.create({
+        data: { userId: request.userId, balance: 0 }
+      });
+    }
+
+    // 2. Perform transactions inside db transaction
+    await prisma.$transaction([
+      // Add balance to user
+      prisma.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { increment: request.coins } }
+      }),
+      // Create Transaction record
+      prisma.transaction.create({
+        data: {
+          amount: request.coins,
+          type: 'DEPOSIT',
+          walletId: wallet.id
+        }
+      }),
+      // Update request status
+      prisma.rechargeRequest.update({
+        where: { id: requestId },
+        data: { status: 'COMPLETED' }
+      })
+    ]);
+
+    // Send DM from admin to user confirming recharge
+    await prisma.directMessage.create({
+      data: {
+        senderId: session.id,
+        receiverId: request.userId,
+        content: `¡Tu pago ha sido verificado! Acreditamos ${request.coins} monedas en tu cuenta. ¡Gracias por tu compra!`
+      }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al aprobar recarga:', error);
+    return { error: error.message || 'Error al procesar la aprobación.' };
+  }
+}
+
+export async function rejectRechargeRequestAction(requestId: string) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    const request = await prisma.rechargeRequest.findUnique({
+      where: { id: requestId }
+    });
+
+    if (!request) {
+      return { error: 'Solicitud no encontrada' };
+    }
+
+    if (request.status !== 'PENDING') {
+      return { error: 'Esta solicitud ya ha sido procesada' };
+    }
+
+    await prisma.rechargeRequest.update({
+      where: { id: requestId },
+      data: { status: 'REJECTED' }
+    });
+
+    // Send DM from admin to user rejecting recharge
+    await prisma.directMessage.create({
+      data: {
+        senderId: session.id,
+        receiverId: request.userId,
+        content: `Lo sentimos, tu comprobante no pudo ser verificado o tu solicitud de recarga por ${request.coins} monedas fue rechazada. Por favor ponte en contacto con soporte si crees que esto es un error.`
+      }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al rechazar recarga:', error);
+    return { error: error.message || 'Error al procesar el rechazo.' };
+  }
+}

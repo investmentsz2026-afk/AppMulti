@@ -311,7 +311,7 @@ export default function GamingClient({ user }: { user: any }) {
              </div>
              <span className="font-black text-lg">{userCoins.toLocaleString()}</span>
            </div>
-           <button className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
+           <button onClick={() => router.push(`/u/${user.username}?settings=monedas`)} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
 
         {/* XP Progress Card */}

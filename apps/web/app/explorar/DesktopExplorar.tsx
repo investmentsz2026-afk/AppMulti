@@ -7,6 +7,7 @@ import {
   Gamepad2, Mic2, Radio, Monitor, Heart, Flame, Film, Coffee, Headphones
 } from 'lucide-react';
 import { logoutUser } from '@/app/actions/auth';
+import { useRouter } from 'next/navigation';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { getUserWalletBalanceAction } from '@/app/actions/stream';
@@ -66,6 +67,7 @@ export default function DesktopExplorar({
   activeBattles: any[];
   loading: boolean;
 }) {
+  const router = useRouter();
   const [activeCat, setActiveCat] = React.useState('Todo');
   const [walletBalance, setWalletBalance] = React.useState(0);
 
@@ -197,7 +199,7 @@ export default function DesktopExplorar({
              </div>
              <span className="font-black text-lg">{walletBalance.toLocaleString()}</span>
            </div>
-           <button className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
+           <button onClick={() => router.push(`/u/${user.username}?settings=monedas`)} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
 
         {/* XP Progress Card */}
@@ -234,9 +236,12 @@ export default function DesktopExplorar({
             <button className="text-zinc-400 hover:text-yellow-400"><Crown className="w-4.5 h-4.5" /></button>
             <button className="text-zinc-400 hover:text-white relative"><Bell className="w-4.5 h-4.5" /><span className="absolute -top-1 -right-1 w-2 h-2 bg-pink-500 rounded-full" /></button>
             <div className="flex items-center gap-2 pl-4 border-l border-white/10">
-              <div className="flex items-center gap-1.5 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">
+              <div 
+                onClick={() => router.push(`/u/${user.username}?settings=monedas`)}
+                className="flex items-center gap-1.5 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20 cursor-pointer hover:bg-yellow-500/20 transition-all"
+              >
                 <div className="w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center"><span className="text-[7px] font-black text-black">L</span></div>
-                <span className="text-xs font-bold text-yellow-400">12.5K</span>
+                <span className="text-xs font-bold text-yellow-400">{walletBalance.toLocaleString()}</span>
               </div>
               <img src={user.avatar} className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10" alt="" />
               <div className="text-xs"><div className="font-bold">{user.username} <BadgeCheck className="w-3 h-3 text-blue-400 inline" /></div><div className="text-[10px] text-green-400">● En línea</div></div>
