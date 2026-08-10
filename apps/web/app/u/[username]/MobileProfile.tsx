@@ -63,6 +63,7 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
   const [levelInfo, setLevelInfo] = useState<any>(null);
   const [showLevelInfoModal, setShowLevelInfoModal] = useState(false);
+  const [showAvatarZoom, setShowAvatarZoom] = useState(false);
 
   // Support / Help Ticket State
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -628,7 +629,12 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
           <div className="flex flex-col items-center -mt-14 relative z-10 px-4">
             <div className="relative w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-purple-600 to-pink-600 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
               <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#05050a] relative">
-                <img src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUsername}`} className="w-full h-full object-cover" alt="" />
+                <img 
+                  src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUsername}`} 
+                  className="w-full h-full object-cover cursor-pointer" 
+                  alt="" 
+                  onClick={() => setShowAvatarZoom(true)}
+                />
                 {isOwnProfile && (
                   <label htmlFor="avatar-mobile-file-input" className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer z-10">
                     <Edit3 className="w-4 h-4 text-white/80" />
@@ -1884,6 +1890,28 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
         </div>
       </div>
     )}
+      {/* ═══ Avatar Zoom Modal ═══ */}
+      {showAvatarZoom && (
+        <div 
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 backdrop-blur-md cursor-pointer" 
+          onClick={() => setShowAvatarZoom(false)}
+        >
+          <button 
+            onClick={() => setShowAvatarZoom(false)}
+            className="absolute top-[calc(12px+env(safe-area-inset-top,0px))] right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white z-10 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="w-[75vmin] h-[75vmin] max-w-[400px] max-h-[400px] rounded-full overflow-hidden border-4 border-white/20 shadow-[0_0_60px_rgba(168,85,247,0.3)] animate-in zoom-in-50 duration-300">
+            <img 
+              src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUsername}`} 
+              className="w-full h-full object-cover" 
+              alt={targetUsername} 
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }

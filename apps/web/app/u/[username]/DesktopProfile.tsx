@@ -97,6 +97,7 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   }, [settingsTab]);
 
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
+  const [showAvatarZoom, setShowAvatarZoom] = useState(false);
 
   // Support / Help Ticket State
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -782,7 +783,12 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                 {/* Large Avatar */}
                 <div className="relative w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-purple-600 to-pink-600 shadow-[0_0_20px_rgba(168,85,247,0.3)] shrink-0 group/avatar">
                   <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#0c0c14] relative">
-                    <img src={creator.avatar} className="w-full h-full object-cover" alt="" />
+                    <img 
+                      src={creator.avatar} 
+                      className="w-full h-full object-cover cursor-pointer" 
+                      alt="" 
+                      onClick={() => setShowAvatarZoom(true)}
+                    />
                     {isOwnProfile && (
                       <label htmlFor="avatar-file-input" className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer z-10">
                         <Edit3 className="w-6 h-6 text-white" />
@@ -2069,6 +2075,28 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                 Entendido
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ═══ Avatar Zoom Modal ═══ */}
+      {showAvatarZoom && (
+        <div 
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 backdrop-blur-md cursor-pointer" 
+          onClick={() => setShowAvatarZoom(false)}
+        >
+          <button 
+            onClick={() => setShowAvatarZoom(false)}
+            className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white z-10 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="w-[70vmin] h-[70vmin] max-w-[500px] max-h-[500px] rounded-full overflow-hidden border-4 border-white/20 shadow-[0_0_60px_rgba(168,85,247,0.3)] animate-in zoom-in-50 duration-300">
+            <img 
+              src={creator.avatar} 
+              className="w-full h-full object-cover" 
+              alt={creator.username} 
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}
