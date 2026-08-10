@@ -490,7 +490,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-[#05050a] text-white overflow-hidden select-none">
+    <div className="flex flex-col h-[100dvh] w-full bg-[#05050a] text-white overflow-hidden select-none overscroll-none">
       
       {/* Top Header */}
       <div className="h-[70px] shrink-0 pt-4 px-4 flex items-center justify-between z-20 bg-[#05050a] border-b border-white/5">
@@ -537,7 +537,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
       <div 
         ref={feedContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto snap-y snap-mandatory scrollbar-none bg-black relative"
+        className="flex-1 overflow-y-auto snap-y snap-mandatory bg-black relative overscroll-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {activeFeedPosts.map((post: any, idx) => {
           const isActive = idx === activeIndex;
@@ -700,13 +700,7 @@ export default function MobileDashboard({ user, setTab, tab }: { user: any, setT
                   }</span>
                 </div>
 
-                {/* Send Gift */}
-                <div className="flex flex-col items-center gap-1">
-                  <button className="w-10 h-10 rounded-full bg-yellow-500/10 backdrop-blur-sm border border-yellow-500/20 flex items-center justify-center">
-                    <Gift className="w-5.5 h-5.5 text-yellow-500 fill-yellow-500/20" />
-                  </button>
-                  <span className="text-[10px] font-bold text-yellow-500">{post.shares}</span>
-                </div>
+                {/* Send Gift removed as requested (only live streams support gifts) */}
 
                 {/* Share */}
                 <div 
