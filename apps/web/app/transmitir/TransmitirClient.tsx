@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import { LiveKitRoom, VideoConference } from '@livekit/components-react';
+import '@livekit/components-styles';
 import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage, checkStreamStatus } from '@/app/actions/stream';
 import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
 
@@ -25,6 +27,7 @@ export default function TransmitirClient({ user }: { user: any }) {
   const { isLive, streamTitle, streamCategory, viewers, likes, comments, startLive, stopLive, addLike, addComment, setComments, setViewers } = useLiveStore();
   
   const [hasMounted, setHasMounted] = useState(false);
+  const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [pvpStatus, setPvpStatus] = useState<{
     isWaiting: boolean;
     roomTitle: string;
@@ -459,11 +462,29 @@ export default function TransmitirClient({ user }: { user: any }) {
     }
     
     const loadingToast = toast.loading('Iniciando transmisión...');
+    
+    try {
+      // Fetch LiveKit room token
+      const tokenRes = await fetch(`/api/livekit/token?room=${user.username}&username=${user.username}`);
+      const tokenData = await tokenRes.json();
+      if (tokenData.error) {
+        toast.dismiss(loadingToast);
+        toast.error(`Error al conectar con LiveKit: ${tokenData.error}`);
+        return;
+      }
+      setLivekitToken(tokenData.token);
+    } catch (err: any) {
+      toast.dismiss(loadingToast);
+      toast.error('Error de red al conectar con el servidor de streaming.');
+      return;
+    }
+
     const res = await updateStreamStatus(true, title, category);
     
     if (res?.error) {
       toast.dismiss(loadingToast);
       toast.error(res.error);
+      setLivekitToken(null);
       return;
     }
     
@@ -479,6 +500,7 @@ export default function TransmitirClient({ user }: { user: any }) {
     toast.dismiss(loadingToast);
     
     setFloatingHearts([]);
+    setLivekitToken(null);
     stopLive();
     
     if (cameraStreamRef.current) {
@@ -944,47 +966,24 @@ export default function TransmitirClient({ user }: { user: any }) {
           {/* Main broadcast video canvas */}
           <div className="absolute inset-0 lg:relative lg:flex-1 w-full h-full lg:h-auto flex items-center justify-center bg-black overflow-hidden group z-0 lg:z-10">
             
-            <div className={`w-full h-full grid ${cameraActive && isScreenSharing ? 'grid-rows-2 lg:grid-cols-1 lg:grid-rows-2' : 'grid-cols-1'} bg-black`}>
-              {/* Camera view */}
-              {cameraActive && (
-                <div className="relative w-full h-full bg-[#09090e] overflow-hidden flex items-center justify-center border border-white/5">
-                  <video 
-                    ref={liveCameraVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted 
-                    className="w-full h-full object-cover scale-x-[-1]"
-                  />
-                  <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
-                    CÁMARA
-                  </div>
-                </div>
-              )}
-
-              {/* Screen share view */}
-              {isScreenSharing && (
-                <div className="relative w-full h-full bg-[#050508] overflow-hidden flex items-center justify-center border border-white/5">
-                  <video 
-                    ref={liveScreenVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted 
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
-                    PANTALLA COMPARTIDA
-                  </div>
-                </div>
-              )}
-
-              {/* Black overlay if both disabled */}
-              {!cameraActive && !isScreenSharing && (
-                <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-10 gap-3">
-                  <VideoOff className="w-16 h-16 text-zinc-700 animate-pulse" />
-                  <span className="text-md font-black text-zinc-400">Transmisión de Video Apagada</span>
-                </div>
-              )}
-            </div>
+            {livekitToken ? (
+              <LiveKitRoom
+                token={livekitToken}
+                serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+                connect={true}
+                video={cameraActive}
+                audio={micActive}
+                screen={isScreenSharing}
+                className="w-full h-full"
+              >
+                <VideoConference />
+              </LiveKitRoom>
+            ) : (
+              <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-10 gap-3">
+                <VideoOff className="w-16 h-16 text-zinc-700 animate-pulse" />
+                <span className="text-md font-black text-zinc-400">Conectando con Servidor de Streaming...</span>
+              </div>
+            )}
 
             {/* Live Stats floating overlays inside the stream area */}
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">

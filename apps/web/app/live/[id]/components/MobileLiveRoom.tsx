@@ -7,6 +7,9 @@ import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
 import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction } from '@/app/actions/stream';
 import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
+import { LiveKitRoom, VideoConference, useTracks } from '@livekit/components-react';
+import { Track } from 'livekit-client';
+import '@livekit/components-styles';
 
 const MOCK_REC_POSTS = [
   {
@@ -43,8 +46,37 @@ const MOCK_REC_POSTS = [
   }
 ];
 
+function LiveKitPlayer({ fallbackVideoSrc, videoRef }: { fallbackVideoSrc: string, videoRef: React.RefObject<HTMLVideoElement | null> }) {
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: false },
+    { source: Track.Source.ScreenShare, withPlaceholder: false }
+  ]);
+
+  const hasActiveTracks = tracks.some(track => track.publication && !track.publication.isMuted);
+
+  if (!hasActiveTracks) {
+    return (
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        loop
+        onCanPlay={(e) => {
+          e.currentTarget.play().catch(() => {});
+        }}
+        className="w-full h-full object-cover animate-fade-in"
+        src={fallbackVideoSrc}
+      />
+    );
+  }
+
+  return <VideoConference />;
+}
+
 export default function MobileLiveRoom({ user, streamerName }: { user: any, streamerName: string }) {
   const { isLive, streamTitle, streamCategory, viewers, likes } = useLiveStore();
+  const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const { posts: dbPosts } = usePublicPosts();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -54,10 +86,6 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   const [dbChatMessages, setDbChatMessages] = useState<any[]>([]);
   const [dbViewers, setDbViewers] = useState(0);
   const [dbLikes, setDbLikes] = useState(0);
-  const [remoteCameraStream, setRemoteCameraStream] = useState<MediaStream | null>(null);
-  const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
-  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
-  const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
 
   useEffect(() => {
@@ -69,6 +97,22 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     }
     loadFollowStatus();
   }, [streamerName, user]);
+
+  useEffect(() => {
+    async function getLKToken() {
+      if (!isStreamActive || !streamerName || !user?.username) return;
+      try {
+        const res = await fetch(`/api/livekit/token?room=${streamerName}&username=${user.username}_viewer_${Math.floor(Math.random()*1000)}`);
+        const data = await res.json();
+        if (data.token) {
+          setLivekitToken(data.token);
+        }
+      } catch (err) {
+        console.error("Failed to load LiveKit token:", err);
+      }
+    }
+    getLKToken();
+  }, [isStreamActive, streamerName, user?.username]);
 
   useEffect(() => {
     async function loadChatMessages() {
@@ -91,7 +135,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
         console.warn("Autoplay failed for fallback video:", err);
       });
     }
-  }, [isStreamActive, streamTitleState, remoteCameraStream, remoteScreenStream]);
+  }, [isStreamActive, streamTitleState]);
 
   useEffect(() => {
     let activeStream: MediaStream | null = null;
@@ -212,89 +256,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
     setInputMessage('');
   };
 
-  // WebRTC Local Receiver for Tab-to-Tab streaming (no server needed)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!isStreamActive) return;
 
-    const channel = new BroadcastChannel('live-stream-channel');
-    const viewerId = Math.random().toString();
-    
-    let pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
-
-    pc.ontrack = (event) => {
-      const [stream] = event.streams;
-      if (!stream) return;
-
-      const isScreen = event.track.label.toLowerCase().includes('screen') || event.track.label.toLowerCase().includes('display');
-      if (isScreen) {
-        setRemoteScreenStream(stream);
-      } else {
-        setRemoteCameraStream(stream);
-      }
-    };
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        channel.postMessage({
-          type: 'candidate',
-          from: viewerId,
-          to: 'streamer',
-          candidate: event.candidate
-        });
-      }
-    };
-
-    channel.onmessage = async (e) => {
-      const { type, to, offer, candidate } = e.data;
-      if (to !== viewerId) return;
-
-      if (type === 'offer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        channel.postMessage({
-          type: 'answer',
-          from: viewerId,
-          to: 'streamer',
-          answer
-        });
-      } else if (type === 'candidate') {
-        if (candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        }
-      }
-    };
-
-    // Request stream join
-    channel.postMessage({ type: 'join', from: viewerId });
-
-    // Poll join request every 2.5 seconds
-    const pollJoin = setInterval(() => {
-      channel.postMessage({ type: 'join', from: viewerId });
-    }, 2500);
-
-    return () => {
-      clearInterval(pollJoin);
-      channel.close();
-      pc.close();
-    };
-  }, [isStreamActive]);
-
-  // Bind video element streams
-  useEffect(() => {
-    if (cameraVideoRef.current && remoteCameraStream) {
-      cameraVideoRef.current.srcObject = remoteCameraStream;
-    }
-  }, [remoteCameraStream]);
-
-  useEffect(() => {
-    if (screenVideoRef.current && remoteScreenStream) {
-      screenVideoRef.current.srcObject = remoteScreenStream;
-    }
-  }, [remoteScreenStream]);
 
   if (!isStreamActive) {
     return (
@@ -411,39 +373,23 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
       >
           {isStreamActive ? (
-            <div className={`w-full h-full grid ${remoteCameraStream && remoteScreenStream ? 'grid-rows-2' : 'grid-cols-1'} bg-black`}>
-              {remoteCameraStream && (
-                <div className="relative w-full h-full bg-[#09090e] overflow-hidden flex items-center justify-center border border-white/5">
-                  <video 
-                    ref={cameraVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted
-                    className="w-full h-full object-cover scale-x-[-1]"
+            <div className="w-full h-full bg-black flex items-center justify-center">
+              {livekitToken ? (
+                <LiveKitRoom
+                  token={livekitToken}
+                  serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+                  connect={true}
+                  video={false}
+                  audio={false}
+                  className="w-full h-full"
+                >
+                  <LiveKitPlayer 
+                    fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" 
+                    videoRef={videoRef} 
                   />
-                  <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
-                    CÁMARA
-                  </div>
-                </div>
-              )}
-
-              {remoteScreenStream && (
-                <div className="relative w-full h-full bg-[#050508] overflow-hidden flex items-center justify-center border border-white/5">
-                  <video 
-                    ref={screenVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute top-2 left-2 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black text-zinc-300">
-                    PANTALLA COMPARTIDA
-                  </div>
-                </div>
-              )}
-
-              {!remoteCameraStream && !remoteScreenStream && (
-                <video 
+                </LiveKitRoom>
+              ) : (
+                <video
                   ref={videoRef}
                   autoPlay
                   playsInline
