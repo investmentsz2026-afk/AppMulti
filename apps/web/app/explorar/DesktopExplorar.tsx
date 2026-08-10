@@ -9,6 +9,7 @@ import {
 import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
+import { getUserWalletBalanceAction } from '@/app/actions/stream';
 
 const streams = [
   { name: 'AndrésGG', viewers: '2,345', title: 'Batalla épica contra DiegoStream', cat: 'Call of Duty: Warzone', tags: ['Español','Multijugador'], img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400' },
@@ -66,6 +67,16 @@ export default function DesktopExplorar({
   loading: boolean;
 }) {
   const [activeCat, setActiveCat] = React.useState('Todo');
+  const [walletBalance, setWalletBalance] = React.useState(0);
+
+  React.useEffect(() => {
+    async function loadBalance() {
+      const bal = await getUserWalletBalanceAction();
+      setWalletBalance(bal);
+    }
+    loadBalance();
+  }, []);
+
   const { isLive, streamTitle, viewers, streamCategory } = useLiveStore();
 
   const userStream = isLive && user ? {
@@ -184,7 +195,7 @@ export default function DesktopExplorar({
              <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.5)]">
                 <span className="text-[10px] font-black text-black">L</span>
              </div>
-             <span className="font-black text-lg">12,450</span>
+             <span className="font-black text-lg">{walletBalance.toLocaleString()}</span>
            </div>
            <button className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>

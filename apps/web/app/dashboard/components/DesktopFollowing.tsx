@@ -11,6 +11,7 @@ import { logoutUser } from '@/app/actions/auth';
 import { useCreatorStore } from '@/store/useCreatorStore';
 import { getFollowingFeedData } from '@/app/actions/social';
 import { useRouter } from 'next/navigation';
+import { getUserWalletBalanceAction } from '@/app/actions/stream';
 
 export default function DesktopFollowing({ user, setTab, tab }: { user: any, setTab: (t: 'inicio'|'parati'|'siguiendo') => void, tab: string }) {
   const router = useRouter();
@@ -20,6 +21,15 @@ export default function DesktopFollowing({ user, setTab, tab }: { user: any, set
   const [followingCount, setFollowingCount] = useState(0);
   const [liveStreamers, setLiveStreamers] = useState<any[]>([]);
   const [feedItems, setFeedItems] = useState<any[]>([]);
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  useEffect(() => {
+    async function loadBalance() {
+      const bal = await getUserWalletBalanceAction();
+      setWalletBalance(bal);
+    }
+    loadBalance();
+  }, []);
 
   useEffect(() => {
     async function loadFollowingData() {
@@ -114,7 +124,7 @@ export default function DesktopFollowing({ user, setTab, tab }: { user: any, set
              <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.5)]">
                 <span className="text-[10px] font-black text-black">L</span>
              </div>
-             <span className="font-black text-lg">12,450</span>
+             <span className="font-black text-lg">{walletBalance.toLocaleString()}</span>
            </div>
            <button className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>

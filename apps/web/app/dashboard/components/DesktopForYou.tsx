@@ -15,6 +15,7 @@ import { useCreatorStore } from '@/store/useCreatorStore';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts, DBPost } from '@/hooks/usePosts';
 import { toggleLikePost, toggleFollowUser, getFollowingUserIds, getPostComments, createComment, toggleLikeComment, deleteComment, sendDirectMessage, getConversations } from '@/app/actions/social';
+import { getUserWalletBalanceAction } from '@/app/actions/stream';
 
 // Extremely premium mixed-media posts (Streams, Videos, Cosplay/Images, Live Battles)
 const FEED_POSTS = [
@@ -150,6 +151,16 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
   const [activeSharePost, setActiveSharePost] = useState<any | null>(null);
   const [friendsForShare, setFriendsForShare] = useState<any[]>([]);
   const [sendingToUserIds, setSendingToUserIds] = useState<Record<string, boolean>>({});
+
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  useEffect(() => {
+    async function loadBalance() {
+      const bal = await getUserWalletBalanceAction();
+      setWalletBalance(bal);
+    }
+    loadBalance();
+  }, []);
 
   // Toast states
   const [showToast, setShowToast] = useState(false);
@@ -602,7 +613,7 @@ export default function DesktopForYou({ user, setTab, tab }: { user: any, setTab
              <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.5)]">
                 <span className="text-[10px] font-black text-black">L</span>
              </div>
-             <span className="font-black text-lg">12,450</span>
+             <span className="font-black text-lg">{walletBalance.toLocaleString()}</span>
            </div>
            <button className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>

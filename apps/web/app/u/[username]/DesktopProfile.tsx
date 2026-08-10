@@ -13,6 +13,7 @@ import { updateProfile } from '@/app/actions/profile';
 import { toggleFollowUser, getProfileStats, getTabPosts, checkFollowStatus, toggleLikePost, getPostComments, createComment, toggleLikeComment, deleteComment } from '@/app/actions/social';
 import { useRouter } from 'next/navigation';
 import { addWalletCoins } from '@/app/actions/battle';
+import { getUserWalletBalanceAction } from '@/app/actions/stream';
 import { toast } from 'react-hot-toast';
 import { Coins, CreditCard, HelpCircle } from 'lucide-react';
 import { submitHelpRequestAction } from '@/app/actions/admin';
@@ -59,6 +60,15 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
   const [activeTab, setActiveTab] = useState('Videos');
   const [activeFilter, setActiveFilter] = useState('Más recientes');
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  useEffect(() => {
+    async function loadBalance() {
+      const bal = await getUserWalletBalanceAction();
+      setWalletBalance(bal);
+    }
+    loadBalance();
+  }, []);
   
   const router = useRouter();
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
@@ -599,7 +609,7 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
              <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.5)]">
                 <span className="text-[10px] font-black text-black">L</span>
              </div>
-             <span className="font-black text-lg">12,450</span>
+             <span className="font-black text-lg">{walletBalance.toLocaleString()}</span>
            </div>
            <button onClick={() => { setSettingsActiveTab('monedas'); setIsSettingsOpen(true); }} className="text-[10px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300">Comprar monedas</button>
         </div>
