@@ -16,6 +16,7 @@ import { addWalletCoins } from '@/app/actions/battle';
 import { submitRechargeRequestAction, submitWithdrawalRequestAction } from '@/app/actions/admin';
 import { toast } from 'react-hot-toast';
 import { Check, AlertCircle, Coins, CreditCard, Wallet } from 'lucide-react';
+import { useBadgeCounts } from '@/hooks/useBadgeCounts';
 
 // Facebook Custom SVG Icon
 function FacebookIcon({ className }: { className?: string }) {
@@ -325,6 +326,7 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
     : ['Videos', 'Shorts', 'Fotos', 'Streams', 'Me gusta'];
 
   
+  const { unreadMessages } = useBadgeCounts();
   const searchParams = useSearchParams();
   const settingsTab = searchParams.get('settings');
 
@@ -841,7 +843,9 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
         </div>
         <Link href="/mensajes" className="flex flex-col items-center gap-1 text-zinc-500 relative">
           <MessageSquare className="w-6 h-6" />
-          <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">12</span>
+          {unreadMessages > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">{unreadMessages}</span>
+          )}
           <span className="text-[10px] font-bold">Mensajes</span>
         </Link>
         <Link href={`/u/${sessionUser.username}`} className="flex flex-col items-center gap-1 text-pink-500">

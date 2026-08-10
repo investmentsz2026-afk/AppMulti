@@ -16,6 +16,7 @@ import { addWalletCoins } from '@/app/actions/battle';
 import { getUserWalletBalanceAction } from '@/app/actions/stream';
 import { toast } from 'react-hot-toast';
 import { Coins, CreditCard, HelpCircle } from 'lucide-react';
+import SidebarNav from '@/components/SidebarNav';
 import { submitHelpRequestAction, submitRechargeRequestAction, submitWithdrawalRequestAction } from '@/app/actions/admin';
 
 // TikTok Custom SVG Icon
@@ -612,22 +613,7 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
           </Link>
         </nav>
 
-        <nav className="flex flex-col gap-1 mb-8">
-          <Link href="/mensajes" className="flex items-center justify-between px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <div className="flex items-center gap-3"><MessageSquare className="w-5 h-5" /> Mensajes</div>
-            <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">12</span>
-          </Link>
-          <Link href="/notificaciones" className="flex items-center justify-between px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <div className="flex items-center gap-3"><Bell className="w-5 h-5" /> Notificaciones</div>
-            <span className="bg-pink-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">8</span>
-          </Link>
-          <Link href={`/u/${sessionUser.username}`} className="flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-purple-600/30 to-pink-600/30 text-white border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)] rounded-xl transition-colors font-bold">
-            <User className="w-5 h-5 text-pink-400" /> Perfil
-          </Link>
-          <Link href="/wallet" className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium">
-            <Wallet className="w-5 h-5" /> Wallet
-          </Link>
-        </nav>
+        <SidebarNav username={sessionUser.username} />
 
         <button 
           onClick={() => useCreatorStore.getState().open()}

@@ -886,6 +886,22 @@ export async function getUnreadNotificationsCount() {
   }
 }
 
+export async function getUnreadDMsCountAction() {
+  const session = await getSession();
+  if (!session) return 0;
+
+  const userId = session.id as string;
+
+  try {
+    const count = await prisma.directMessage.count({
+      where: { receiverId: userId, isRead: false }
+    });
+    return count;
+  } catch (err) {
+    return 0;
+  }
+}
+
 export async function getFollowingFeedData() {
   const session = await getSession();
   if (!session) return { followingCount: 0, liveStreamers: [], feedItems: [] };
