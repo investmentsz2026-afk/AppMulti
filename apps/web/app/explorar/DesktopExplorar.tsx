@@ -219,7 +219,7 @@ export default function DesktopExplorar({
                 <span className="text-xs font-bold text-yellow-400">{walletBalance.toLocaleString()}</span>
               </div>
               <img src={user.avatar} className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10" alt="" />
-              <div className="text-xs"><div className="font-bold">{user.username} <BadgeCheck className="w-3 h-3 text-blue-400 inline" /></div><div className="text-[10px] text-green-400">● En línea</div></div>
+              <div className="text-xs"><div className="font-bold flex items-center gap-1">{user.username} {user.isVerified && <BadgeCheck className="w-3 h-3 text-blue-400 inline shrink-0" />}</div><div className="text-[10px] text-green-400">● En línea</div></div>
             </div>
             <button className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-xs font-bold hover:scale-105 transition-transform">Transmitir en vivo</button>
           </div>

@@ -687,7 +687,7 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
               </div>
               <img src={sessionUser.avatar} className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10" alt="" />
               <div className="text-xs">
-                <div className="font-bold flex items-center gap-1">{sessionUser.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400 inline" /></div>
+                <div className="font-bold flex items-center gap-1">{sessionUser.username} {sessionUser.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 inline shrink-0" />}</div>
                 <div className="text-[10px] text-green-400">● En línea</div>
               </div>
             </div>

@@ -673,7 +673,7 @@ export default function TorneosClient({ user }: { user: any }) {
             <div className="flex items-center gap-2 pl-4 border-l border-white/10">
               <img src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}`} className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10" alt="" />
               <div className="text-xs">
-                <div className="font-bold flex items-center gap-0.5">{user?.username} <BadgeCheck className="w-3.5 h-3.5 text-blue-400 inline" /></div>
+                <div className="font-bold flex items-center gap-0.5">{user?.username} {user?.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 inline shrink-0" />}</div>
                 <div className="text-[10px] text-green-400">● Esports Competidor</div>
               </div>
             </div>
