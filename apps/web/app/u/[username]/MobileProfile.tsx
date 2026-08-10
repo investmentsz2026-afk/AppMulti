@@ -18,6 +18,7 @@ import { getUserWalletBalanceAction } from '@/app/actions/stream';
 import { toast } from 'react-hot-toast';
 import { Check, AlertCircle, Coins, CreditCard, Wallet, HelpCircle } from 'lucide-react';
 import { useBadgeCounts } from '@/hooks/useBadgeCounts';
+import { useCreatorStore } from '@/store/useCreatorStore';
 
 // Facebook Custom SVG Icon
 function FacebookIcon({ className }: { className?: string }) {
@@ -65,6 +66,7 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
   const [levelInfo, setLevelInfo] = useState<any>(null);
   const [showLevelInfoModal, setShowLevelInfoModal] = useState(false);
   const [showAvatarZoom, setShowAvatarZoom] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
 
   const [walletBalance, setWalletBalance] = useState<number>(targetUser?.wallet?.balance || sessionUser?.wallet?.balance || 0);
 
@@ -2037,6 +2039,136 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
               alt={targetUsername} 
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Mobile Bottom Navigation Bar ═══ */}
+      <div className="fixed bottom-0 left-0 right-0 h-[70px] bg-[#05050a] flex items-center justify-around z-30 px-2 pb-2 pt-1 border-t border-white/5">
+        <Link href="/dashboard" className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
+          <Home className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Inicio</span>
+        </Link>
+        <Link href="/en-vivo" className="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors">
+          <Play className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Gaming</span>
+        </Link>
+        
+        {/* Center Live Button */}
+        <div className="relative -top-4">
+          <button 
+            onClick={() => setShowQuickActions(true)}
+            className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-lg shadow-pink-500/30 border-4 border-[#05050a] hover:scale-105 transition-transform cursor-pointer"
+          >
+             <Plus className="w-6 h-6 text-white" />
+          </button>
+        </div>
+
+        <Link href="/mensajes" className="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 relative">
+          <MessageSquare className="w-6 h-6" />
+          {unreadMessages > 0 && (
+            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-[#05050a]">{unreadMessages}</span>
+          )}
+          <span className="text-[10px] font-bold">Mensajes</span>
+        </Link>
+        <Link href={sessionUser ? `/u/${sessionUser.username}` : '/login'} className={`flex flex-col items-center gap-1 ${isOwnProfile ? 'text-pink-500' : 'text-zinc-500'}`}>
+          <User className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Perfil</span>
+        </Link>
+      </div>
+
+      {/* ═══ MOBILE QUICK ACTIONS OVERLAY ═══ */}
+      {showQuickActions && (
+        <div className="fixed inset-0 z-[90] bg-[#05050ad9] backdrop-blur-xl flex flex-col justify-end p-6 animate-in fade-in duration-200">
+          
+          <div className="absolute inset-0 cursor-pointer" onClick={() => setShowQuickActions(false)} />
+
+          <div className="bg-[#0f0e1a]/95 border border-white/10 rounded-3xl p-6 shadow-2xl relative z-10 animate-in slide-in-from-bottom-10 duration-300 max-w-sm mx-auto w-full mb-4">
+            
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400">Acceso Rápido</h4>
+                <h3 className="text-base font-black text-white">LiveX Creator Studio</h3>
+              </div>
+              <button 
+                onClick={() => setShowQuickActions(false)}
+                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              
+              {/* 1. Transmitir en vivo */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  router.push('/transmitir');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-purple-600/10 to-indigo-600/10 border border-purple-500/20 hover:border-purple-500/50 transition-all hover:scale-[1.02] text-center cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full bg-purple-600/20 flex items-center justify-center text-purple-400 mb-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                  <Play className="w-5 h-5 fill-purple-400" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">En Vivo</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Transmitir ahora</span>
+              </button>
+
+              {/* 2. Subir video o imagen */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('upload');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-pink-600/10 to-rose-600/10 border border-pink-500/20 hover:border-pink-500/50 transition-all hover:scale-[1.02] text-center cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full bg-pink-600/20 flex items-center justify-center text-pink-400 mb-1.5 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Publicar</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Video o Foto</span>
+              </button>
+
+              {/* 3. Crear Sala / Batalla */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('room');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-amber-600/10 to-orange-600/10 border border-amber-500/20 hover:border-amber-500/50 transition-all hover:scale-[1.02] text-center cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full bg-amber-600/20 flex items-center justify-center text-amber-400 mb-1.5 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                  <Trophy className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Sala PvP</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Crear sala</span>
+              </button>
+
+              {/* 4. Comprar Monedas */}
+              <button 
+                onClick={() => {
+                  setShowQuickActions(false);
+                  useCreatorStore.getState().open('coins');
+                }}
+                className="flex flex-col items-center p-3 rounded-2xl bg-gradient-to-br from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 hover:border-emerald-500/50 transition-all hover:scale-[1.02] text-center cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full bg-emerald-600/20 flex items-center justify-center text-emerald-400 mb-1.5 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-white mb-0.5">Monedas</span>
+                <span className="text-[9px] text-zinc-500 font-semibold">Recargar saldo</span>
+              </button>
+
+            </div>
+
+            <button 
+              onClick={() => setShowQuickActions(false)}
+              className="w-full py-3 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white font-bold text-xs rounded-xl transition-colors uppercase tracking-wider cursor-pointer"
+            >
+              Cerrar
+            </button>
+
           </div>
         </div>
       )}
