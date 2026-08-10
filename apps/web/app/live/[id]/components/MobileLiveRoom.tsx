@@ -7,7 +7,7 @@ import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
 import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction } from '@/app/actions/stream';
 import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
-import { LiveKitRoom, VideoConference, useTracks } from '@livekit/components-react';
+import { LiveKitRoom, VideoConference, useTracks, VideoTrack } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
@@ -46,15 +46,19 @@ const MOCK_REC_POSTS = [
   }
 ];
 
-function LiveKitPlayer({ fallbackVideoSrc, videoRef }: { fallbackVideoSrc: string, videoRef: React.RefObject<HTMLVideoElement | null> }) {
+function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName }: { fallbackVideoSrc: string, videoRef: React.RefObject<HTMLVideoElement | null>, streamerName: string }) {
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
     { source: Track.Source.ScreenShare, withPlaceholder: false }
   ]);
 
-  const hasActiveTracks = tracks.some(track => track.publication && !track.publication.isMuted);
+  const streamerTracks = tracks.filter(t => t.participant.identity === streamerName);
+  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera);
+  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
 
-  if (!hasActiveTracks) {
+  const activeTrack = screenTrack || cameraTrack;
+
+  if (!activeTrack) {
     return (
       <video
         ref={videoRef}
@@ -71,7 +75,14 @@ function LiveKitPlayer({ fallbackVideoSrc, videoRef }: { fallbackVideoSrc: strin
     );
   }
 
-  return <VideoConference />;
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-black relative">
+      <VideoTrack
+        trackRef={activeTrack as any}
+        className={`w-full h-full ${activeTrack.source === Track.Source.ScreenShare ? 'object-contain' : 'object-cover scale-x-[-1]'}`}
+      />
+    </div>
+  );
 }
 
 export default function MobileLiveRoom({ user, streamerName }: { user: any, streamerName: string }) {
@@ -386,6 +397,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                   <LiveKitPlayer 
                     fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" 
                     videoRef={videoRef} 
+                    streamerName={streamerName}
                   />
                 </LiveKitRoom>
               ) : (
