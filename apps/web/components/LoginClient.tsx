@@ -41,10 +41,7 @@ export default function LoginClient() {
         }
         toast.success('¡Sesión iniciada con éxito!');
         const targetUrl = res?.user?.role === 'ADMIN' ? '/admin' : '/dashboard';
-        router.refresh();
-        setTimeout(() => {
-          window.location.replace(targetUrl);
-        }, 150);
+        window.location.href = targetUrl;
       }
     } catch (error) {
       console.error('Login failed', error);
