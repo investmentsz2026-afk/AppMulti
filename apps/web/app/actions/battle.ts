@@ -265,17 +265,12 @@ export async function respondToBattleInvite(battleId: string, accept: boolean) {
     }
 
     if (accept) {
-      const startTime = new Date();
-      const endTime = new Date(Date.now() + 180 * 1000); // 3 minutes duration
-
       const updated = await prisma.streamBattle.update({
         where: { id: battleId },
         data: {
-          status: 'ONGOING',
+          status: 'PENDING',
           points1: 0,
           points2: 0,
-          startTime,
-          endTime,
         }
       });
 

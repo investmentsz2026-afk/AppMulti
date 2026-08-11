@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Flame, Send, Maximize2, RotateCcw, Swords, Clock, Trophy } from 'lucide-react';
 import Link from 'next/link';

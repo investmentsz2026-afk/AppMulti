@@ -1007,10 +1007,10 @@ export default function BattleClient({ user }: { user: any }) {
                             </div>
 
                             <button 
-                              onClick={() => { setActiveBattleId(battle.id); setWinnerInfo(null); }}
-                              className="w-full py-2 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/20 hover:from-purple-600/40 hover:to-pink-600/40 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all"
+                              onClick={() => { router.push(`/live/${battle.stream1?.user?.username}`); }}
+                              className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-[1.02] text-[#ffffff] text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
                             >
-                              Sintonizar batalla
+                              <Swords className="w-4 h-4 text-yellow-300 animate-pulse" /> Ver Batalla en Vivo
                             </button>
                           </div>
                         ))}
