@@ -14,6 +14,7 @@ import { LiveKitRoom, VideoConference } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage, checkStreamStatus } from '@/app/actions/stream';
 import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
+import { getLiveStreamers, createBattleInvite, respondToBattleInvite, getPendingInvite } from '@/app/actions/battle';
 
 interface HeartAnimation {
   id: number;
@@ -39,6 +40,79 @@ export default function TransmitirClient({ user }: { user: any }) {
   const [wagerUnblocked, setWagerUnblocked] = useState(false);
   const [dbViewers, setDbViewers] = useState(0);
   const [dbLikes, setDbLikes] = useState(0);
+
+  // Battle invite states
+  const [isInviteBattleModalOpen, setIsInviteBattleModalOpen] = useState(false);
+  const [liveStreamersList, setLiveStreamersList] = useState<any[]>([]);
+  const [loadingStreamers, setLoadingStreamers] = useState(false);
+  const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
+  const [pendingIncomingInvite, setPendingIncomingInvite] = useState<any | null>(null);
+
+  // Poll pending incoming battle challenges while live
+  useEffect(() => {
+    if (!isLive) return;
+    async function checkIncomingInvite() {
+      try {
+        const invite = await getPendingInvite();
+        setPendingIncomingInvite(invite);
+      } catch (err) {
+        console.error('Error fetching pending invite:', err);
+      }
+    }
+    checkIncomingInvite();
+    const interval = setInterval(checkIncomingInvite, 4000);
+    return () => clearInterval(interval);
+  }, [isLive]);
+
+  const handleOpenInviteModal = async () => {
+    setIsInviteBattleModalOpen(true);
+    setLoadingStreamers(true);
+    try {
+      const streamers = await getLiveStreamers();
+      setLiveStreamersList(streamers);
+    } catch (err) {
+      console.error('Error loading live streamers:', err);
+    } finally {
+      setLoadingStreamers(false);
+    }
+  };
+
+  const handleSendBattleInvite = async (streamId: string) => {
+    setSendingInviteId(streamId);
+    try {
+      const res = await createBattleInvite(streamId);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success('¡Desafío de Batalla enviado con éxito! ⚔️');
+        setIsInviteBattleModalOpen(false);
+      }
+    } catch (err) {
+      toast.error('Error al enviar el desafío.');
+    } finally {
+      setSendingInviteId(null);
+    }
+  };
+
+  const handleRespondInvite = async (accept: boolean) => {
+    if (!pendingIncomingInvite) return;
+    try {
+      const res = await respondToBattleInvite(pendingIncomingInvite.id, accept);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        if (accept) {
+          toast.success('¡Desafío ACEPTADO! Redirigiendo a Batalla... ⚔️🔥');
+          router.push('/batallas');
+        } else {
+          toast.success('Desafío rechazado.');
+        }
+        setPendingIncomingInvite(null);
+      }
+    } catch (err) {
+      toast.error('Error al responder al desafío.');
+    }
+  };
 
   // Poll database viewers and likes while live
   useEffect(() => {
@@ -1043,15 +1117,26 @@ export default function TransmitirClient({ user }: { user: any }) {
                 </div>
               </div>
 
-              {/* End live button on top right */}
-              <button 
-                onClick={handleStopLive}
-                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-black rounded-full flex items-center gap-1.5 shadow-xl border border-red-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
-                title="Finalizar En Vivo"
-              >
-                <X className="w-4 h-4 text-white stroke-[2.5]" />
-                <span className="text-[11px] sm:text-xs uppercase tracking-wider font-extrabold">Finalizar</span>
-              </button>
+              {/* Invite Battle & End live buttons on top right */}
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleOpenInviteModal}
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 text-white text-xs font-black rounded-full flex items-center gap-1.5 shadow-xl border border-pink-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  title="Invitar streamer a Batalla PvP"
+                >
+                  <Swords className="w-4 h-4 text-yellow-300 animate-pulse" />
+                  <span className="text-[11px] sm:text-xs uppercase tracking-wider font-extrabold">Invitar a Batalla</span>
+                </button>
+
+                <button 
+                  onClick={handleStopLive}
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-black rounded-full flex items-center gap-1.5 shadow-xl border border-red-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  title="Finalizar En Vivo"
+                >
+                  <X className="w-4 h-4 text-white stroke-[2.5]" />
+                  <span className="text-[11px] sm:text-xs uppercase tracking-wider font-extrabold">Finalizar</span>
+                </button>
+              </div>
             </div>
 
             {/* floating hearts display */}
@@ -1283,6 +1368,92 @@ export default function TransmitirClient({ user }: { user: any }) {
               animation: floatHeart 2s ease-out forwards;
             }
           ` }} />
+
+          {/* Pending Incoming Battle Challenge Overlay Banner */}
+          {pendingIncomingInvite && (
+            <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#120d2b] border border-pink-500/50 text-white px-6 py-4 rounded-3xl shadow-[0_0_30px_rgba(236,72,153,0.4)] flex items-center gap-4 animate-bounce">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 p-0.5 shrink-0">
+                <img src={pendingIncomingInvite.stream1?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${pendingIncomingInvite.stream1?.user?.username}`} className="w-full h-full rounded-full object-cover bg-zinc-800" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-black text-pink-400 flex items-center gap-1">
+                  <Swords className="w-4 h-4 text-yellow-400" /> ¡DESAFÍO DE BATALLA EN VIVO!
+                </span>
+                <span className="text-sm font-bold">
+                  @{pendingIncomingInvite.stream1?.user?.username} te desafía a una batalla 1v1 PvP
+                </span>
+              </div>
+              <div className="flex items-center gap-2 ml-2">
+                <button
+                  onClick={() => handleRespondInvite(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-105 text-white text-xs font-black rounded-xl shadow-md transition-all uppercase"
+                >
+                  Aceptar ⚔️
+                </button>
+                <button
+                  onClick={() => handleRespondInvite(false)}
+                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-zinc-300 text-xs font-bold rounded-xl transition-all"
+                >
+                  Rechazar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modal: Invitar Streamer a Batalla PvP */}
+          {isInviteBattleModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setIsInviteBattleModalOpen(false)}>
+              <div className="bg-[#0e0b1c] border border-purple-500/30 w-full max-w-md rounded-3xl p-6 shadow-[0_0_50px_rgba(168,85,247,0.3)] flex flex-col gap-4 relative" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => setIsInviteBattleModalOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-full bg-white/5">
+                  <X className="w-5 h-5" />
+                </button>
+
+                <div className="flex items-center gap-2.5 pb-2 border-b border-white/10">
+                  <div className="w-9 h-9 rounded-full bg-purple-600/30 border border-purple-500/50 flex items-center justify-center">
+                    <Swords className="w-5 h-5 text-pink-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-white">Invitar a Batalla PvP ⚔️</h3>
+                    <p className="text-xs text-zinc-400">Desafía a otros creadores que están en vivo ahora mismo</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2.5 max-h-[320px] overflow-y-auto pr-1">
+                  {loadingStreamers ? (
+                    <div className="py-8 text-center text-xs text-zinc-400 font-bold animate-pulse">
+                      Cargando creadores en vivo...
+                    </div>
+                  ) : liveStreamersList.length > 0 ? (
+                    liveStreamersList.map((streamer: any) => (
+                      <div key={streamer.id} className="flex items-center justify-between bg-white/5 border border-white/5 hover:border-purple-500/30 p-3 rounded-2xl transition-all">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img src={streamer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamer.username}`} className="w-10 h-10 rounded-full bg-zinc-800 border border-pink-500/40 shrink-0" />
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-sm text-white truncate">@{streamer.username}</span>
+                            <span className="text-[10px] text-pink-400 font-semibold truncate">{streamer.stream?.title || 'Transmitiendo en vivo'}</span>
+                          </div>
+                        </div>
+
+                        <button
+                          disabled={sendingInviteId === streamer.stream?.id}
+                          onClick={() => handleSendBattleInvite(streamer.stream?.id)}
+                          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 active:scale-95 text-white text-xs font-black rounded-xl shadow-md transition-all shrink-0 uppercase tracking-wider flex items-center gap-1 disabled:opacity-50"
+                        >
+                          {sendingInviteId === streamer.stream?.id ? 'Enviando...' : 'Desafiar ⚔️'}
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-8 text-center flex flex-col items-center gap-2 text-zinc-400">
+                      <Users className="w-8 h-8 text-zinc-600" />
+                      <p className="text-xs font-bold">No hay otros creadores transmitiendo en este momento.</p>
+                      <p className="text-[10px] text-zinc-500">Pide a tus amigos que enciendan su directo para batallar.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

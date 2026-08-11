@@ -17,7 +17,6 @@ async function ensureGiftExists(id: string, name: string, price: number, icon: s
 export async function getLiveStreamers() {
   const session = await getSession();
   const userId = session?.id;
-  const heartbeatThreshold = new Date(Date.now() - 75000);
 
   try {
     const streamers = await prisma.user.findMany({
@@ -26,7 +25,6 @@ export async function getLiveStreamers() {
         id: userId ? { not: userId } : undefined,
         stream: {
           isLive: true,
-          updatedAt: { gte: heartbeatThreshold },
           // Check that they aren't currently in an ongoing battle
           battles1: { none: { status: 'ONGOING' } },
           battles2: { none: { status: 'ONGOING' } },
@@ -55,13 +53,12 @@ export async function getLiveStreamers() {
 
 // 2. Get ongoing battles
 export async function getOngoingBattles() {
-  const heartbeatThreshold = new Date(Date.now() - 75000);
   try {
     const battles = await prisma.streamBattle.findMany({
       where: { 
         status: 'ONGOING',
-        stream1: { updatedAt: { gte: heartbeatThreshold } },
-        stream2: { updatedAt: { gte: heartbeatThreshold } }
+        stream1: { isLive: true },
+        stream2: { isLive: true }
       },
       include: {
         stream1: {
