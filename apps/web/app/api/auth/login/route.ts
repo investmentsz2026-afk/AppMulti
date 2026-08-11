@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const sessionToken = await encrypt({ id: user.id, username: user.username, role: user.role, avatar: user.avatar });
+    const sessionToken = await encrypt({ id: user.id });
 
     const response = NextResponse.json({
       success: true,

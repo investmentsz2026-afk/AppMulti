@@ -61,12 +61,7 @@ export async function updateProfile(data: {
   // Re-encrypt and update session cookie if username or avatar changed
   if (data.username || data.avatar) {
     const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-    const newSession = await encrypt({
-      id: updatedUser.id,
-      username: updatedUser.username,
-      role: updatedUser.role,
-      avatar: updatedUser.avatar
-    });
+    const newSession = await encrypt({ id: updatedUser.id });
     const cookieStore = await cookies();
     cookieStore.set('session', newSession, { expires, httpOnly: true, path: '/' });
   }

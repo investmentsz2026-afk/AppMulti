@@ -70,7 +70,7 @@ export async function loginUser(formData: FormData) {
   }
 
   const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-  const session = await encrypt({ id: user.id, username: user.username, role: user.role, avatar: user.avatar });
+  const session = await encrypt({ id: user.id });
   
   const cookieStore = await cookies();
   cookieStore.set('session', session, { 
