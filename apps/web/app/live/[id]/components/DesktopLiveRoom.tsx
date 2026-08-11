@@ -207,8 +207,9 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   useEffect(() => {
     async function getLKToken() {
       if (!isStreamActive || !streamerName || !user?.username) return;
+      const targetRoom = activeBattle?.id ? `battle_${activeBattle.id}` : streamerName;
       try {
-        const res = await fetch(`/api/livekit/token?room=${streamerName}&username=${user.username}_viewer_${Math.floor(Math.random()*1000)}`);
+        const res = await fetch(`/api/livekit/token?room=${targetRoom}&username=${user.username}_viewer_${Math.floor(Math.random()*1000)}`);
         const data = await res.json();
         if (data.token) {
           setLivekitToken(data.token);
@@ -218,7 +219,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
       }
     }
     getLKToken();
-  }, [isStreamActive, streamerName, user?.username]);
+  }, [isStreamActive, streamerName, user?.username, activeBattle?.id]);
 
   useEffect(() => {
     async function loadSpectators() {

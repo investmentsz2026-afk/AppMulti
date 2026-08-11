@@ -203,6 +203,24 @@ export default function TransmitirClient({ user }: { user: any }) {
     }
   };
 
+  // Synchronize LiveKit room token with active battle room for streamers
+  useEffect(() => {
+    async function syncStreamerBattleToken() {
+      if (!isLive || !user?.username) return;
+      const targetRoom = activeBattle?.id ? `battle_${activeBattle.id}` : user.username;
+      try {
+        const tokenRes = await fetch(`/api/livekit/token?room=${targetRoom}&username=${user.username}`);
+        const tokenData = await tokenRes.json();
+        if (tokenData.token) {
+          setLivekitToken(tokenData.token);
+        }
+      } catch (err) {
+        console.error('Error syncing streamer battle token:', err);
+      }
+    }
+    syncStreamerBattleToken();
+  }, [activeBattle?.id, isLive, user?.username]);
+
   // Poll database viewers and likes while live
   useEffect(() => {
     if (!isLive || !user?.username) return;
