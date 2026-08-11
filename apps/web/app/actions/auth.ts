@@ -53,14 +53,11 @@ export async function loginUser(formData: FormData) {
       });
     }
   } else {
-    user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: { equals: email, mode: 'insensitive' } },
-          { username: { equals: email, mode: 'insensitive' } }
-        ]
-      }
-    });
+    user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Also fallback search by username
+      user = await prisma.user.findUnique({ where: { username: email } });
+    }
 
     if (!user) return { error: 'Usuario o contraseña incorrectos' };
 
@@ -76,11 +73,15 @@ export async function loginUser(formData: FormData) {
   const session = await encrypt({ id: user.id, username: user.username, role: user.role, avatar: user.avatar });
   
   const cookieStore = await cookies();
-  cookieStore.set('session', session, { expires, httpOnly: true, path: '/' });
-  return { 
-    success: true, 
-    user: { id: user.id, username: user.username, role: user.role, avatar: user.avatar } 
-  };
+  cookieStore.set('session', session, { 
+    expires, 
+    httpOnly: true, 
+    path: '/',
+    sameSite: 'lax'
+  });
+
+  const targetPath = user.role === 'ADMIN' ? '/admin' : '/dashboard';
+  redirect(targetPath);
 }
 
 export async function registerUser(formData: FormData) {

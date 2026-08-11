@@ -16,6 +16,7 @@ export default function LoginClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -25,6 +26,10 @@ export default function LoginClient() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      toast.error('Debes aceptar los Términos de servicio');
+      return;
+    }
     setLoading(true);
     try {
       const formData = new FormData();
@@ -34,18 +39,14 @@ export default function LoginClient() {
       const res = await loginUser(formData);
       if (res?.error) {
         toast.error(res.error);
-      } else {
-        if (res?.user) {
-          useAuthStore.getState().setAuth(res.user, '');
-        }
-        toast.success('¡Sesión iniciada con éxito!');
-        const targetUrl = res?.user?.role === 'ADMIN' ? '/admin' : '/dashboard';
-        window.location.href = targetUrl;
+        setLoading(false);
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === 'NEXT_REDIRECT' || error?.digest?.startsWith('NEXT_REDIRECT')) {
+        return;
+      }
       console.error('Login failed', error);
       toast.error('Error al iniciar sesión');
-    } finally {
       setLoading(false);
     }
   };
@@ -152,9 +153,6 @@ export default function LoginClient() {
                     type="text" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
                     className="w-full bg-[#050816]/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-700"
                     placeholder="ejemplo@correo.com o usuario"
                     required
@@ -175,9 +173,6 @@ export default function LoginClient() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
                     className="w-full bg-[#050816]/50 border border-white/5 rounded-2xl py-4 pl-12 pr-12 text-sm outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-700"
                     placeholder="••••••••"
                     required
@@ -192,9 +187,17 @@ export default function LoginClient() {
                 </div>
               </div>
 
-              <div className="text-[10px] text-zinc-500 font-bold flex items-center justify-center gap-1.5 py-1">
-                 <span>Al iniciar sesión aceptas los</span>
-                 <button type="button" onClick={() => setShowTermsModal(true)} className="text-purple-500 hover:text-purple-400 underline font-black uppercase tracking-wider text-[9px] cursor-pointer">Términos y Condiciones</button>
+              <div className="flex items-center gap-3 px-1 py-2">
+                 <input 
+                    type="checkbox" 
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-purple-600 cursor-pointer" 
+                 />
+                 <span className="text-[10px] text-zinc-500 font-bold flex items-center gap-1.5">
+                    <span>Acepto los Términos de servicio y Política de privacidad</span>
+                    <button type="button" onClick={() => setShowTermsModal(true)} className="text-purple-500 hover:text-purple-400 underline font-black uppercase tracking-wider text-[9px] cursor-pointer">Ver</button>
+                 </span>
               </div>
 
               <button 
