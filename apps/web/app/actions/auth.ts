@@ -53,11 +53,14 @@ export async function loginUser(formData: FormData) {
       });
     }
   } else {
-    user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      // Also fallback search by username
-      user = await prisma.user.findUnique({ where: { username: email } });
-    }
+    user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: email, mode: 'insensitive' } },
+          { username: { equals: email, mode: 'insensitive' } }
+        ]
+      }
+    });
 
     if (!user) return { error: 'Usuario o contraseña incorrectos' };
 

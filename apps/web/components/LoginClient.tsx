@@ -152,6 +152,9 @@ export default function LoginClient() {
                     type="text" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className="w-full bg-[#050816]/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-700"
                     placeholder="ejemplo@correo.com o usuario"
                     required
@@ -172,6 +175,9 @@ export default function LoginClient() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className="w-full bg-[#050816]/50 border border-white/5 rounded-2xl py-4 pl-12 pr-12 text-sm outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-700"
                     placeholder="••••••••"
                     required
