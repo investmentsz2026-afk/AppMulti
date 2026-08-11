@@ -81,11 +81,15 @@ export async function loginUser(formData: FormData) {
     sameSite: 'lax'
   });
 
-  if (user.role === 'ADMIN') {
-    redirect('/admin');
-  } else {
-    redirect('/dashboard');
-  }
+  return {
+    success: true,
+    user: {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      avatar: user.avatar
+    }
+  };
 }
 
 export async function registerUser(formData: FormData) {

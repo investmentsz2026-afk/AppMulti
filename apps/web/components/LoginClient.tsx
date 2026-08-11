@@ -35,12 +35,13 @@ export default function LoginClient() {
       if (res?.error) {
         toast.error(res.error);
         setLoading(false);
+      } else if (res?.success && res?.user) {
+        useAuthStore.getState().setAuth(res.user, '');
+        toast.success('¡Sesión iniciada con éxito!');
+        const targetUrl = res.user.role === 'ADMIN' ? '/admin' : '/dashboard';
+        window.location.href = targetUrl;
       }
     } catch (error: any) {
-      // Next.js redirect throws a digest error when server action redirects, which is expected
-      if (error?.message?.includes('NEXT_REDIRECT')) {
-        return;
-      }
       console.error('Login failed', error);
       toast.error('Error al iniciar sesión');
       setLoading(false);
