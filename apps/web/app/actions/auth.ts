@@ -79,10 +79,9 @@ export async function loginUser(formData: FormData) {
     path: '/',
     sameSite: 'lax'
   });
-  return { 
-    success: true, 
-    user: { id: user.id, username: user.username, role: user.role, avatar: user.avatar } 
-  };
+
+  const targetPath = user.role === 'ADMIN' ? '/admin' : '/dashboard';
+  redirect(targetPath);
 }
 
 export async function registerUser(formData: FormData) {

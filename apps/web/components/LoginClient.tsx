@@ -16,6 +16,7 @@ export default function LoginClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -25,6 +26,10 @@ export default function LoginClient() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      toast.error('Debes aceptar los Términos de servicio');
+      return;
+    }
     setLoading(true);
     try {
       const formData = new FormData();
@@ -35,15 +40,11 @@ export default function LoginClient() {
       if (res?.error) {
         toast.error(res.error);
         setLoading(false);
-      } else {
-        if (res?.user) {
-          useAuthStore.getState().setAuth(res.user, '');
-        }
-        toast.success('¡Sesión iniciada con éxito!');
-        const targetUrl = res?.user?.role === 'ADMIN' ? '/admin' : '/dashboard';
-        window.location.href = targetUrl;
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === 'NEXT_REDIRECT' || error?.digest?.startsWith('NEXT_REDIRECT')) {
+        return;
+      }
       console.error('Login failed', error);
       toast.error('Error al iniciar sesión');
       setLoading(false);
@@ -187,7 +188,12 @@ export default function LoginClient() {
               </div>
 
               <div className="flex items-center gap-3 px-1 py-2">
-                 <input type="checkbox" className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-purple-600 cursor-pointer" required />
+                 <input 
+                    type="checkbox" 
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-purple-600 cursor-pointer" 
+                 />
                  <span className="text-[10px] text-zinc-500 font-bold flex items-center gap-1.5">
                     <span>Acepto los Términos de servicio y Política de privacidad</span>
                     <button type="button" onClick={() => setShowTermsModal(true)} className="text-purple-500 hover:text-purple-400 underline font-black uppercase tracking-wider text-[9px] cursor-pointer">Ver</button>
