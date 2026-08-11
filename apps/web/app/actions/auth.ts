@@ -73,12 +73,7 @@ export async function loginUser(formData: FormData) {
   const session = await encrypt({ id: user.id, username: user.username, role: user.role, avatar: user.avatar });
   
   const cookieStore = await cookies();
-  cookieStore.set('session', session, { 
-    expires, 
-    httpOnly: true, 
-    path: '/',
-    sameSite: 'lax'
-  });
+  cookieStore.set('session', session, { expires, httpOnly: true, path: '/' });
   return { 
     success: true, 
     user: { id: user.id, username: user.username, role: user.role, avatar: user.avatar } 

@@ -34,18 +34,21 @@ export default function LoginClient() {
       const res = await loginUser(formData);
       if (res?.error) {
         toast.error(res.error);
-        setLoading(false);
       } else {
         if (res?.user) {
           useAuthStore.getState().setAuth(res.user, '');
         }
         toast.success('¡Sesión iniciada con éxito!');
-        const targetUrl = res?.user?.role === 'ADMIN' ? '/admin' : '/dashboard';
-        window.location.href = targetUrl;
+        if (res?.user?.role === 'ADMIN') {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (error) {
       console.error('Login failed', error);
       toast.error('Error al iniciar sesión');
+    } finally {
       setLoading(false);
     }
   };
@@ -149,11 +152,11 @@ export default function LoginClient() {
                     <Mail className="w-full h-full" />
                   </div>
                   <input 
-                    type="text" 
+                    type="email" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-[#050816]/50 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm outline-none focus:border-purple-500/50 transition-all placeholder:text-zinc-700"
-                    placeholder="ejemplo@correo.com o usuario"
+                    placeholder="ejemplo@correo.com"
                     required
                   />
                 </div>
