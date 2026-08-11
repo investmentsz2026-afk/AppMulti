@@ -73,11 +73,19 @@ export async function loginUser(formData: FormData) {
   const session = await encrypt({ id: user.id, username: user.username, role: user.role, avatar: user.avatar });
   
   const cookieStore = await cookies();
-  cookieStore.set('session', session, { expires, httpOnly: true, path: '/' });
-  return { 
-    success: true, 
-    user: { id: user.id, username: user.username, role: user.role, avatar: user.avatar } 
-  };
+  cookieStore.set('session', session, { 
+    expires, 
+    maxAge: 365 * 24 * 60 * 60,
+    httpOnly: true, 
+    path: '/',
+    sameSite: 'lax'
+  });
+
+  if (user.role === 'ADMIN') {
+    redirect('/admin');
+  } else {
+    redirect('/dashboard');
+  }
 }
 
 export async function registerUser(formData: FormData) {
