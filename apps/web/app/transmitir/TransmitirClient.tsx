@@ -448,7 +448,8 @@ export default function TransmitirClient({ user }: { user: any }) {
       bindStream(previewCameraVideoRef, cameraStream);
       bindStream(previewScreenVideoRef, screenStream);
     } else {
-      bindStream(liveCameraVideoRef, cameraStream);
+      const activeStreamToBind = isScreenSharing && screenStream ? screenStream : cameraStream;
+      bindStream(liveCameraVideoRef, activeStreamToBind);
       bindStream(liveScreenVideoRef, screenStream);
     }
   }, [isLive, cameraStream, screenStream, cameraActive, isScreenSharing]);
@@ -1129,8 +1130,8 @@ export default function TransmitirClient({ user }: { user: any }) {
 
                   return (
                     <>
-                      {/* TikTok PvP Score Header Bar (Placed below header buttons) */}
-                      <div className="absolute top-16 sm:top-20 left-2 right-2 z-30 max-w-xl mx-auto flex flex-col gap-1 pointer-events-auto">
+                      {/* TikTok PvP Score Header Bar (Placed cleanly below top header buttons) */}
+                      <div className="absolute top-[72px] sm:top-[80px] left-2 right-2 z-30 max-w-xl mx-auto flex flex-col gap-1 pointer-events-auto">
                         <div className="flex items-center justify-between px-1 text-[10px] sm:text-xs font-black text-white">
                           {/* Left Streamer */}
                           <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-pink-500/40 shadow-lg max-w-[42%] truncate">
@@ -1202,7 +1203,7 @@ export default function TransmitirClient({ user }: { user: any }) {
                               <VideoConference />
                             </LiveKitRoom>
                           ) : (
-                            <video ref={liveCameraVideoRef} autoPlay playsInline muted className="w-full h-full object-contain bg-black scale-x-[-1]" />
+                            <video ref={liveCameraVideoRef} autoPlay playsInline muted className={`w-full h-full object-contain bg-black ${isScreenSharing ? '' : 'scale-x-[-1]'}`} />
                           )}
                           <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate">
                             <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
@@ -1279,23 +1280,23 @@ export default function TransmitirClient({ user }: { user: any }) {
               </div>
 
               {/* Invite Battle & End live buttons on top right */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <button 
                   onClick={handleOpenInviteModal}
-                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 text-white text-xs font-black rounded-full flex items-center gap-1.5 shadow-xl border border-pink-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  className="px-2 py-1 sm:px-4 sm:py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-pink-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
                   title="Invitar streamer a Batalla PvP"
                 >
-                  <Swords className="w-4 h-4 text-yellow-300 animate-pulse" />
-                  <span className="text-[11px] sm:text-xs uppercase tracking-wider font-extrabold">Invitar a Batalla</span>
+                  <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-300 animate-pulse" />
+                  <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate max-w-[90px] sm:max-w-none">Batalla</span>
                 </button>
 
                 <button 
                   onClick={handleStopLive}
-                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-black rounded-full flex items-center gap-1.5 shadow-xl border border-red-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  className="px-2 py-1 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-500 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-red-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
                   title="Finalizar En Vivo"
                 >
-                  <X className="w-4 h-4 text-white stroke-[2.5]" />
-                  <span className="text-[11px] sm:text-xs uppercase tracking-wider font-extrabold">Finalizar</span>
+                  <X className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                  <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate">Salir</span>
                 </button>
               </div>
             </div>
@@ -1367,20 +1368,23 @@ export default function TransmitirClient({ user }: { user: any }) {
             </div>
 
             {/* Mobile Chat comments overlay */}
-            <div className="absolute bottom-20 left-4 right-20 max-h-[22vh] overflow-y-auto flex flex-col gap-2 z-20 no-scrollbar pointer-events-none lg:hidden">
+            <div 
+              className="absolute bottom-20 left-4 right-20 max-h-[22vh] overflow-y-auto flex flex-col gap-2 z-20 pointer-events-none lg:hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               {comments.map((msg) => (
-                <div key={msg.id} className="flex gap-2 items-start text-xs animate-in fade-in slide-in-from-bottom-2 duration-200 bg-black/35 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/5 w-fit max-w-[90%] pointer-events-auto">
-                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user}`} className="w-6 h-6 rounded-full bg-zinc-800 shrink-0 border border-white/10" />
-                  <div className="flex flex-col">
+                <div key={msg.id} className="flex gap-2 items-start text-xs animate-in fade-in slide-in-from-bottom-2 duration-200 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/10 w-fit max-w-[90%] pointer-events-auto [overflow-wrap:anywhere] break-all">
+                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user}`} className="w-6 h-6 rounded-full bg-zinc-800 shrink-0 border border-white/10 mt-0.5" />
+                  <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-1 mb-0.5">
                       {msg.badge && (
                         <span className="text-[7px] px-1 bg-purple-600 text-white rounded font-black uppercase tracking-wider">
                           {msg.badge}
                         </span>
                       )}
-                      <span className="text-zinc-300 text-[10px] font-bold">{msg.user}</span>
+                      <span className="text-zinc-300 text-[10px] font-bold truncate">@{msg.user}</span>
                     </div>
-                    <p className="text-white text-[11px] leading-snug">{msg.text}</p>
+                    <p className="text-white text-[11px] leading-snug [overflow-wrap:anywhere] break-all whitespace-pre-wrap">{msg.text}</p>
                   </div>
                 </div>
               ))}

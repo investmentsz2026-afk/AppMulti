@@ -54,11 +54,17 @@ function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName }: { fallbackV
     { source: Track.Source.ScreenShare, withPlaceholder: false }
   ]);
 
-  const streamerTracks = tracks.filter(t => t.participant.identity === streamerName);
-  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera);
-  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
+  const streamerTracks = tracks.filter(t => 
+    !streamerName || 
+    t.participant.identity === streamerName || 
+    t.participant.identity.includes(streamerName) || 
+    t.participant.name?.includes(streamerName)
+  );
+  
+  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare) || tracks.find(t => t.source === Track.Source.ScreenShare);
+  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera) || tracks.find(t => t.source === Track.Source.Camera);
 
-  const activeTrack = screenTrack || cameraTrack;
+  const activeTrack = screenTrack || cameraTrack || tracks[0];
 
   if (!activeTrack) {
     return (
@@ -889,32 +895,32 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
       {!isLandscape && (
         <div className={`absolute bottom-[75px] ${activeBattle ? 'left-2 max-w-[47%]' : 'left-3 right-14 max-w-[85%]'} z-20 flex flex-col justify-end pointer-events-none max-h-[220px] overflow-hidden`}>
           <div 
-            className="flex flex-col gap-1.5 overflow-y-auto pr-2 pb-2 max-h-full pointer-events-auto [&::-webkit-scrollbar]:hidden"
+            className="flex flex-col gap-1.5 overflow-y-auto pr-1 pb-2 max-h-full pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {/* Welcome Message */}
-            <div className="bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded-lg px-2.5 py-0.5 text-[9px] font-bold w-fit shadow-md backdrop-blur-sm">
+            <div className="bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded-lg px-2 py-0.5 text-[9px] font-bold w-fit shadow-md backdrop-blur-sm [overflow-wrap:anywhere] break-all">
               ¡Bienvenido a LiveX! Protegemos a la comunidad.
             </div>
             
             {dbChatMessages.map(msg => (
-              <div key={msg.id} className="flex gap-1.5 items-center text-xs drop-shadow-md bg-black/55 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/10 w-fit max-w-[90%]">
-                <img src={msg.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username}`} className="w-5 h-5 rounded-full border border-white/10 bg-zinc-800 shrink-0" />
-                <div className="flex flex-col min-w-0">
+              <div key={msg.id} className="flex gap-1.5 items-start text-xs drop-shadow-md bg-black/60 backdrop-blur-md px-2 py-1 rounded-xl border border-white/10 w-fit max-w-[98%] [overflow-wrap:anywhere] break-all">
+                <img src={msg.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username}`} className="w-4 h-4 rounded-full border border-white/10 bg-zinc-800 shrink-0 mt-0.5" />
+                <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-1">
-                    <span className="text-zinc-400 text-[9px] font-bold truncate">@{msg.user?.username}</span>
-                    {msg.user?.username === streamerName && <span className="text-[7px] bg-purple-600 px-1 py-0.2 rounded uppercase font-black text-white">STREAMER</span>}
+                    <span className="text-zinc-400 text-[8px] font-bold truncate max-w-[70px]">@{msg.user?.username}</span>
+                    {msg.user?.username === streamerName && <span className="text-[6px] bg-purple-600 px-1 rounded uppercase font-black text-white">STREAMER</span>}
                   </div>
-                  <p className="font-medium text-white text-[11px] leading-tight break-words">{msg.content}</p>
+                  <p className="font-medium text-white text-[10px] leading-snug [overflow-wrap:anywhere] break-all whitespace-pre-wrap">{msg.content}</p>
                 </div>
               </div>
             ))}
             
-            <div className="flex items-center gap-1.5 text-xs drop-shadow-md bg-black/45 backdrop-blur-md px-2.5 py-0.5 rounded-xl border border-white/10 w-fit">
-               <div className="w-4 h-4 bg-pink-500 rounded-full flex items-center justify-center shrink-0">
-                 <User className="w-2.5 h-2.5 text-white" />
+            <div className="flex items-center gap-1.5 text-xs drop-shadow-md bg-black/45 backdrop-blur-md px-2 py-0.5 rounded-xl border border-white/10 w-fit">
+               <div className="w-3.5 h-3.5 bg-pink-500 rounded-full flex items-center justify-center shrink-0">
+                 <User className="w-2 h-2 text-white" />
                </div>
-               <span className="text-pink-400 text-[9px] font-bold">Elí reyes <span className="text-white font-medium">se unió</span></span>
+               <span className="text-pink-400 text-[8px] font-bold">Elí reyes <span className="text-white font-medium">se unió</span></span>
             </div>
           </div>
         </div>

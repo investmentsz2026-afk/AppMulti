@@ -65,6 +65,7 @@ export default function BattleClient({ user }: { user: any }) {
   const [challengeableStreamers, setChallengeableStreamers] = useState<any[]>([]);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [selectedBattleForStreamerModal, setSelectedBattleForStreamerModal] = useState<any | null>(null);
 
   // Active sintonized battle states
   const [activeBattleId, setActiveBattleId] = useState<string | null>(null);
@@ -1008,14 +1009,7 @@ export default function BattleClient({ user }: { user: any }) {
 
                             <button 
                               onClick={() => {
-                                const target1 = battle.stream1?.user?.username;
-                                const target2 = battle.stream2?.user?.username;
-                                const choice = window.confirm(`¿A qué en vivo de la batalla deseas entrar?\n\n- Pulsa ACEPTAR para ver el Live de @${target1}\n- Pulsa CANCELAR para ver el Live de @${target2}`);
-                                if (choice) {
-                                  router.push(`/live/${target1}`);
-                                } else {
-                                  router.push(`/live/${target2}`);
-                                }
+                                setSelectedBattleForStreamerModal(battle);
                               }}
                               className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-[1.02] text-[#ffffff] text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
                             >
@@ -1751,6 +1745,87 @@ export default function BattleClient({ user }: { user: any }) {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- MODERN TIKTOK STREAMER SELECT MODAL ----------------- */}
+      {selectedBattleForStreamerModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#0e0d16] border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col items-center gap-5">
+            <button 
+              onClick={() => setSelectedBattleForStreamerModal(null)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center mt-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-pink-500/30 rounded-full text-pink-400 text-[10px] font-black uppercase tracking-widest mb-2">
+                <Swords className="w-3.5 h-3.5 text-pink-400" /> Sintonizar Batalla
+              </div>
+              <h3 className="text-xl font-black text-white">¿A cuál transmisión deseas unirte?</h3>
+              <p className="text-xs text-zinc-400 mt-1">Selecciona el streamer para entrar a su en vivo en pantalla dividida:</p>
+            </div>
+
+            {/* 2 Interactive Streamer Cards */}
+            <div className="grid grid-cols-2 gap-4 w-full my-2">
+              {/* Streamer 1 Card */}
+              <button
+                onClick={() => {
+                  const target = selectedBattleForStreamerModal.stream1?.user?.username;
+                  setSelectedBattleForStreamerModal(null);
+                  router.push(`/live/${target}`);
+                }}
+                className="flex flex-col items-center p-4 bg-gradient-to-b from-purple-950/40 to-pink-950/20 border border-pink-500/40 hover:border-pink-500 rounded-2xl transition-all hover:scale-105 active:scale-95 group shadow-lg cursor-pointer"
+              >
+                <div className="relative mb-2">
+                  <img
+                    src={selectedBattleForStreamerModal.stream1?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedBattleForStreamerModal.stream1?.user?.username}`}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-pink-500 shadow-md group-hover:scale-110 transition-transform bg-zinc-800"
+                  />
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 bg-pink-600 text-white text-[8px] font-black rounded uppercase">
+                    {selectedBattleForStreamerModal.points1 || 0} pts
+                  </span>
+                </div>
+                <span className="text-xs font-black text-white truncate max-w-full">
+                  @{selectedBattleForStreamerModal.stream1?.user?.username}
+                </span>
+                <span className="text-[10px] text-pink-400 font-bold mt-1 group-hover:underline">
+                  Ver su Live →
+                </span>
+              </button>
+
+              {/* Streamer 2 Card */}
+              <button
+                onClick={() => {
+                  const target = selectedBattleForStreamerModal.stream2?.user?.username;
+                  setSelectedBattleForStreamerModal(null);
+                  router.push(`/live/${target}`);
+                }}
+                className="flex flex-col items-center p-4 bg-gradient-to-b from-blue-950/40 to-cyan-950/20 border border-blue-500/40 hover:border-blue-500 rounded-2xl transition-all hover:scale-105 active:scale-95 group shadow-lg cursor-pointer"
+              >
+                <div className="relative mb-2">
+                  <img
+                    src={selectedBattleForStreamerModal.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedBattleForStreamerModal.stream2?.user?.username}`}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-blue-500 shadow-md group-hover:scale-110 transition-transform bg-zinc-800"
+                  />
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 bg-blue-600 text-white text-[8px] font-black rounded uppercase">
+                    {selectedBattleForStreamerModal.points2 || 0} pts
+                  </span>
+                </div>
+                <span className="text-xs font-black text-white truncate max-w-full">
+                  @{selectedBattleForStreamerModal.stream2?.user?.username}
+                </span>
+                <span className="text-[10px] text-blue-400 font-bold mt-1 group-hover:underline">
+                  Ver su Live →
+                </span>
+              </button>
+            </div>
+
+            <p className="text-[10px] text-zinc-500 font-semibold text-center">
+              Podrás interactuar, dar likes y enviar regalos al streamer que elijas durante la batalla.
+            </p>
           </div>
         </div>
       )}

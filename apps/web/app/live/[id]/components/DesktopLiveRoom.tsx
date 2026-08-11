@@ -57,11 +57,17 @@ function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName }: { fallbackV
     { source: Track.Source.ScreenShare, withPlaceholder: false }
   ]);
 
-  const streamerTracks = tracks.filter(t => t.participant.identity === streamerName);
-  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera);
-  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
+  const streamerTracks = tracks.filter(t => 
+    !streamerName || 
+    t.participant.identity === streamerName || 
+    t.participant.identity.includes(streamerName) || 
+    t.participant.name?.includes(streamerName)
+  );
+  
+  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare) || tracks.find(t => t.source === Track.Source.ScreenShare);
+  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera) || tracks.find(t => t.source === Track.Source.Camera);
 
-  const activeTrack = screenTrack || cameraTrack;
+  const activeTrack = screenTrack || cameraTrack || tracks[0];
 
   if (!activeTrack) {
     return (
@@ -84,7 +90,7 @@ function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName }: { fallbackV
     <div className="w-full h-full flex items-center justify-center bg-black relative">
       <VideoTrack
         trackRef={activeTrack as any}
-        className={`w-full h-full ${activeTrack.source === Track.Source.ScreenShare ? 'object-contain' : 'object-cover scale-x-[-1]'}`}
+        className={`w-full h-full object-contain bg-black ${activeTrack.source === Track.Source.ScreenShare ? '' : 'scale-x-[-1]'}`}
       />
     </div>
   );
