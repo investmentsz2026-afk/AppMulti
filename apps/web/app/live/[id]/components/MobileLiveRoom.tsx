@@ -436,6 +436,25 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
       setWalletBalance(res.newBalance);
     }
 
+    // If active battle, credit points to the streamer of this live room
+    if (activeBattle) {
+      const isStreamer2View = streamerName === activeBattle.stream2?.user?.username;
+      const targetPlayerNum: 1 | 2 = isStreamer2View ? 2 : 1;
+      try {
+        await updateBattlePoints(activeBattle.id, targetPlayerNum, gift.price, true, gift.id);
+        setActiveBattle((prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            points1: targetPlayerNum === 1 ? (prev.points1 || 0) + gift.price : prev.points1,
+            points2: targetPlayerNum === 2 ? (prev.points2 || 0) + gift.price : prev.points2,
+          };
+        });
+      } catch (err) {
+        console.error('Error updating battle points from gift:', err);
+      }
+    }
+
     // Spawn floating animation locally immediately
     const animId = Date.now() + Math.random();
     setFloatingGifts(prev => [...prev, {
@@ -563,6 +582,11 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
           const res = await likeStreamAction(streamerName);
           if (res.likes !== undefined) {
             setDbLikes(res.likes);
+          }
+          if (activeBattle) {
+            const isStreamer2View = streamerName === activeBattle.stream2?.user?.username;
+            const targetPlayerNum: 1 | 2 = isStreamer2View ? 2 : 1;
+            handleLikePlayer(targetPlayerNum);
           }
         }}
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
