@@ -17,11 +17,47 @@ import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendS
 import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
 import { getLiveStreamers, createBattleInvite, respondToBattleInvite, getPendingInvite, startBattleAction, getActiveUserBattleAction } from '@/app/actions/battle';
 
-function LiveKitPlayer({ fallbackVideoSrc, streamerName, opponentName }: { fallbackVideoSrc: string, streamerName: string, opponentName?: string }) {
-  const tracks = useTracks([
-    { source: Track.Source.Camera, withPlaceholder: false },
-    { source: Track.Source.ScreenShare, withPlaceholder: false }
-  ]);
+function LiveKitPlayer({ 
+  fallbackVideoSrc, 
+  streamerName, 
+  opponentName,
+  isLocalUser,
+  screenStream,
+  isScreenSharing
+}: { 
+  fallbackVideoSrc: string, 
+  streamerName: string, 
+  opponentName?: string,
+  isLocalUser?: boolean,
+  screenStream?: MediaStream | null,
+  isScreenSharing?: boolean
+}) {
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: false },
+      { source: Track.Source.ScreenShare, withPlaceholder: false }
+    ],
+    { onlySubscribed: false }
+  );
+
+  // If local user is sharing screen, render local mediaStream directly for 0-latency display
+  if (isLocalUser && isScreenSharing && screenStream) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black relative">
+        <video
+          ref={(node) => {
+            if (node && screenStream) {
+              node.srcObject = screenStream;
+            }
+          }}
+          autoPlay
+          playsInline
+          muted
+          className="w-full h-full object-contain bg-black"
+        />
+      </div>
+    );
+  }
 
   const cleanStreamer = decodeURIComponent(streamerName || '').toLowerCase().trim();
   const cleanOpponent = decodeURIComponent(opponentName || '').toLowerCase().trim();
@@ -49,7 +85,7 @@ function LiveKitPlayer({ fallbackVideoSrc, streamerName, opponentName }: { fallb
     return false;
   });
   
-  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
+  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare) || tracks.find(t => t.source === Track.Source.ScreenShare);
   const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera);
 
   const activeTrack = screenTrack || cameraTrack;
@@ -1348,7 +1384,14 @@ export default function TransmitirClient({ user }: { user: any }) {
                           <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                             {/* Left Streamer (Host) Video Canvas */}
                             <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
-                              <LiveKitPlayer fallbackVideoSrc="" streamerName={leftUser?.username || ''} opponentName={rightUser?.username || ''} />
+                              <LiveKitPlayer 
+                                fallbackVideoSrc="" 
+                                streamerName={leftUser?.username || ''} 
+                                opponentName={rightUser?.username || ''} 
+                                isLocalUser={leftUser?.username === user?.username}
+                                screenStream={screenStream}
+                                isScreenSharing={isScreenSharing}
+                              />
                               <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
                                 <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
                                 <span className="truncate">@{leftUser?.username}</span>
@@ -1357,7 +1400,14 @@ export default function TransmitirClient({ user }: { user: any }) {
 
                             {/* Right Streamer (Opponent) Video Canvas */}
                             <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
-                              <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" streamerName={rightUser?.username || ''} opponentName={leftUser?.username || ''} />
+                              <LiveKitPlayer 
+                                fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" 
+                                streamerName={rightUser?.username || ''} 
+                                opponentName={leftUser?.username || ''} 
+                                isLocalUser={rightUser?.username === user?.username}
+                                screenStream={screenStream}
+                                isScreenSharing={isScreenSharing}
+                              />
                               <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
                                 <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
                                 <span className="truncate">@{rightUser?.username}</span>
@@ -1400,7 +1450,13 @@ export default function TransmitirClient({ user }: { user: any }) {
               >
                 <RoomAudioRenderer />
                 <LiveKitScreenSharePublisher isScreenSharing={isScreenSharing} screenStream={screenStream} />
-                <LiveKitPlayer fallbackVideoSrc="" streamerName={user?.username || ''} />
+                <LiveKitPlayer 
+                  fallbackVideoSrc="" 
+                  streamerName={user?.username || ''} 
+                  isLocalUser={true}
+                  screenStream={screenStream}
+                  isScreenSharing={isScreenSharing}
+                />
               </LiveKitRoom>
             ) : (
               <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-10 gap-3">
