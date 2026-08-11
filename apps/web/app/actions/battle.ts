@@ -365,6 +365,46 @@ export async function getActiveUserBattleAction() {
   }
 }
 
+// Get current active battle (ONGOING or PENDING) for any streamer by username
+export async function getActiveBattleForStreamer(username: string) {
+  try {
+    const streamer = await prisma.user.findUnique({
+      where: { username },
+      include: { stream: true }
+    });
+
+    if (!streamer || !streamer.stream) return null;
+
+    const battle = await prisma.streamBattle.findFirst({
+      where: {
+        OR: [
+          { stream1Id: streamer.stream.id },
+          { stream2Id: streamer.stream.id }
+        ],
+        status: { in: ['PENDING', 'ONGOING'] }
+      },
+      include: {
+        stream1: {
+          include: {
+            user: { select: { id: true, username: true, avatar: true } }
+          }
+        },
+        stream2: {
+          include: {
+            user: { select: { id: true, username: true, avatar: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return battle;
+  } catch (error) {
+    console.error('Error fetching battle for streamer:', error);
+    return null;
+  }
+}
+
 // 7. Get pending incoming invite for the current user
 export async function getPendingInvite() {
   const session = await getSession();
