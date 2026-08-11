@@ -23,17 +23,23 @@ function LiveKitPlayer({ fallbackVideoSrc, streamerName }: { fallbackVideoSrc: s
     { source: Track.Source.ScreenShare, withPlaceholder: false }
   ]);
 
-  const streamerTracks = tracks.filter(t => 
-    !streamerName || 
-    t.participant.identity === streamerName || 
-    t.participant.identity.includes(streamerName) || 
-    t.participant.name?.includes(streamerName)
-  );
+  const streamerTracks = tracks.filter(t => {
+    if (!streamerName) return true;
+    const identity = t.participant.identity || '';
+    const name = t.participant.name || '';
+    return (
+      identity === streamerName ||
+      identity.startsWith(streamerName) ||
+      identity.includes(streamerName) ||
+      name === streamerName ||
+      name.includes(streamerName)
+    );
+  });
   
-  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare) || tracks.find(t => t.source === Track.Source.ScreenShare);
-  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera) || tracks.find(t => t.source === Track.Source.Camera);
+  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
+  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera);
 
-  const activeTrack = screenTrack || cameraTrack || tracks[0];
+  const activeTrack = screenTrack || cameraTrack;
 
   if (!activeTrack) {
     return (
