@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { LiveKitRoom, VideoConference, useTracks, VideoTrack, RoomAudioRenderer } from '@livekit/components-react';
+import { LiveKitRoom, VideoConference, useTracks, VideoTrack, RoomAudioRenderer, useLocalParticipant } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage, checkStreamStatus } from '@/app/actions/stream';
@@ -77,6 +77,71 @@ function LiveKitPlayer({ fallbackVideoSrc, streamerName, opponentName }: { fallb
       />
     </div>
   );
+}
+
+function LiveKitScreenSharePublisher({ 
+  isScreenSharing, 
+  screenStream 
+}: { 
+  isScreenSharing: boolean; 
+  screenStream: MediaStream | null; 
+}) {
+  const { localParticipant } = useLocalParticipant();
+  const publishedTrackRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!localParticipant) return;
+
+    let isSubscribed = true;
+
+    async function syncScreenShare() {
+      if (isScreenSharing && screenStream) {
+        const videoTrack = screenStream.getVideoTracks()[0];
+        if (videoTrack) {
+          try {
+            const existingPublications = Array.from(localParticipant.trackPublications.values());
+            const alreadyPublished = existingPublications.some(
+              (pub: any) => pub.source === Track.Source.ScreenShare && pub.videoTrack?.mediaStreamTrack === videoTrack
+            );
+
+            if (!alreadyPublished) {
+              if (publishedTrackRef.current) {
+                try {
+                  await localParticipant.unpublishTrack(publishedTrackRef.current);
+                } catch (e) {}
+              }
+              const publication = await localParticipant.publishTrack(videoTrack, {
+                source: Track.Source.ScreenShare,
+                name: 'screen_share',
+              });
+              if (isSubscribed) {
+                publishedTrackRef.current = publication.track;
+              }
+            }
+          } catch (err) {
+            console.error('Error publishing screen share track to LiveKit:', err);
+          }
+        }
+      } else {
+        if (publishedTrackRef.current) {
+          try {
+            await localParticipant.unpublishTrack(publishedTrackRef.current);
+          } catch (err) {}
+          if (isSubscribed) {
+            publishedTrackRef.current = null;
+          }
+        }
+      }
+    }
+
+    syncScreenShare();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [isScreenSharing, screenStream, localParticipant]);
+
+  return null;
 }
 
 interface HeartAnimation {
@@ -1279,6 +1344,7 @@ export default function TransmitirClient({ user }: { user: any }) {
                       {livekitToken ? (
                         <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive || isScreenSharing} audio={micActive} screen={isScreenSharing} className="w-full h-full">
                           <RoomAudioRenderer />
+                          <LiveKitScreenSharePublisher isScreenSharing={isScreenSharing} screenStream={screenStream} />
                           <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                             {/* Left Streamer (Host) Video Canvas */}
                             <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
@@ -1333,6 +1399,7 @@ export default function TransmitirClient({ user }: { user: any }) {
                 className="w-full h-full"
               >
                 <RoomAudioRenderer />
+                <LiveKitScreenSharePublisher isScreenSharing={isScreenSharing} screenStream={screenStream} />
                 <LiveKitPlayer fallbackVideoSrc="" streamerName={user?.username || ''} />
               </LiveKitRoom>
             ) : (
