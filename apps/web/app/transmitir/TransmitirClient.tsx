@@ -1371,28 +1371,30 @@ export default function TransmitirClient({ user }: { user: any }) {
 
           {/* Pending Incoming Battle Challenge Overlay Banner */}
           {pendingIncomingInvite && (
-            <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#120d2b] border border-pink-500/50 text-white px-6 py-4 rounded-3xl shadow-[0_0_30px_rgba(236,72,153,0.4)] flex items-center gap-4 animate-bounce">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 p-0.5 shrink-0">
-                <img src={pendingIncomingInvite.stream1?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${pendingIncomingInvite.stream1?.user?.username}`} className="w-full h-full rounded-full object-cover bg-zinc-800" />
+            <div className="fixed top-14 sm:top-16 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto max-w-md mx-auto z-50 bg-[#120d2b]/95 backdrop-blur-xl border border-pink-500/50 text-white p-3.5 sm:px-5 sm:py-3.5 rounded-2xl sm:rounded-3xl shadow-[0_0_35px_rgba(236,72,153,0.5)] flex flex-col sm:flex-row items-center gap-3 animate-bounce">
+              <div className="flex items-center gap-3 w-full sm:w-auto min-w-0">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 p-0.5 shrink-0">
+                  <img src={pendingIncomingInvite.stream1?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${pendingIncomingInvite.stream1?.user?.username}`} className="w-full h-full rounded-full object-cover bg-zinc-800" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] sm:text-xs font-black text-pink-400 flex items-center gap-1 uppercase tracking-wider">
+                    <Swords className="w-3.5 h-3.5 text-yellow-400 shrink-0" /> ¡DESAFÍO DE BATALLA!
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-white leading-tight truncate">
+                    @{pendingIncomingInvite.stream1?.user?.username} te desafía a batalla 1v1
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-black text-pink-400 flex items-center gap-1">
-                  <Swords className="w-4 h-4 text-yellow-400" /> ¡DESAFÍO DE BATALLA EN VIVO!
-                </span>
-                <span className="text-sm font-bold">
-                  @{pendingIncomingInvite.stream1?.user?.username} te desafía a una batalla 1v1 PvP
-                </span>
-              </div>
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/10">
                 <button
                   onClick={() => handleRespondInvite(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-105 text-white text-xs font-black rounded-xl shadow-md transition-all uppercase"
+                  className="flex-1 sm:flex-none px-3.5 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-105 active:scale-95 text-white text-xs font-black rounded-xl shadow-md transition-all uppercase tracking-wider text-center cursor-pointer"
                 >
                   Aceptar ⚔️
                 </button>
                 <button
                   onClick={() => handleRespondInvite(false)}
-                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-zinc-300 text-xs font-bold rounded-xl transition-all"
+                  className="flex-1 sm:flex-none px-3 py-1.5 sm:px-3 sm:py-2 bg-white/10 hover:bg-white/20 text-zinc-300 text-xs font-bold rounded-xl transition-all text-center cursor-pointer"
                 >
                   Rechazar
                 </button>
