@@ -39,11 +39,8 @@ export default function LoginClient() {
           useAuthStore.getState().setAuth(res.user, '');
         }
         toast.success('¡Sesión iniciada con éxito!');
-        if (res?.user?.role === 'ADMIN') {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard');
-        }
+        const targetUrl = res?.user?.role === 'ADMIN' ? '/admin' : '/dashboard';
+        window.location.href = targetUrl;
       }
     } catch (error) {
       console.error('Login failed', error);
