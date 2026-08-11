@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Compass, Play, Settings, Share2, 
-  Heart, MessageSquare, Gift, User, Star, Plus, Shield, Trophy, Tv, Flame, Send
+  Heart, MessageSquare, Gift, User, Star, Plus, Shield, Trophy, Tv, Flame, Send, Swords, Clock
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
@@ -11,7 +11,8 @@ import { usePublicPosts } from '@/hooks/usePosts';
 import { toast } from 'react-hot-toast';
 import { checkStreamStatus, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, getStreamChatMessages, sendStreamChatMessage, getRealSpectatorsAction, getUserWalletBalanceAction, sendGiftAction } from '@/app/actions/stream';
 import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
-import { LiveKitRoom, VideoConference, useTracks, VideoTrack } from '@livekit/components-react';
+import { getActiveBattleForStreamer, updateBattlePoints } from '@/app/actions/battle';
+import { LiveKitRoom, VideoConference, useTracks, VideoTrack, RoomAudioRenderer } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
@@ -105,6 +106,73 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   const [isFollowing, setIsFollowing] = useState(false);
   const [spectators, setSpectators] = useState<any[]>([]);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [activeBattle, setActiveBattle] = useState<any | null>(null);
+  const [battleTimer, setBattleTimer] = useState<number>(180);
+  const [selectedGiftTarget, setSelectedGiftTarget] = useState<1 | 2>(1);
+
+  // Poll current streamer's active battle (PENDING or ONGOING)
+  useEffect(() => {
+    async function pollBattle() {
+      if (!streamerName) return;
+      try {
+        const battle = await getActiveBattleForStreamer(streamerName);
+        setActiveBattle(battle);
+        if (battle && battle.status === 'ONGOING' && battle.endTime) {
+          const remaining = Math.max(0, Math.floor((new Date(battle.endTime).getTime() - Date.now()) / 1000));
+          setBattleTimer(remaining);
+        } else if (battle && battle.status === 'PENDING') {
+          setBattleTimer(180);
+        }
+      } catch (err) {
+        console.error('Error polling battle for streamer:', err);
+      }
+    }
+    pollBattle();
+    const interval = setInterval(pollBattle, 2500);
+    return () => clearInterval(interval);
+  }, [streamerName]);
+
+  const handleLikePlayer = async (playerNum: 1 | 2) => {
+    if (!activeBattle) return;
+    try {
+      await updateBattlePoints(activeBattle.id, playerNum, 1, false);
+      setActiveBattle((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          points1: playerNum === 1 ? (prev.points1 || 0) + 1 : prev.points1,
+          points2: playerNum === 2 ? (prev.points2 || 0) + 1 : prev.points2,
+        };
+      });
+    } catch (err) {
+      console.error('Error updating like points:', err);
+    }
+  };
+
+  const handleSendGiftToPlayer = async (gift: any, playerNum: 1 | 2) => {
+    if (!activeBattle) return;
+    if (walletBalance < gift.price) {
+      toast.error('Saldo insuficiente de monedas');
+      return;
+    }
+    setWalletBalance(prev => prev - gift.price);
+    const targetUsername = playerNum === 1 ? activeBattle.stream1?.user?.username : activeBattle.stream2?.user?.username;
+    toast.success(`🎁 ¡Regalo ${gift.name} enviado a @${targetUsername}!`);
+
+    try {
+      await updateBattlePoints(activeBattle.id, playerNum, gift.price, true, gift.id);
+      setActiveBattle((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          points1: playerNum === 1 ? (prev.points1 || 0) + gift.price : prev.points1,
+          points2: playerNum === 2 ? (prev.points2 || 0) + gift.price : prev.points2,
+        };
+      });
+    } catch (err) {
+      console.error('Error updating gift points:', err);
+    }
+  };
 
   useEffect(() => {
     async function loadBalance() {
@@ -553,7 +621,119 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
           }}
           className="flex-1 relative flex items-center justify-center bg-black overflow-hidden group cursor-pointer"
         >
-          {isStreamActive ? (
+          {activeBattle ? (
+            <div className="w-full h-full relative bg-black flex flex-col items-center justify-center">
+              
+              {/* TikTok PvP Score Header Bar */}
+              <div className="absolute top-16 left-4 right-4 z-30 max-w-xl mx-auto flex flex-col gap-1.5 pointer-events-auto">
+                <div className="flex items-center justify-between px-2 text-xs font-black text-white">
+                  {/* Left Streamer */}
+                  <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-pink-500/40 shadow-lg">
+                    <img src={activeBattle.stream1?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream1?.user?.username}`} className="w-5 h-5 rounded-full border border-pink-500 bg-zinc-800 shrink-0" />
+                    <span className="truncate max-w-[110px]">@{activeBattle.stream1?.user?.username}</span>
+                    <span className="text-pink-400 font-black ml-1 shrink-0">{activeBattle.points1 || 0} pts</span>
+                  </div>
+
+                  {/* Timer Badge */}
+                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1 rounded-full text-white font-black text-xs shadow-xl flex items-center gap-1 shrink-0 border border-white/20">
+                    <Clock className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+                    <span>
+                      {Math.floor(battleTimer / 60).toString().padStart(2, '0')}:{(battleTimer % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+
+                  {/* Right Streamer */}
+                  <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-blue-500/40 shadow-lg">
+                    <span className="text-blue-400 font-black mr-1 shrink-0">{activeBattle.points2 || 0} pts</span>
+                    <span className="truncate max-w-[110px]">@{activeBattle.stream2?.user?.username}</span>
+                    <img src={activeBattle.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream2?.user?.username}`} className="w-5 h-5 rounded-full border border-blue-500 bg-zinc-800 shrink-0" />
+                  </div>
+                </div>
+
+                {/* Shifting TikTok PvP Bar */}
+                <div className="h-3 bg-black/70 backdrop-blur-md rounded-full border border-white/15 overflow-hidden flex shadow-xl">
+                  <div 
+                    style={{ width: `${(activeBattle.points1 || 0) + (activeBattle.points2 || 0) > 0 ? ((activeBattle.points1 || 0) / ((activeBattle.points1 || 0) + (activeBattle.points2 || 0))) * 100 : 50}%` }}
+                    className="h-full bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 transition-all duration-500"
+                  />
+                  <div 
+                    style={{ width: `${(activeBattle.points1 || 0) + (activeBattle.points2 || 0) > 0 ? ((activeBattle.points2 || 0) / ((activeBattle.points1 || 0) + (activeBattle.points2 || 0))) * 100 : 50}%` }}
+                    className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 transition-all duration-500"
+                  />
+                </div>
+              </div>
+
+              {/* Split Screen Video Grid (Side by side on Desktop) */}
+              <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
+                {/* Streamer 1 Video Canvas */}
+                <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
+                  {livekitToken ? (
+                    <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
+                      <RoomAudioRenderer />
+                      <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" videoRef={videoRef} streamerName={activeBattle.stream1?.user?.username || streamerName} />
+                    </LiveKitRoom>
+                  ) : (
+                    <video ref={videoRef} autoPlay playsInline muted loop src="/uploads/1779484645064-rwef26.mp4" className="w-full h-full object-cover" />
+                  )}
+                  {/* Left Streamer Tag & Dedicated Like/Gift buttons */}
+                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-auto">
+                    <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-pink-500/40 text-xs font-black text-pink-400 flex items-center gap-1.5 shadow-md">
+                      <img src={activeBattle.stream1?.user?.avatar} className="w-4 h-4 rounded-full border border-pink-500" />
+                      <span>@{activeBattle.stream1?.user?.username}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleLikePlayer(1)}
+                        className="px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white rounded-full text-xs font-black flex items-center gap-1 shadow-lg active:scale-90 transition-transform cursor-pointer"
+                      >
+                        <Heart className="w-3.5 h-3.5 fill-white" /> Like
+                      </button>
+                      <button 
+                        onClick={() => handleSendGiftToPlayer({ id: 'rose', name: 'Rosa', price: 1 }, 1)}
+                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-xs font-black flex items-center gap-1 shadow-lg active:scale-90 transition-transform cursor-pointer"
+                      >
+                        <Gift className="w-3.5 h-3.5 fill-white" /> Regalar (1 C)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Streamer 2 Video Canvas */}
+                <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
+                  <img src={activeBattle.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream2?.user?.username}`} className="w-full h-full object-cover opacity-80" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col items-center justify-center p-4">
+                    <div className="w-16 h-16 rounded-full border-2 border-blue-400 p-0.5 bg-gradient-to-tr from-blue-600 to-cyan-400 shadow-[0_0_20px_rgba(59,130,246,0.5)] mb-2">
+                      <img src={activeBattle.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream2?.user?.username}`} className="w-full h-full rounded-full object-cover bg-zinc-800" />
+                    </div>
+                    <span className="text-sm font-black text-white">@{activeBattle.stream2?.user?.username}</span>
+                    <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mt-0.5">Streamer Oponente en Vivo</span>
+                  </div>
+                  {/* Right Streamer Tag & Dedicated Like/Gift buttons */}
+                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-auto">
+                    <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-blue-500/40 text-xs font-black text-blue-400 flex items-center gap-1.5 shadow-md">
+                      <img src={activeBattle.stream2?.user?.avatar} className="w-4 h-4 rounded-full border border-blue-500" />
+                      <span>@{activeBattle.stream2?.user?.username}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleLikePlayer(2)}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-full text-xs font-black flex items-center gap-1 shadow-lg active:scale-90 transition-transform cursor-pointer"
+                      >
+                        <Heart className="w-3.5 h-3.5 fill-white" /> Like
+                      </button>
+                      <button 
+                        onClick={() => handleSendGiftToPlayer({ id: 'rose', name: 'Rosa', price: 1 }, 2)}
+                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-xs font-black flex items-center gap-1 shadow-lg active:scale-90 transition-transform cursor-pointer"
+                      >
+                        <Gift className="w-3.5 h-3.5 fill-white" /> Regalar (1 C)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          ) : isStreamActive ? (
             <div className="w-full h-full bg-black flex items-center justify-center">
               {livekitToken ? (
                 <LiveKitRoom
@@ -647,7 +827,32 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
         </div>
 
         {/* Gift Bar (Bottom) */}
+        {/* Bottom Bar Controls */}
         <div className="h-24 bg-[#09090e] border-t border-white/5 flex items-center px-4 gap-2 shrink-0">
+          {activeBattle && (
+            <div className="flex flex-col gap-1 pr-3 border-r border-white/10 shrink-0">
+              <span className="text-[9px] font-black text-pink-400 uppercase tracking-wider">Acreditar Regalo A:</span>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedGiftTarget(1)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 ${selectedGiftTarget === 1 ? 'bg-pink-600 text-white shadow-md' : 'bg-white/5 text-zinc-400 hover:text-white'}`}
+                >
+                  <img src={activeBattle.stream1?.user?.avatar} className="w-3.5 h-3.5 rounded-full border border-pink-500" />
+                  <span>@{activeBattle.stream1?.user?.username}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedGiftTarget(2)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 ${selectedGiftTarget === 2 ? 'bg-blue-600 text-white shadow-md' : 'bg-white/5 text-zinc-400 hover:text-white'}`}
+                >
+                  <img src={activeBattle.stream2?.user?.avatar} className="w-3.5 h-3.5 rounded-full border border-blue-500" />
+                  <span>@{activeBattle.stream2?.user?.username}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2 flex-1 overflow-x-auto custom-scrollbar pb-2 pt-2">
              {[
                { id: 'rose', name: 'Rosa', price: 1, img: 'https://api.dicebear.com/7.x/icons/svg?seed=Rose' },
@@ -658,8 +863,14 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
              ].map((gift, i) => (
                 <button 
                   key={i} 
-                  onClick={() => handleSendGift(gift)}
-                  className="flex flex-col items-center justify-center w-[88px] h-[72px] bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all group shrink-0"
+                  onClick={() => {
+                    if (activeBattle) {
+                      handleSendGiftToPlayer(gift, selectedGiftTarget);
+                    } else {
+                      handleSendGift(gift);
+                    }
+                  }}
+                  className="flex flex-col items-center justify-center w-[88px] h-[72px] bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all group shrink-0 cursor-pointer"
                 >
                   <img src={gift.img} className="w-8 h-8 mb-1 group-hover:scale-110 transition-transform" />
                   <span className="text-[10px] font-bold text-zinc-300">{gift.name}</span>

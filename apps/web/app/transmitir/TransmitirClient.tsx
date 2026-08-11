@@ -1184,8 +1184,8 @@ export default function TransmitirClient({ user }: { user: any }) {
                   </div>
                 )}
 
-                {/* Split Screen Video Grid (Side by side on LG, Stacked Top/Bottom on Mobile) */}
-                <div className="w-full h-full grid grid-rows-2 lg:grid-rows-1 lg:grid-cols-2 gap-1 bg-black p-1">
+                {/* Split Screen Video Grid (2 Columns side-by-side) */}
+                <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                   {/* Streamer 1 Video Canvas */}
                   <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
                     {livekitToken ? (

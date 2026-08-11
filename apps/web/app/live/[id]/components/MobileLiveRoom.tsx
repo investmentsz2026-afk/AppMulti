@@ -609,8 +609,8 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                 </div>
               </div>
 
-              {/* Split Screen Video Grid (Top/Bottom on Mobile, Side by Side on LG) */}
-              <div className="w-full h-full grid grid-rows-2 lg:grid-rows-1 lg:grid-cols-2 gap-1 bg-black p-1">
+              {/* Split Screen Video Grid (2 Columns side-by-side) */}
+              <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                 {/* Streamer 1 Video Canvas */}
                 <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
                   {livekitToken ? (
