@@ -1255,39 +1255,47 @@ export default function TransmitirClient({ user }: { user: any }) {
                       )}
 
                       {/* Split Screen Video Grid (2 Columns side-by-side) */}
-                      <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
-                        {/* Left Streamer (Host) Video Canvas */}
-                        <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
-                          {livekitToken ? (
-                            <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive} audio={micActive} screen={isScreenSharing} className="w-full h-full">
-                              <RoomAudioRenderer />
+                      {livekitToken ? (
+                        <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive} audio={micActive} screen={isScreenSharing} className="w-full h-full">
+                          <RoomAudioRenderer />
+                          <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
+                            {/* Left Streamer (Host) Video Canvas */}
+                            <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
                               <LiveKitPlayer fallbackVideoSrc="" streamerName={leftUser?.username || ''} />
-                            </LiveKitRoom>
-                          ) : (
-                            <video ref={liveCameraVideoRef} autoPlay playsInline muted className={`w-full h-full object-contain bg-black ${isScreenSharing ? '' : 'scale-x-[-1]'}`} />
-                          )}
-                          <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate">
-                            <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
-                            <span className="truncate">@{leftUser?.username}</span>
-                          </div>
-                        </div>
+                              <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
+                                <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
+                                <span className="truncate">@{leftUser?.username}</span>
+                              </div>
+                            </div>
 
-                        {/* Right Streamer (Opponent) Video Canvas */}
-                        <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
-                          {livekitToken ? (
-                            <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
-                              <RoomAudioRenderer />
+                            {/* Right Streamer (Opponent) Video Canvas */}
+                            <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
                               <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" streamerName={rightUser?.username || ''} />
-                            </LiveKitRoom>
-                          ) : (
+                              <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
+                                <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
+                                <span className="truncate">@{rightUser?.username}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </LiveKitRoom>
+                      ) : (
+                        <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
+                          <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
+                            <video ref={liveCameraVideoRef} autoPlay playsInline muted className={`w-full h-full object-contain bg-black ${isScreenSharing ? '' : 'scale-x-[-1]'}`} />
+                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
+                              <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
+                              <span className="truncate">@{leftUser?.username}</span>
+                            </div>
+                          </div>
+                          <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
                             <video autoPlay playsInline muted loop src="/uploads/1779484645064-rwef26.mp4" className="w-full h-full object-contain bg-black" />
-                          )}
-                          <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
-                            <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
-                            <span className="truncate">@{rightUser?.username}</span>
+                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
+                              <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
+                              <span className="truncate">@{rightUser?.username}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </>
                   );
                 })()}

@@ -48,7 +48,7 @@ const MOCK_REC_POSTS = [
   }
 ];
 
-function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName }: { fallbackVideoSrc: string, videoRef: React.RefObject<HTMLVideoElement | null>, streamerName: string }) {
+function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName }: { fallbackVideoSrc: string, videoRef?: React.RefObject<HTMLVideoElement | null>, streamerName: string }) {
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
     { source: Track.Source.ScreenShare, withPlaceholder: false }
@@ -697,73 +697,73 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                     </div>
 
                     {/* Split Screen Video Grid (2 Columns side-by-side) */}
-                    <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
-                      {/* Left Streamer Video Canvas */}
-                      <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
-                        {livekitToken ? (
-                          <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
-                            <RoomAudioRenderer />
+                    {livekitToken ? (
+                      <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
+                        <RoomAudioRenderer />
+                        <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
+                          {/* Left Streamer Video Canvas */}
+                          <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
                             <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" videoRef={videoRef} streamerName={leftUser?.username || streamerName} />
-                          </LiveKitRoom>
-                        ) : (
-                          <video ref={videoRef} autoPlay playsInline muted loop src="/uploads/1779484645064-rwef26.mp4" className="w-full h-full object-contain bg-black" />
-                        )}
-                        {/* Left Streamer Tag & Dedicated Like/Gift buttons */}
-                        <div className="absolute bottom-2 left-1.5 right-1.5 flex items-center justify-between pointer-events-auto">
-                          <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-pink-500/40 text-[8px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[60%] truncate">
-                            <img src={leftUser?.avatar} className="w-3 h-3 rounded-full border border-pink-500 shrink-0" />
-                            <span className="truncate">@{leftUser?.username}</span>
+                            {/* Left Streamer Tag & Dedicated Like/Gift buttons */}
+                            <div className="absolute bottom-2 left-1.5 right-1.5 flex items-center justify-between pointer-events-auto z-20">
+                              <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-pink-500/40 text-[8px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[60%] truncate">
+                                <img src={leftUser?.avatar} className="w-3 h-3 rounded-full border border-pink-500 shrink-0" />
+                                <span className="truncate">@{leftUser?.username}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={() => handleLikePlayer(leftPNum)}
+                                  className="px-1.5 py-0.5 bg-pink-600 hover:bg-pink-500 text-white rounded-full text-[8px] font-black flex items-center gap-0.5 shadow-lg active:scale-90 transition-transform"
+                                >
+                                  <Heart className="w-2.5 h-2.5 fill-white" /> Like
+                                </button>
+                                <button 
+                                  onClick={() => { setSelectedGiftTarget(leftPNum); setShowGiftModal(true); }}
+                                  className="px-1.5 py-0.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-[8px] font-black flex items-center gap-0.5 shadow-lg active:scale-90 transition-transform"
+                                >
+                                  <Gift className="w-2.5 h-2.5 fill-white" /> Regalo
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => handleLikePlayer(leftPNum)}
-                              className="px-1.5 py-0.5 bg-pink-600 hover:bg-pink-500 text-white rounded-full text-[8px] font-black flex items-center gap-0.5 shadow-lg active:scale-90 transition-transform"
-                            >
-                              <Heart className="w-2.5 h-2.5 fill-white" /> Like
-                            </button>
-                            <button 
-                              onClick={() => { setSelectedGiftTarget(leftPNum); setShowGiftModal(true); }}
-                              className="px-1.5 py-0.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-[8px] font-black flex items-center gap-0.5 shadow-lg active:scale-90 transition-transform"
-                            >
-                              <Gift className="w-2.5 h-2.5 fill-white" /> Regalo
-                            </button>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Right Streamer Video Canvas */}
-                      <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
-                        <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-full h-full object-contain bg-black opacity-90" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col items-center justify-center p-2">
-                          <div className="w-10 h-10 rounded-full border-2 border-blue-400 p-0.5 bg-gradient-to-tr from-blue-600 to-cyan-400 shadow-[0_0_15px_rgba(59,130,246,0.5)] mb-1">
-                            <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-full h-full rounded-full object-cover bg-zinc-800" />
+                          {/* Right Streamer Video Canvas */}
+                          <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
+                            <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" streamerName={rightUser?.username || ''} />
+                            {/* Right Streamer Tag & Dedicated Like/Gift buttons */}
+                            <div className="absolute bottom-2 left-1.5 right-1.5 flex items-center justify-between pointer-events-auto z-20">
+                              <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-blue-500/40 text-[8px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[60%] truncate">
+                                <img src={rightUser?.avatar} className="w-3 h-3 rounded-full border border-blue-500 shrink-0" />
+                                <span className="truncate">@{rightUser?.username}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={() => handleLikePlayer(rightPNum)}
+                                  className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded-full text-[8px] font-black flex items-center gap-0.5 shadow-lg active:scale-90 transition-transform"
+                                >
+                                  <Heart className="w-2.5 h-2.5 fill-white" /> Like
+                                </button>
+                                <button 
+                                  onClick={() => { setSelectedGiftTarget(rightPNum); setShowGiftModal(true); }}
+                                  className="px-1.5 py-0.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-[8px] font-black flex items-center gap-0.5 shadow-lg active:scale-90 transition-transform"
+                                >
+                                  <Gift className="w-2.5 h-2.5 fill-white" /> Regalo
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <span className="text-[10px] font-black text-white truncate max-w-[90%]">@{rightUser?.username}</span>
-                          <span className="text-[8px] text-blue-400 font-bold uppercase tracking-wider">Oponente</span>
                         </div>
-                        {/* Right Streamer Tag & Dedicated Like/Gift buttons */}
-                        <div className="absolute bottom-2 left-1.5 right-1.5 flex items-center justify-between pointer-events-auto">
-                          <div className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-blue-500/40 text-[8px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[60%] truncate">
-                            <img src={rightUser?.avatar} className="w-3 h-3 rounded-full border border-blue-500 shrink-0" />
-                            <span className="truncate">@{rightUser?.username}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => handleLikePlayer(rightPNum)}
-                              className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded-full text-[8px] font-black flex items-center gap-0.5 shadow-lg active:scale-90 transition-transform"
-                            >
-                              <Heart className="w-2.5 h-2.5 fill-white" /> Like
-                            </button>
-                            <button 
-                              onClick={() => { setSelectedGiftTarget(rightPNum); setShowGiftModal(true); }}
-                              className="px-1.5 py-0.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full text-[8px] font-black flex items-center gap-0.5 shadow-lg active:scale-90 transition-transform"
-                            >
-                              <Gift className="w-2.5 h-2.5 fill-white" /> Regalo
-                            </button>
-                          </div>
+                      </LiveKitRoom>
+                    ) : (
+                      <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
+                        <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
+                          <video ref={videoRef} autoPlay playsInline muted loop src="/uploads/1779484645064-rwef26.mp4" className="w-full h-full object-contain bg-black" />
+                        </div>
+                        <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
+                          <video autoPlay playsInline muted loop src="/uploads/1779484645064-rwef26.mp4" className="w-full h-full object-contain bg-black" />
                         </div>
                       </div>
-                    </div>
+                    )}
                   </>
                 );
               })()}
