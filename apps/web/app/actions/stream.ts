@@ -55,20 +55,37 @@ export async function updateStreamStatus(
         where: { streamId: stream.id }
       });
     } else {
-      // Find stream first to make sure it exists
-      const existingStream = await prisma.stream.findUnique({
+      // Force-end stream and update endedAt timestamp
+      await prisma.stream.updateMany({
         where: { userId },
+        data: {
+          isLive: false,
+          endedAt: new Date(),
+        },
       });
-      
-      if (existingStream) {
-        await prisma.stream.update({
-          where: { userId },
-          data: {
-            isLive: false,
-            endedAt: new Date(),
-          },
-        });
-      }
+    }
+
+    // Clean up any ongoing or pending battles associated with this user's streams
+    const userStreams = await prisma.stream.findMany({
+      where: { userId },
+      select: { id: true }
+    });
+    const streamIds = userStreams.map(s => s.id);
+
+    if (streamIds.length > 0) {
+      await prisma.streamBattle.updateMany({
+        where: {
+          OR: [
+            { stream1Id: { in: streamIds } },
+            { stream2Id: { in: streamIds } }
+          ],
+          status: { in: ['ONGOING', 'PENDING'] }
+        },
+        data: {
+          status: isLive ? 'CANCELLED' : 'FINISHED',
+          endTime: new Date()
+        }
+      });
     }
 
     revalidatePath(`/u/${session.username}`);

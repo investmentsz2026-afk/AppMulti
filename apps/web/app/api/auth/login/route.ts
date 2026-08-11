@@ -80,6 +80,29 @@ export async function POST(req: NextRequest) {
       data: { isLive: false }
     });
 
+    // Also finish/cancel any lingering battles for this user
+    const userStreams = await prisma.stream.findMany({
+      where: { userId: user.id },
+      select: { id: true }
+    });
+    const streamIds = userStreams.map(s => s.id);
+
+    if (streamIds.length > 0) {
+      await prisma.streamBattle.updateMany({
+        where: {
+          OR: [
+            { stream1Id: { in: streamIds } },
+            { stream2Id: { in: streamIds } }
+          ],
+          status: { in: ['ONGOING', 'PENDING'] }
+        },
+        data: {
+          status: 'FINISHED',
+          endTime: new Date()
+        }
+      });
+    }
+
     const sessionToken = await encrypt({ id: user.id });
 
     const response = NextResponse.json({

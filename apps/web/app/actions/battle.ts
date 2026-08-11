@@ -13,10 +13,12 @@ async function ensureGiftExists(id: string, name: string, price: number, icon: s
   });
 }
 
-// 1. Get other live streamers who are not currently in a battle
+// 1. Get other live streamers who are currently active and not in a battle
 export async function getLiveStreamers() {
   const session = await getSession();
   const userId = session?.id;
+  // Heartbeat threshold: must have updated within the last 45 seconds while live
+  const heartbeatThreshold = new Date(Date.now() - 45000);
 
   try {
     const streamers = await prisma.user.findMany({
@@ -25,6 +27,7 @@ export async function getLiveStreamers() {
         id: userId ? { not: userId } : undefined,
         stream: {
           isLive: true,
+          updatedAt: { gte: heartbeatThreshold },
           // Check that they aren't currently in an ongoing battle
           battles1: { none: { status: 'ONGOING' } },
           battles2: { none: { status: 'ONGOING' } },
@@ -54,6 +57,17 @@ export async function getLiveStreamers() {
 // 2. Get ongoing battles
 export async function getOngoingBattles() {
   try {
+    // Auto-finish any battles whose duration (endTime) has passed
+    await prisma.streamBattle.updateMany({
+      where: {
+        status: 'ONGOING',
+        endTime: { lte: new Date() }
+      },
+      data: {
+        status: 'FINISHED'
+      }
+    });
+
     const battles = await prisma.streamBattle.findMany({
       where: { 
         status: 'ONGOING',
@@ -252,12 +266,14 @@ export async function respondToBattleInvite(battleId: string, accept: boolean) {
 
     if (accept) {
       const startTime = new Date();
-      const endTime = new Date(Date.now() + 120 * 1000); // 2 minutes duration
+      const endTime = new Date(Date.now() + 180 * 1000); // 3 minutes duration
 
       const updated = await prisma.streamBattle.update({
         where: { id: battleId },
         data: {
           status: 'ONGOING',
+          points1: 0,
+          points2: 0,
           startTime,
           endTime,
         }
@@ -274,6 +290,78 @@ export async function respondToBattleInvite(battleId: string, accept: boolean) {
   } catch (error: any) {
     console.error('Error responding to battle invite:', error);
     return { error: error.message || 'Error del servidor.' };
+  }
+}
+
+// Start battle countdown explicitly
+export async function startBattleAction(battleId: string) {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado' };
+
+  try {
+    const startTime = new Date();
+    const endTime = new Date(Date.now() + 180 * 1000); // 3 minutes (180s)
+
+    const updated = await prisma.streamBattle.update({
+      where: { id: battleId },
+      data: {
+        status: 'ONGOING',
+        points1: 0,
+        points2: 0,
+        startTime,
+        endTime,
+      },
+      include: {
+        stream1: { include: { user: { select: { id: true, username: true, avatar: true } } } },
+        stream2: { include: { user: { select: { id: true, username: true, avatar: true } } } },
+      }
+    });
+
+    return { success: true, battle: updated };
+  } catch (err: any) {
+    return { error: err.message || 'Error al iniciar la batalla' };
+  }
+}
+
+// Get current active battle (ONGOING or PENDING) for current user's stream
+export async function getActiveUserBattleAction() {
+  const session = await getSession();
+  if (!session) return null;
+
+  try {
+    const userStream = await prisma.stream.findUnique({
+      where: { userId: session.id }
+    });
+
+    if (!userStream) return null;
+
+    const battle = await prisma.streamBattle.findFirst({
+      where: {
+        OR: [
+          { stream1Id: userStream.id },
+          { stream2Id: userStream.id }
+        ],
+        status: { in: ['PENDING', 'ONGOING'] }
+      },
+      include: {
+        stream1: {
+          include: {
+            user: { select: { id: true, username: true, avatar: true } }
+          }
+        },
+        stream2: {
+          include: {
+            user: { select: { id: true, username: true, avatar: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return battle;
+  } catch (error) {
+    console.error('Error fetching active user battle:', error);
+    return null;
   }
 }
 
