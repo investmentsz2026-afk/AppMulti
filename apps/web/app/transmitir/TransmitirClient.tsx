@@ -1242,7 +1242,8 @@ export default function TransmitirClient({ user }: { user: any }) {
                         <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
                           {livekitToken ? (
                             <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive} audio={micActive} screen={isScreenSharing} className="w-full h-full">
-                              <VideoConference />
+                              <RoomAudioRenderer />
+                              <LiveKitPlayer fallbackVideoSrc="" streamerName={leftUser?.username || ''} />
                             </LiveKitRoom>
                           ) : (
                             <video ref={liveCameraVideoRef} autoPlay playsInline muted className={`w-full h-full object-contain bg-black ${isScreenSharing ? '' : 'scale-x-[-1]'}`} />
@@ -1284,7 +1285,8 @@ export default function TransmitirClient({ user }: { user: any }) {
                 screen={isScreenSharing}
                 className="w-full h-full"
               >
-                <VideoConference />
+                <RoomAudioRenderer />
+                <LiveKitPlayer fallbackVideoSrc="" streamerName={user?.username || ''} />
               </LiveKitRoom>
             ) : (
               <div className="absolute inset-0 bg-zinc-950 flex flex-col items-center justify-center z-10 gap-3">
