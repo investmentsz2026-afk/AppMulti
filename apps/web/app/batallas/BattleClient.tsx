@@ -1007,7 +1007,16 @@ export default function BattleClient({ user }: { user: any }) {
                             </div>
 
                             <button 
-                              onClick={() => { router.push(`/live/${battle.stream1?.user?.username}`); }}
+                              onClick={() => {
+                                const target1 = battle.stream1?.user?.username;
+                                const target2 = battle.stream2?.user?.username;
+                                const choice = window.confirm(`¿A qué en vivo de la batalla deseas entrar?\n\n- Pulsa ACEPTAR para ver el Live de @${target1}\n- Pulsa CANCELAR para ver el Live de @${target2}`);
+                                if (choice) {
+                                  router.push(`/live/${target1}`);
+                                } else {
+                                  router.push(`/live/${target2}`);
+                                }
+                              }}
                               className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-[1.02] text-[#ffffff] text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <Swords className="w-4 h-4 text-yellow-300 animate-pulse" /> Ver Batalla en Vivo

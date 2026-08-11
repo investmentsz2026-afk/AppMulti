@@ -1120,103 +1120,115 @@ export default function TransmitirClient({ user }: { user: any }) {
             {activeBattle ? (
               <div className="w-full h-full relative bg-black flex flex-col items-center justify-center">
                 
-                {/* TikTok PvP Score Header Bar */}
-                <div className="absolute top-14 sm:top-16 left-3 right-3 z-30 max-w-xl mx-auto flex flex-col gap-1.5 pointer-events-auto">
-                  <div className="flex items-center justify-between px-2 text-xs font-black text-white">
-                    {/* Left Streamer */}
-                    <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-pink-500/40 shadow-lg">
-                      <img src={activeBattle.stream1?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream1?.user?.username}`} className="w-5 h-5 rounded-full border border-pink-500 bg-zinc-800 shrink-0" />
-                      <span className="truncate max-w-[90px] sm:max-w-[120px]">@{activeBattle.stream1?.user?.username}</span>
-                      <span className="text-pink-400 font-black ml-1 shrink-0">{activeBattle.points1 || 0} pts</span>
-                    </div>
+                {(() => {
+                  const isUserStream2 = user?.id === activeBattle.stream2?.userId || user?.username === activeBattle.stream2?.user?.username;
+                  const leftUser = isUserStream2 ? activeBattle.stream2?.user : activeBattle.stream1?.user;
+                  const rightUser = isUserStream2 ? activeBattle.stream1?.user : activeBattle.stream2?.user;
+                  const leftPts = isUserStream2 ? (activeBattle.points2 || 0) : (activeBattle.points1 || 0);
+                  const rightPts = isUserStream2 ? (activeBattle.points1 || 0) : (activeBattle.points2 || 0);
 
-                    {/* Timer Badge */}
-                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-3.5 py-1 rounded-full text-white font-black text-xs shadow-xl flex items-center gap-1 shrink-0 border border-white/20">
-                      <Clock className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
-                      <span>
-                        {Math.floor(battleTimer / 60).toString().padStart(2, '0')}:{(battleTimer % 60).toString().padStart(2, '0')}
-                      </span>
-                    </div>
+                  return (
+                    <>
+                      {/* TikTok PvP Score Header Bar (Placed below header buttons) */}
+                      <div className="absolute top-16 sm:top-20 left-2 right-2 z-30 max-w-xl mx-auto flex flex-col gap-1 pointer-events-auto">
+                        <div className="flex items-center justify-between px-1 text-[10px] sm:text-xs font-black text-white">
+                          {/* Left Streamer */}
+                          <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-pink-500/40 shadow-lg max-w-[42%] truncate">
+                            <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-4 h-4 rounded-full border border-pink-500 bg-zinc-800 shrink-0" />
+                            <span className="truncate">@{leftUser?.username}</span>
+                            <span className="text-pink-400 font-black ml-0.5 shrink-0">{leftPts} pts</span>
+                          </div>
 
-                    {/* Right Streamer */}
-                    <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-blue-500/40 shadow-lg">
-                      <span className="text-blue-400 font-black mr-1 shrink-0">{activeBattle.points2 || 0} pts</span>
-                      <span className="truncate max-w-[90px] sm:max-w-[120px]">@{activeBattle.stream2?.user?.username}</span>
-                      <img src={activeBattle.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream2?.user?.username}`} className="w-5 h-5 rounded-full border border-blue-500 bg-zinc-800 shrink-0" />
-                    </div>
-                  </div>
+                          {/* Timer Badge */}
+                          <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-2 py-0.5 rounded-full text-white font-black text-[10px] sm:text-xs shadow-xl flex items-center gap-1 shrink-0 border border-white/20">
+                            <Clock className="w-3 h-3 text-yellow-300 animate-pulse" />
+                            <span>
+                              {Math.floor(battleTimer / 60).toString().padStart(2, '0')}:{(battleTimer % 60).toString().padStart(2, '0')}
+                            </span>
+                          </div>
 
-                  {/* Shifting TikTok PvP Bar */}
-                  <div className="h-3 bg-black/70 backdrop-blur-md rounded-full border border-white/15 overflow-hidden flex shadow-xl">
-                    <div 
-                      style={{ width: `${(activeBattle.points1 || 0) + (activeBattle.points2 || 0) > 0 ? ((activeBattle.points1 || 0) / ((activeBattle.points1 || 0) + (activeBattle.points2 || 0))) * 100 : 50}%` }}
-                      className="h-full bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 transition-all duration-500"
-                    />
-                    <div 
-                      style={{ width: `${(activeBattle.points1 || 0) + (activeBattle.points2 || 0) > 0 ? ((activeBattle.points2 || 0) / ((activeBattle.points1 || 0) + (activeBattle.points2 || 0))) * 100 : 50}%` }}
-                      className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 transition-all duration-500"
-                    />
-                  </div>
-                </div>
+                          {/* Right Streamer */}
+                          <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-blue-500/40 shadow-lg max-w-[42%] truncate">
+                            <span className="text-blue-400 font-black mr-0.5 shrink-0">{rightPts} pts</span>
+                            <span className="truncate">@{rightUser?.username}</span>
+                            <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-4 h-4 rounded-full border border-blue-500 bg-zinc-800 shrink-0" />
+                          </div>
+                        </div>
 
-                {/* Center Button to Start Battle (If status is PENDING) */}
-                {activeBattle.status === 'PENDING' && (
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40">
-                    <button
-                      disabled={isStartingBattle}
-                      onClick={handleStartBattle}
-                      className="px-6 py-3.5 sm:px-8 sm:py-4 bg-gradient-to-r from-yellow-500 via-pink-600 to-purple-600 hover:scale-110 active:scale-95 text-white font-black text-xs sm:text-sm rounded-full shadow-[0_0_40px_rgba(234,179,8,0.6)] border-2 border-yellow-300 animate-bounce uppercase tracking-wider flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                    >
-                      <Swords className="w-5 h-5 text-yellow-300" />
-                      {isStartingBattle ? 'Iniciando...' : '¡INICIAR BATALLA (3 MINUTOS)! ⚔️'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Center Winner Banner (If battleTimer === 0 and battle finished) */}
-                {battleTimer === 0 && activeBattle.status === 'ONGOING' && (
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/90 backdrop-blur-md p-6 rounded-3xl border-2 border-yellow-400 shadow-[0_0_50px_rgba(234,179,8,0.5)] text-center flex flex-col items-center gap-2 animate-bounce">
-                    <Trophy className="w-12 h-12 text-yellow-400 fill-yellow-400 animate-spin" />
-                    <h3 className="text-xl font-black text-white">¡BATALLA FINALIZADA!</h3>
-                    <p className="text-sm font-bold text-yellow-400">
-                      Gana: @{(activeBattle.points1 || 0) >= (activeBattle.points2 || 0) ? activeBattle.stream1?.user?.username : activeBattle.stream2?.user?.username} 🏆
-                    </p>
-                  </div>
-                )}
-
-                {/* Split Screen Video Grid (2 Columns side-by-side) */}
-                <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
-                  {/* Streamer 1 Video Canvas */}
-                  <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
-                    {livekitToken ? (
-                      <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive} audio={micActive} screen={isScreenSharing} className="w-full h-full">
-                        <VideoConference />
-                      </LiveKitRoom>
-                    ) : (
-                      <video ref={liveCameraVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                    )}
-                    <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md">
-                      <img src={activeBattle.stream1?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream1?.user?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500" />
-                      <span>@{activeBattle.stream1?.user?.username}</span>
-                    </div>
-                  </div>
-
-                  {/* Streamer 2 Video Canvas */}
-                  <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
-                    <img src={activeBattle.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream2?.user?.username}`} className="w-full h-full object-cover opacity-80" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col items-center justify-center p-4">
-                      <div className="w-16 h-16 rounded-full border-2 border-blue-400 p-0.5 bg-gradient-to-tr from-blue-600 to-cyan-400 shadow-[0_0_20px_rgba(59,130,246,0.5)] mb-2">
-                        <img src={activeBattle.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream2?.user?.username}`} className="w-full h-full rounded-full object-cover bg-zinc-800" />
+                        {/* Shifting TikTok PvP Bar */}
+                        <div className="h-2 bg-black/70 backdrop-blur-md rounded-full border border-white/15 overflow-hidden flex shadow-xl">
+                          <div 
+                            style={{ width: `${leftPts + rightPts > 0 ? (leftPts / (leftPts + rightPts)) * 100 : 50}%` }}
+                            className="h-full bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 transition-all duration-500"
+                          />
+                          <div 
+                            style={{ width: `${leftPts + rightPts > 0 ? (rightPts / (leftPts + rightPts)) * 100 : 50}%` }}
+                            className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 transition-all duration-500"
+                          />
+                        </div>
                       </div>
-                      <span className="text-sm font-black text-white">@{activeBattle.stream2?.user?.username}</span>
-                      <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mt-0.5">Streamer Oponente en Vivo</span>
-                    </div>
-                    <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md">
-                      <img src={activeBattle.stream2?.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeBattle.stream2?.user?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500" />
-                      <span>@{activeBattle.stream2?.user?.username}</span>
-                    </div>
-                  </div>
-                </div>
+
+                      {/* Center Button to Start Battle (If status is PENDING) */}
+                      {activeBattle.status === 'PENDING' && (
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40">
+                          <button
+                            disabled={isStartingBattle}
+                            onClick={handleStartBattle}
+                            className="px-6 py-3.5 sm:px-8 sm:py-4 bg-gradient-to-r from-yellow-500 via-pink-600 to-purple-600 hover:scale-110 active:scale-95 text-white font-black text-xs sm:text-sm rounded-full shadow-[0_0_40px_rgba(234,179,8,0.6)] border-2 border-yellow-300 animate-bounce uppercase tracking-wider flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                          >
+                            <Swords className="w-5 h-5 text-yellow-300" />
+                            {isStartingBattle ? 'Iniciando...' : '¡INICIAR BATALLA (3 MINUTOS)! ⚔️'}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Center Winner Banner (If battleTimer === 0 and battle finished) */}
+                      {battleTimer === 0 && activeBattle.status === 'ONGOING' && (
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/90 backdrop-blur-md p-6 rounded-3xl border-2 border-yellow-400 shadow-[0_0_50px_rgba(234,179,8,0.5)] text-center flex flex-col items-center gap-2 animate-bounce">
+                          <Trophy className="w-12 h-12 text-yellow-400 fill-yellow-400 animate-spin" />
+                          <h3 className="text-xl font-black text-white">¡BATALLA FINALIZADA!</h3>
+                          <p className="text-sm font-bold text-yellow-400">
+                            Gana: @{(activeBattle.points1 || 0) >= (activeBattle.points2 || 0) ? activeBattle.stream1?.user?.username : activeBattle.stream2?.user?.username} 🏆
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Split Screen Video Grid (2 Columns side-by-side) */}
+                      <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
+                        {/* Left Streamer (Host) Video Canvas */}
+                        <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
+                          {livekitToken ? (
+                            <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive} audio={micActive} screen={isScreenSharing} className="w-full h-full">
+                              <VideoConference />
+                            </LiveKitRoom>
+                          ) : (
+                            <video ref={liveCameraVideoRef} autoPlay playsInline muted className="w-full h-full object-contain bg-black scale-x-[-1]" />
+                          )}
+                          <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate">
+                            <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
+                            <span className="truncate">@{leftUser?.username}</span>
+                          </div>
+                        </div>
+
+                        {/* Right Streamer (Opponent) Video Canvas */}
+                        <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
+                          <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-full h-full object-contain bg-black opacity-90" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col items-center justify-center p-4">
+                            <div className="w-14 h-14 rounded-full border-2 border-blue-400 p-0.5 bg-gradient-to-tr from-blue-600 to-cyan-400 shadow-[0_0_20px_rgba(59,130,246,0.5)] mb-2">
+                              <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-full h-full rounded-full object-cover bg-zinc-800" />
+                            </div>
+                            <span className="text-xs font-black text-white truncate max-w-[90%]">@{rightUser?.username}</span>
+                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider mt-0.5">Oponente en Vivo</span>
+                          </div>
+                          <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate">
+                            <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
+                            <span className="truncate">@{rightUser?.username}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
               </div>
             ) : livekitToken ? (
