@@ -5,10 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, Play, Eye, EyeOff, ArrowLeft, X } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-
-import { loginUser } from '@/app/actions/auth';
 
 export default function LoginClient() {
   const [email, setEmail] = useState('');
@@ -16,10 +13,8 @@ export default function LoginClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
-    // Limpia el store local de autenticación al cargar el formulario de login para sincronizar
     useAuthStore.getState().logout();
   }, []);
 
@@ -27,21 +22,26 @@ export default function LoginClient() {
     e.preventDefault();
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('email', email);
-      formData.append('password', password);
-      
-      const res = await loginUser(formData);
-      if (res?.error) {
-        toast.error(res.error);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.error || 'Error al iniciar sesión');
         setLoading(false);
-      } else if (res?.success && res?.user) {
-        useAuthStore.getState().setAuth(res.user, '');
+        return;
+      }
+
+      if (data.success && data.user) {
+        useAuthStore.getState().setAuth(data.user, '');
         toast.success('¡Sesión iniciada con éxito!');
-        const targetUrl = res.user.role === 'ADMIN' ? '/admin' : '/dashboard';
+        const targetUrl = data.user.role === 'ADMIN' ? '/admin' : '/dashboard';
         window.location.href = targetUrl;
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login failed', error);
       toast.error('Error al iniciar sesión');
       setLoading(false);
