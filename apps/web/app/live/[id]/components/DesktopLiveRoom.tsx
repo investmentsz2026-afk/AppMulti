@@ -115,6 +115,20 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
   const [activeBattle, setActiveBattle] = useState<any | null>(null);
   const [battleTimer, setBattleTimer] = useState<number>(180);
   const [selectedGiftTarget, setSelectedGiftTarget] = useState<1 | 2>(1);
+  const [activeGiftBanner, setActiveGiftBanner] = useState<any | null>(null);
+
+  const triggerCenterGiftBanner = (giftName: string, giftImg: string, senderName: string, priceVal: number, targetName: string) => {
+    setActiveGiftBanner({
+      name: giftName,
+      img: giftImg,
+      sender: senderName,
+      price: priceVal,
+      target: targetName
+    });
+    setTimeout(() => {
+      setActiveGiftBanner(null);
+    }, 4500);
+  };
 
   // Poll current streamer's active battle (PENDING or ONGOING)
   useEffect(() => {
@@ -164,6 +178,8 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
     setWalletBalance(prev => prev - gift.price);
     const targetUsername = playerNum === 1 ? activeBattle.stream1?.user?.username : activeBattle.stream2?.user?.username;
     toast.success(`🎁 ¡Regalo ${gift.name} enviado a @${targetUsername}!`);
+
+    triggerCenterGiftBanner(gift.name, gift.img || 'https://api.dicebear.com/7.x/icons/svg?seed=Rose', user?.username || 'Espectador', gift.price, targetUsername);
 
     try {
       await updateBattlePoints(activeBattle.id, playerNum, gift.price, true, gift.id);
@@ -648,6 +664,34 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
           {activeBattle ? (
             <div className="w-full h-full relative bg-black flex flex-col items-center justify-center">
               
+              {/* Center Winner Banner (If battleTimer === 0 and battle finished) */}
+              {battleTimer === 0 && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/90 backdrop-blur-md p-6 rounded-3xl border-2 border-yellow-400 shadow-[0_0_50px_rgba(234,179,8,0.5)] text-center flex flex-col items-center gap-2 animate-bounce pointer-events-auto">
+                  <Trophy className="w-12 h-12 text-yellow-400 fill-yellow-400 animate-spin" />
+                  <h3 className="text-xl font-black text-white">¡BATALLA FINALIZADA!</h3>
+                  <p className="text-sm font-bold text-yellow-400">
+                    Gana: @{(activeBattle.points1 || 0) >= (activeBattle.points2 || 0) ? activeBattle.stream1?.user?.username : activeBattle.stream2?.user?.username} 🏆
+                  </p>
+                </div>
+              )}
+
+              {/* Fantastic Center Gift Popup Banner */}
+              {activeGiftBanner && (
+                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none animate-in fade-in zoom-in duration-300 flex flex-col items-center">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-pink-600 via-purple-600 to-yellow-400 p-1 animate-bounce shadow-[0_0_60px_rgba(236,72,153,0.9)] flex items-center justify-center">
+                    <img src={activeGiftBanner.img} className="w-14 h-14 sm:w-16 sm:h-16 object-contain" />
+                  </div>
+                  <div className="mt-3 bg-black/90 backdrop-blur-md px-5 py-2 rounded-full border-2 border-yellow-400 shadow-2xl text-center flex flex-col items-center">
+                    <span className="text-[10px] sm:text-xs font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1">
+                      🎁 ¡REGALO MAGNÍFICO EN BATALLA! 🎁
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-white mt-0.5">
+                      @{activeGiftBanner.sender} envió {activeGiftBanner.name} a @{activeGiftBanner.target} (+{activeGiftBanner.price} pts)
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* TikTok PvP Score Header Bar */}
               <div className="absolute top-16 left-4 right-4 z-30 max-w-xl mx-auto flex flex-col gap-1.5 pointer-events-auto">
                 <div className="flex items-center justify-between px-2 text-xs font-black text-white">

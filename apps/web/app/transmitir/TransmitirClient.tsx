@@ -10,11 +10,53 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { LiveKitRoom, VideoConference } from '@livekit/components-react';
+import { LiveKitRoom, VideoConference, useTracks, VideoTrack, RoomAudioRenderer } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage, checkStreamStatus } from '@/app/actions/stream';
 import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
 import { getLiveStreamers, createBattleInvite, respondToBattleInvite, getPendingInvite, startBattleAction, getActiveUserBattleAction } from '@/app/actions/battle';
+
+function LiveKitPlayer({ fallbackVideoSrc, streamerName }: { fallbackVideoSrc: string, streamerName: string }) {
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: false },
+    { source: Track.Source.ScreenShare, withPlaceholder: false }
+  ]);
+
+  const streamerTracks = tracks.filter(t => 
+    !streamerName || 
+    t.participant.identity === streamerName || 
+    t.participant.identity.includes(streamerName) || 
+    t.participant.name?.includes(streamerName)
+  );
+  
+  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare) || tracks.find(t => t.source === Track.Source.ScreenShare);
+  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera) || tracks.find(t => t.source === Track.Source.Camera);
+
+  const activeTrack = screenTrack || cameraTrack || tracks[0];
+
+  if (!activeTrack) {
+    return (
+      <video
+        autoPlay
+        playsInline
+        muted
+        loop
+        className="w-full h-full object-contain bg-black animate-fade-in"
+        src={fallbackVideoSrc}
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-black relative">
+      <VideoTrack
+        trackRef={activeTrack as any}
+        className={`w-full h-full object-contain bg-black ${activeTrack.source === Track.Source.ScreenShare ? '' : 'scale-x-[-1]'}`}
+      />
+    </div>
+  );
+}
 
 interface HeartAnimation {
   id: number;
@@ -1184,8 +1226,8 @@ export default function TransmitirClient({ user }: { user: any }) {
                       )}
 
                       {/* Center Winner Banner (If battleTimer === 0 and battle finished) */}
-                      {battleTimer === 0 && activeBattle.status === 'ONGOING' && (
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/90 backdrop-blur-md p-6 rounded-3xl border-2 border-yellow-400 shadow-[0_0_50px_rgba(234,179,8,0.5)] text-center flex flex-col items-center gap-2 animate-bounce">
+                      {battleTimer === 0 && (
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/90 backdrop-blur-md p-6 rounded-3xl border-2 border-yellow-400 shadow-[0_0_50px_rgba(234,179,8,0.5)] text-center flex flex-col items-center gap-2 animate-bounce pointer-events-auto">
                           <Trophy className="w-12 h-12 text-yellow-400 fill-yellow-400 animate-spin" />
                           <h3 className="text-xl font-black text-white">¡BATALLA FINALIZADA!</h3>
                           <p className="text-sm font-bold text-yellow-400">
@@ -1213,15 +1255,15 @@ export default function TransmitirClient({ user }: { user: any }) {
 
                         {/* Right Streamer (Opponent) Video Canvas */}
                         <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
-                          <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-full h-full object-contain bg-black opacity-90" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col items-center justify-center p-4">
-                            <div className="w-14 h-14 rounded-full border-2 border-blue-400 p-0.5 bg-gradient-to-tr from-blue-600 to-cyan-400 shadow-[0_0_20px_rgba(59,130,246,0.5)] mb-2">
-                              <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-full h-full rounded-full object-cover bg-zinc-800" />
-                            </div>
-                            <span className="text-xs font-black text-white truncate max-w-[90%]">@{rightUser?.username}</span>
-                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider mt-0.5">Oponente en Vivo</span>
-                          </div>
-                          <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate">
+                          {livekitToken ? (
+                            <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
+                              <RoomAudioRenderer />
+                              <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" streamerName={rightUser?.username || ''} />
+                            </LiveKitRoom>
+                          ) : (
+                            <video autoPlay playsInline muted loop src="/uploads/1779484645064-rwef26.mp4" className="w-full h-full object-contain bg-black" />
+                          )}
+                          <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
                             <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
                             <span className="truncate">@{rightUser?.username}</span>
                           </div>
