@@ -40,9 +40,9 @@ export default function LoginClient() {
         }
         toast.success('¡Sesión iniciada con éxito!');
         if (res?.user?.role === 'ADMIN') {
-          router.push('/admin');
+          window.location.href = '/admin';
         } else {
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
         }
       }
     } catch (error) {
@@ -190,7 +190,7 @@ export default function LoginClient() {
               </div>
 
               <div className="flex items-center gap-3 px-1 py-2">
-                 <input type="checkbox" className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-purple-600 cursor-pointer" required />
+                 <input type="checkbox" className="w-4 h-4 rounded-md border-white/10 bg-white/5 accent-purple-600 cursor-pointer" defaultChecked />
                  <span className="text-[10px] text-zinc-500 font-bold flex items-center gap-1.5">
                     <span>Acepto los Términos de servicio y Política de privacidad</span>
                     <button type="button" onClick={() => setShowTermsModal(true)} className="text-purple-500 hover:text-purple-400 underline font-black uppercase tracking-wider text-[9px] cursor-pointer">Ver</button>
