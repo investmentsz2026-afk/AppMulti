@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, Play, Eye, EyeOff, ArrowLeft, X } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLiveStore } from '@/store/useLiveStore';
 import toast from 'react-hot-toast';
 
 export default function LoginClient() {
@@ -16,6 +17,7 @@ export default function LoginClient() {
 
   useEffect(() => {
     useAuthStore.getState().logout();
+    useLiveStore.getState().stopLive();
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {

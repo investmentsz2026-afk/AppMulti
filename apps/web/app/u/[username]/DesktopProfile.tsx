@@ -996,9 +996,15 @@ export default function DesktopProfile({ sessionUser, targetUser, isOwnProfile }
                       <>
                         <img src={post.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={post.title} />
                         <div className="absolute top-3 left-3">
-                          <span className="px-2 py-0.5 bg-red-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
-                            ● DIRECTO
-                          </span>
+                          {post.isLive ? (
+                            <span className="px-2 py-0.5 bg-red-600/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md">
+                              ● EN VIVO
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-purple-950/80 backdrop-blur-sm text-[10px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-md text-purple-300 border border-purple-500/20">
+                              ● STREAM
+                            </span>
+                          )}
                         </div>
                       </>
                     ) : post.type === 'VIDEO' ? (

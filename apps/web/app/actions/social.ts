@@ -442,6 +442,7 @@ export async function getTabPosts(username: string, tab: string, viewerId?: stri
         createdAt: s.createdAt,
         user: s.user,
         isStream: true,
+        isLive: s.isLive,
         likesCount: 0,
         commentsCount: 0
       }));

@@ -870,9 +870,15 @@ export default function MobileProfile({ sessionUser, targetUser, isOwnProfile }:
                   <>
                     <img src={post.url} className="w-full h-full object-cover" alt={post.title} />
                     <div className="absolute top-1.5 left-1.5">
-                      <span className="px-1.5 py-0.5 bg-red-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow">
-                        ● DIRECTO
-                      </span>
+                      {post.isLive ? (
+                        <span className="px-1.5 py-0.5 bg-red-600/80 text-[7px] font-black rounded uppercase tracking-wider shadow">
+                          ● EN VIVO
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 bg-purple-950/80 text-[7px] font-black rounded uppercase tracking-wider shadow text-purple-300 border border-purple-500/20">
+                          ● STREAM
+                        </span>
+                      )}
                     </div>
                   </>
                 ) : post.type === 'VIDEO' ? (

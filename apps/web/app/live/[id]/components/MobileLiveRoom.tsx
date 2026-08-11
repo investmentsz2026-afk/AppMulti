@@ -1,14 +1,12 @@
-'use client';
-
 import React, { useState, useEffect, useRef } from 'react';
-import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Flame, Send } from 'lucide-react';
+import { User, X, ChevronRight, Share2, Heart, Gift, MessageCircle, Play, Tv, Flame, Send, Maximize2, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useLiveStore } from '@/store/useLiveStore';
 import { usePublicPosts } from '@/hooks/usePosts';
 import { toast } from 'react-hot-toast';
 import { checkStreamStatus, getStreamChatMessages, sendStreamChatMessage, joinStreamViewerAction, leaveStreamViewerAction, likeStreamAction, sendGiftAction, getUserWalletBalanceAction } from '@/app/actions/stream';
 import { checkFollowStatusByUsername, toggleFollowByUsername } from '@/app/actions/social';
-import { LiveKitRoom, VideoConference, useTracks, VideoTrack } from '@livekit/components-react';
+import { LiveKitRoom, VideoConference, useTracks, VideoTrack, RoomAudioRenderer } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
@@ -102,6 +100,43 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
   const [dbViewers, setDbViewers] = useState(0);
   const [dbLikes, setDbLikes] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  const toggleOrientation = async () => {
+    try {
+      if (!isLandscape) {
+        setIsLandscape(true);
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen().catch(() => {});
+        }
+        if (screen.orientation && (screen.orientation as any).lock) {
+          await (screen.orientation as any).lock('landscape').catch(() => {});
+        }
+      } else {
+        setIsLandscape(false);
+        if (document.fullscreenElement && document.exitFullscreen) {
+          await document.exitFullscreen().catch(() => {});
+        }
+        if (screen.orientation && (screen.orientation as any).unlock) {
+          (screen.orientation as any).unlock();
+        }
+      }
+    } catch (e) {
+      setIsLandscape(!isLandscape);
+    }
+  };
+
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      if (window.innerWidth > window.innerHeight) {
+        setIsLandscape(true);
+      } else {
+        setIsLandscape(false);
+      }
+    };
+    window.addEventListener('resize', handleOrientationChange);
+    return () => window.removeEventListener('resize', handleOrientationChange);
+  }, []);
 
   useEffect(() => {
     async function loadFollowStatus() {
@@ -470,9 +505,10 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
                   serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
                   connect={true}
                   video={false}
-                  audio={false}
+                  audio={true}
                   className="w-full h-full"
                 >
+                  <RoomAudioRenderer />
                   <LiveKitPlayer 
                     fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" 
                     videoRef={videoRef} 
@@ -600,7 +636,21 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
            </div>
          </div>
 
-         <div className="flex items-center gap-3">
+         <div className="flex items-center gap-2">
+           <button 
+             type="button"
+             onClick={toggleOrientation}
+             className={`p-2 rounded-full backdrop-blur-md border transition-all flex items-center gap-1 ${
+               isLandscape 
+                 ? 'bg-pink-600 border-pink-400 text-white shadow-lg' 
+                 : 'bg-black/40 border-white/10 text-zinc-300 hover:bg-white/10'
+             }`}
+             title={isLandscape ? "Pantalla Vertical" : "Echar pantalla (Horizontal)"}
+           >
+             <Maximize2 className="w-4 h-4" />
+             {isLandscape && <span className="text-[10px] font-bold pr-1">Vertical</span>}
+           </button>
+
            {/* Top Donators small avatars */}
            <div className="flex items-center bg-black/40 backdrop-blur-md rounded-full p-1 border border-white/10 shadow-lg">
              <div className="flex -space-x-2">
@@ -615,89 +665,98 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
          </div>
       </div>
 
-      {/* Chat Area */}
-      <div className="absolute bottom-[70px] left-4 right-16 top-1/2 z-20 flex flex-col justify-end pointer-events-none">
-        <div 
-          className="flex flex-col gap-3 overflow-y-auto pr-4 pb-4 max-h-full pointer-events-auto [&::-webkit-scrollbar]:hidden"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {/* Welcome Message */}
-          <div className="bg-yellow-500/20 border border-yellow-500/30 text-yellow-500 rounded-xl p-2 text-xs font-bold w-fit shadow-md backdrop-blur-sm">
-            ¡Bienvenido a LiveX! Protegemos a nuestra comunidad. Se amable.
-          </div>
-          
-          {dbChatMessages.map(msg => (
-            <div key={msg.id} className="flex gap-2 items-start text-sm drop-shadow-md">
-              <img src={msg.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username}`} className="w-6 h-6 rounded-full border border-white/10 bg-zinc-800 shrink-0" />
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-zinc-400 text-xs font-bold">@{msg.user?.username}</span>
-                  {msg.user?.username === streamerName && <span className="text-[8px] bg-purple-600 px-1 py-0.5 rounded uppercase font-black">STREAMER</span>}
-                </div>
-                <p className="font-medium text-white">{msg.content}</p>
-              </div>
+      {/* Chat Area - Hidden when screen is landscape ("echada") to avoid covering screen share */}
+      {!isLandscape && (
+        <div className="absolute bottom-[75px] left-3 right-14 z-20 flex flex-col justify-end pointer-events-none max-h-[220px] overflow-hidden">
+          <div 
+            className="flex flex-col gap-1.5 overflow-y-auto pr-2 pb-2 max-h-full pointer-events-auto [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {/* Welcome Message */}
+            <div className="bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded-lg px-2.5 py-0.5 text-[9px] font-bold w-fit shadow-md backdrop-blur-sm">
+              ¡Bienvenido a LiveX! Protegemos a la comunidad.
             </div>
-          ))}
-          
-          <div className="flex items-center gap-2 text-sm drop-shadow-md">
-             <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center shrink-0">
-               <User className="w-3 h-3" />
-             </div>
-             <span className="text-pink-400 text-xs font-bold">Elí reyes <span className="text-white font-medium">se unió</span></span>
+            
+            {dbChatMessages.map(msg => (
+              <div key={msg.id} className="flex gap-1.5 items-center text-xs drop-shadow-md bg-black/55 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/10 w-fit max-w-[90%]">
+                <img src={msg.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user?.username}`} className="w-5 h-5 rounded-full border border-white/10 bg-zinc-800 shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className="text-zinc-400 text-[9px] font-bold truncate">@{msg.user?.username}</span>
+                    {msg.user?.username === streamerName && <span className="text-[7px] bg-purple-600 px-1 py-0.2 rounded uppercase font-black text-white">STREAMER</span>}
+                  </div>
+                  <p className="font-medium text-white text-[11px] leading-tight break-words">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+            
+            <div className="flex items-center gap-1.5 text-xs drop-shadow-md bg-black/45 backdrop-blur-md px-2.5 py-0.5 rounded-xl border border-white/10 w-fit">
+               <div className="w-4 h-4 bg-pink-500 rounded-full flex items-center justify-center shrink-0">
+                 <User className="w-2.5 h-2.5 text-white" />
+               </div>
+               <span className="text-pink-400 text-[9px] font-bold">Elí reyes <span className="text-white font-medium">se unió</span></span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Bottom Input Area */}
-      <form onSubmit={handleSendMessage} className="absolute bottom-0 left-0 right-0 h-[70px] px-4 flex items-center gap-3 z-30">
-        <div className="flex-1 h-10 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center px-4">
-          <input 
-            type="text" 
-            placeholder="Escribe algo..." 
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            className="bg-transparent border-none outline-none w-full text-sm text-white placeholder-zinc-400"
-          />
-          {inputMessage.trim() !== '' && (
-            <button 
-              type="submit" 
-              className="ml-2 text-pink-500 hover:text-pink-400 active:scale-95 transition-all cursor-pointer"
-            >
-              <Send className="w-4 h-4 fill-current" />
-            </button>
-          )}
-        </div>
-        
-        {/* Quick Action Buttons */}
-        <button 
-          type="button" 
-          onClick={async () => {
-            const res = await likeStreamAction(streamerName);
-            if (res.likes !== undefined) {
-              setDbLikes(res.likes);
-            }
-          }}
-          className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 active:scale-90 transition-transform"
-        >
-           <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.5)]">
-             <Heart className="w-4 h-4 fill-white text-white" />
-           </div>
-        </button>
-        
-        <button 
-          type="button" 
-          onClick={() => setShowGiftModal(true)}
-          className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform"
-        >
-           <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.5)]">
-             <Gift className="w-4 h-4 fill-white text-white" />
-           </div>
-        </button>
-        
-        <button type="button" className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/20 transition-colors border border-white/10">
-          <Share2 className="w-5 h-5 text-white fill-white" />
-        </button>
-      </form>
+      {/* Bottom Input Area - Hidden when screen is landscape */}
+      {!isLandscape && (
+        <form onSubmit={handleSendMessage} className="absolute bottom-0 left-0 right-0 h-[70px] px-4 flex items-center gap-3 z-30">
+          <div className="flex-1 h-10 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex items-center px-4">
+            <input 
+              type="text" 
+              placeholder="Escribe algo..." 
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              className="bg-transparent border-none outline-none w-full text-xs text-white placeholder-zinc-400"
+            />
+            {inputMessage.trim() !== '' && (
+              <button 
+                type="submit" 
+                className="ml-2 text-pink-500 hover:text-pink-400 active:scale-95 transition-all cursor-pointer"
+              >
+                <Send className="w-4 h-4 fill-current" />
+              </button>
+            )}
+          </div>
+          
+          {/* Quick Action Buttons */}
+          <button 
+            type="button" 
+            onClick={async () => {
+              const res = await likeStreamAction(streamerName);
+              if (res.likes !== undefined) {
+                setDbLikes(res.likes);
+              }
+            }}
+            className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+          >
+             <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center shadow-[0_0_15px_rgba(236,72,153,0.5)]">
+               <Heart className="w-4 h-4 fill-white text-white" />
+             </div>
+          </button>
+          
+          <button 
+            type="button" 
+            onClick={() => setShowGiftModal(true)}
+            className="w-10 h-10 flex flex-col items-center justify-center hover:scale-110 transition-transform"
+          >
+             <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.5)]">
+               <Gift className="w-4 h-4 fill-white text-white" />
+             </div>
+          </button>
+          
+          <button 
+            type="button"
+            onClick={toggleOrientation}
+            className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/20 transition-colors border border-white/10"
+            title="Echar pantalla (Horizontal)"
+          >
+            <Maximize2 className="w-4 h-4 text-white" />
+          </button>
+        </form>
+      )}
 
       {/* Mobile Gifts Slider Sheet */}
       {showGiftModal && (

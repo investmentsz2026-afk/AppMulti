@@ -70,6 +70,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Tu cuenta ha sido desactivada por el administrador.' }, { status: 403 });
       }
     }
+    // If the user is logging in, they are NOT streaming — reset any stale live status
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isLive: false }
+    });
+    await prisma.stream.updateMany({
+      where: { userId: user.id },
+      data: { isLive: false }
+    });
 
     const sessionToken = await encrypt({ id: user.id });
 

@@ -297,6 +297,19 @@ export default function TransmitirClient({ user }: { user: any }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cleanup live state when browser tab/window is closed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (useLiveStore.getState().isLive) {
+        // Use sendBeacon for reliable cleanup during page unload
+        navigator.sendBeacon('/api/stream/end', '');
+        useLiveStore.getState().stopLive();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   // 1.5. Synchronize streams with the active video elements
   useEffect(() => {
     const bindStream = (videoRef: React.RefObject<HTMLVideoElement | null>, stream: MediaStream | null) => {
@@ -778,7 +791,11 @@ export default function TransmitirClient({ user }: { user: any }) {
                 </div>
               )}
 
-              <Link href="/dashboard" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-bold mt-2">
+              <Link 
+                href="/dashboard" 
+                onClick={() => { if (isLive) handleStopLive(); }}
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-bold mt-2"
+              >
                 Cancelar y Salir al Inicio
               </Link>
             </div>
@@ -791,7 +808,11 @@ export default function TransmitirClient({ user }: { user: any }) {
             
             {/* Header / Back Link */}
             <div className="absolute top-0 left-0 pt-[max(14px,env(safe-area-inset-top,14px))] px-4 sm:px-6 z-30">
-              <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors shadow-lg">
+              <Link 
+                href="/dashboard" 
+                onClick={() => { if (isLive) handleStopLive(); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors shadow-lg"
+              >
                 <ArrowLeft className="w-4 h-4" /> Volver a Inicio
               </Link>
             </div>
