@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import DashboardClient from './components/DashboardClient';
 import { prisma } from '@/lib/prisma';
 
@@ -23,6 +24,8 @@ export default async function DashboardPage() {
   });
 
   if (!dbUser) {
+    const cookieStore = await cookies();
+    cookieStore.delete('session');
     redirect('/login');
   }
 
