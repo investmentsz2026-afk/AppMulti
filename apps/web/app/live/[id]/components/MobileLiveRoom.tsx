@@ -87,18 +87,16 @@ function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName, opponentName 
 
   if (!activeTrack) {
     return (
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        loop
-        onCanPlay={(e) => {
-          e.currentTarget.play().catch(() => {});
-        }}
-        className="w-full h-full object-cover animate-fade-in"
-        src={fallbackVideoSrc}
-      />
+      <div className="w-full h-full bg-[#0a0914] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-purple-500/40 p-1 bg-gradient-to-tr from-purple-900/40 to-pink-900/30 shadow-2xl mb-2">
+          <img 
+            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${streamerName}`} 
+            className="w-full h-full rounded-full object-cover bg-zinc-800" 
+          />
+        </div>
+        <span className="text-xs font-black text-white truncate max-w-[90%]">@{streamerName}</span>
+        <span className="text-[8px] text-purple-400 font-bold uppercase tracking-wider mt-0.5">En Vivo</span>
+      </div>
     );
   }
 
