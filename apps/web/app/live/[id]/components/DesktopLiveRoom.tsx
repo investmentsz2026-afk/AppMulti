@@ -51,23 +51,36 @@ const MOCK_REC_POSTS = [
   }
 ];
 
-function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName }: { fallbackVideoSrc: string, videoRef?: React.RefObject<HTMLVideoElement | null>, streamerName: string }) {
+function LiveKitPlayer({ fallbackVideoSrc, videoRef, streamerName, opponentName }: { fallbackVideoSrc: string, videoRef?: React.RefObject<HTMLVideoElement | null>, streamerName: string, opponentName?: string }) {
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
     { source: Track.Source.ScreenShare, withPlaceholder: false }
   ]);
 
+  const cleanStreamer = decodeURIComponent(streamerName || '').toLowerCase().trim();
+  const cleanOpponent = decodeURIComponent(opponentName || '').toLowerCase().trim();
+
   const streamerTracks = tracks.filter(t => {
-    if (!streamerName) return true;
-    const identity = t.participant.identity || '';
-    const name = t.participant.name || '';
-    return (
-      identity === streamerName ||
-      identity.startsWith(streamerName) ||
-      identity.includes(streamerName) ||
-      name === streamerName ||
-      name.includes(streamerName)
-    );
+    const identity = decodeURIComponent(t.participant.identity || '').toLowerCase().trim();
+    const name = decodeURIComponent(t.participant.name || '').toLowerCase().trim();
+
+    if (!cleanStreamer) return true;
+
+    if (
+      identity === cleanStreamer ||
+      identity.includes(cleanStreamer) ||
+      cleanStreamer.includes(identity) ||
+      name === cleanStreamer ||
+      name.includes(cleanStreamer)
+    ) {
+      return true;
+    }
+
+    if (cleanOpponent && identity && !identity.includes(cleanOpponent) && !cleanOpponent.includes(identity)) {
+      return true;
+    }
+
+    return false;
   });
   
   const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
@@ -745,7 +758,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
                   <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                     {/* Streamer 1 Video Canvas */}
                     <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
-                      <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" videoRef={videoRef} streamerName={activeBattle.stream1?.user?.username || streamerName} />
+                      <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" videoRef={videoRef} streamerName={activeBattle.stream1?.user?.username || streamerName} opponentName={activeBattle.stream2?.user?.username || ''} />
                       {/* Left Streamer Tag & Dedicated Like/Gift buttons */}
                       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-auto z-20">
                         <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-pink-500/40 text-xs font-black text-pink-400 flex items-center gap-1.5 shadow-md">
@@ -771,7 +784,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
 
                     {/* Streamer 2 Video Canvas */}
                     <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
-                      <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" streamerName={activeBattle.stream2?.user?.username || ''} />
+                      <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" streamerName={activeBattle.stream2?.user?.username || ''} opponentName={activeBattle.stream1?.user?.username || ''} />
                       {/* Right Streamer Tag & Dedicated Like/Gift buttons */}
                       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-auto z-20">
                         <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-blue-500/40 text-xs font-black text-blue-400 flex items-center gap-1.5 shadow-md">

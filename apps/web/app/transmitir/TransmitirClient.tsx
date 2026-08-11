@@ -17,23 +17,36 @@ import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendS
 import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
 import { getLiveStreamers, createBattleInvite, respondToBattleInvite, getPendingInvite, startBattleAction, getActiveUserBattleAction } from '@/app/actions/battle';
 
-function LiveKitPlayer({ fallbackVideoSrc, streamerName }: { fallbackVideoSrc: string, streamerName: string }) {
+function LiveKitPlayer({ fallbackVideoSrc, streamerName, opponentName }: { fallbackVideoSrc: string, streamerName: string, opponentName?: string }) {
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: false },
     { source: Track.Source.ScreenShare, withPlaceholder: false }
   ]);
 
+  const cleanStreamer = decodeURIComponent(streamerName || '').toLowerCase().trim();
+  const cleanOpponent = decodeURIComponent(opponentName || '').toLowerCase().trim();
+
   const streamerTracks = tracks.filter(t => {
-    if (!streamerName) return true;
-    const identity = t.participant.identity || '';
-    const name = t.participant.name || '';
-    return (
-      identity === streamerName ||
-      identity.startsWith(streamerName) ||
-      identity.includes(streamerName) ||
-      name === streamerName ||
-      name.includes(streamerName)
-    );
+    const identity = decodeURIComponent(t.participant.identity || '').toLowerCase().trim();
+    const name = decodeURIComponent(t.participant.name || '').toLowerCase().trim();
+
+    if (!cleanStreamer) return true;
+
+    if (
+      identity === cleanStreamer ||
+      identity.includes(cleanStreamer) ||
+      cleanStreamer.includes(identity) ||
+      name === cleanStreamer ||
+      name.includes(cleanStreamer)
+    ) {
+      return true;
+    }
+
+    if (cleanOpponent && identity && !identity.includes(cleanOpponent) && !cleanOpponent.includes(identity)) {
+      return true;
+    }
+
+    return false;
   });
   
   const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
@@ -1267,7 +1280,7 @@ export default function TransmitirClient({ user }: { user: any }) {
                           <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                             {/* Left Streamer (Host) Video Canvas */}
                             <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
-                              <LiveKitPlayer fallbackVideoSrc="" streamerName={leftUser?.username || ''} />
+                              <LiveKitPlayer fallbackVideoSrc="" streamerName={leftUser?.username || ''} opponentName={rightUser?.username || ''} />
                               <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
                                 <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
                                 <span className="truncate">@{leftUser?.username}</span>
@@ -1276,7 +1289,7 @@ export default function TransmitirClient({ user }: { user: any }) {
 
                             {/* Right Streamer (Opponent) Video Canvas */}
                             <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
-                              <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" streamerName={rightUser?.username || ''} />
+                              <LiveKitPlayer fallbackVideoSrc="/uploads/1779484645064-rwef26.mp4" streamerName={rightUser?.username || ''} opponentName={leftUser?.username || ''} />
                               <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
                                 <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
                                 <span className="truncate">@{rightUser?.username}</span>
