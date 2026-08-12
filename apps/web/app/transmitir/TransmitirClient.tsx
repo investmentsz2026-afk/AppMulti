@@ -555,38 +555,46 @@ export default function TransmitirClient({ user }: { user: any }) {
       screenStreamRef.current = null;
       setIsScreenSharing(false);
     } else {
-      // Check if creator has a waiting PvP game room
-      if (!wagerUnblocked) {
-        const pvpCheck = await checkUserActiveWagerStatusAction();
-        if (pvpCheck.isWaiting) {
-          toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
-          return;
-        }
-      }
-
-      if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        toast.error('Tu navegador o dispositivo no soporta compartir pantalla. Por favor, usa Safari en iOS o Chrome en Android.');
+      // Check if creator has a waiting PvP game room using cached status if available
+      if (!wagerUnblocked && pvpStatus?.isWaiting) {
+        toast.error(`Esperando oponente en tu sala PvP "${pvpStatus.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
         return;
       }
 
+      const getDisplayMediaFn = 
+        (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia?.bind(navigator.mediaDevices)) ||
+        ((navigator as any).getDisplayMedia?.bind(navigator));
+
+      if (!getDisplayMediaFn) {
+        toast.error('Tu navegador o dispositivo no soporta compartir pantalla. En Android usa Chrome/Firefox y en iOS usa Safari.');
+        return;
+      }
+
+      const isMobileDevice = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
       try {
         let stream: MediaStream;
-        try {
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: true
-          });
-        } catch (err) {
-          console.warn('System audio capture not supported or denied, trying video only:', err);
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: false
-          });
+        if (isMobileDevice) {
+          // On mobile OS (Android/iOS), getDisplayMedia only supports { video: true }
+          stream = await getDisplayMediaFn({ video: true });
+        } else {
+          try {
+            stream = await getDisplayMediaFn({
+              video: true,
+              audio: true
+            });
+          } catch (err) {
+            console.warn('System audio capture not supported or denied, trying video only:', err);
+            stream = await getDisplayMediaFn({
+              video: true,
+              audio: false
+            });
+          }
         }
         
         const screenTrack = stream.getVideoTracks()[0];
         if (!screenTrack) {
-          toast.error('No se detectó ningún track de video.');
+          toast.error('No se detectó ningún track de video de pantalla.');
           return;
         }
         
@@ -600,9 +608,13 @@ export default function TransmitirClient({ user }: { user: any }) {
         screenStreamRef.current = stream;
         setIsScreenSharing(true);
         toast.success('Compartiendo pantalla.');
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error al compartir pantalla:', err);
-        toast.error('No se pudo iniciar la pantalla. Verifica los permisos de tu navegador.');
+        if (err.name === 'NotAllowedError') {
+          toast.error('Permiso denegado para compartir pantalla.');
+        } else {
+          toast.error('No se pudo compartir pantalla. Asegúrate de permitir el permiso en tu navegador.');
+        }
       }
     }
   };
