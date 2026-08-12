@@ -557,25 +557,13 @@ export default function TransmitirClient({ user }: { user: any }) {
       return;
     }
 
-    if (typeof window !== 'undefined' && !window.isSecureContext && window.location.hostname !== 'localhost') {
-      toast.error('Para compartir la pantalla completa de tu celular debes ingresar con HTTPS (https://)');
-      return;
-    }
+    let stream: MediaStream | null = null;
+    let captureError: any = null;
 
-    const getDisplayMedia = 
-      navigator.mediaDevices?.getDisplayMedia?.bind(navigator.mediaDevices) ||
-      ((navigator as any).getDisplayMedia?.bind(navigator));
-
-    if (!getDisplayMedia) {
-      toast.error('Para compartir tu celular, abre la web en Chrome para Android o Safari en iPhone con HTTPS.');
-      return;
-    }
-
-    try {
-      let stream: MediaStream;
+    // 1. Primary Attempt: Standard getDisplayMedia
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
       try {
-        // Attempt requesting full device screen capture (displaySurface: 'monitor')
-        stream = await getDisplayMedia({
+        stream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             displaySurface: 'monitor',
             surfaceSwitch: 'include',
@@ -583,39 +571,62 @@ export default function TransmitirClient({ user }: { user: any }) {
           } as any,
           audio: false
         });
-      } catch (errSurface) {
-        // Fallback to basic video constraint if displaySurface is not supported
-        stream = await getDisplayMedia({ video: true, audio: false });
+      } catch (err1: any) {
+        captureError = err1;
+        console.warn('Standard getDisplayMedia with monitor failed, trying basic constraints:', err1);
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        } catch (err1b: any) {
+          captureError = err1b;
+        }
       }
+    }
 
-      if (!stream) {
-        toast.error('No se pudo iniciar la transmisión de pantalla.');
-        return;
+    // 2. Fallback Attempt: Legacy getDisplayMedia on navigator
+    if (!stream && typeof (navigator as any).getDisplayMedia === 'function') {
+      try {
+        stream = await (navigator as any).getDisplayMedia({ video: true, audio: false });
+      } catch (err2: any) {
+        captureError = err2;
+        console.warn('Legacy getDisplayMedia failed:', err2);
       }
+    }
 
+    // 3. Fallback Attempt: getUserMedia with chromeMediaSource screen constraint (Android Chromium)
+    if (!stream && typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { mandatory: { chromeMediaSource: 'screen' } } as any,
+          audio: false
+        });
+      } catch (err3: any) {
+        console.warn('getUserMedia screen fallback failed:', err3);
+      }
+    }
+
+    // 4. Handle stream success
+    if (stream) {
       const screenTrack = stream.getVideoTracks()[0];
-      if (!screenTrack) {
-        toast.error('No se detectó el video de tu pantalla.');
+      if (screenTrack) {
+        screenTrack.onended = () => {
+          setScreenStream(null);
+          screenStreamRef.current = null;
+          setIsScreenSharing(false);
+        };
+
+        setScreenStream(stream);
+        screenStreamRef.current = stream;
+        setIsScreenSharing(true);
+        toast.success('¡Transmitiendo pantalla completa del celular!');
         return;
       }
+    }
 
-      screenTrack.onended = () => {
-        setScreenStream(null);
-        screenStreamRef.current = null;
-        setIsScreenSharing(false);
-      };
-
-      setScreenStream(stream);
-      screenStreamRef.current = stream;
-      setIsScreenSharing(true);
-      toast.success('¡Transmitiendo pantalla completa del celular!');
-    } catch (err: any) {
-      console.error('Error al compartir pantalla:', err);
-      if (err.name === 'NotAllowedError') {
-        toast.error('Permiso de pantalla cancelado por el usuario.');
-      } else {
-        toast.error('Asegúrate de conceder permiso para grabar pantalla en Android/iOS.');
-      }
+    // 5. User feedback
+    if (captureError?.name === 'NotAllowedError') {
+      toast.error('Permiso de grabación de pantalla cancelado.');
+    } else {
+      toast.error('Abre el sitio desde la app de Chrome en Android o Safari en iPhone (no desde el navegador interno de WhatsApp/TikTok).');
     }
   };
 
