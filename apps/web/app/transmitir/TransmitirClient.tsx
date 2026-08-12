@@ -120,19 +120,7 @@ function LiveKitTrackSync({
   isScreenSharing: boolean; 
 }) {
   const room = useRoomContext();
-  const [connState, setConnState] = useState<string>(room?.state || '');
-
-  useEffect(() => {
-    if (!room) return;
-    const handleStateChange = (state: string) => {
-      setConnState(state);
-    };
-    room.on(RoomEvent.ConnectionStateChanged, handleStateChange);
-    setConnState(room.state);
-    return () => {
-      room.off(RoomEvent.ConnectionStateChanged, handleStateChange);
-    };
-  }, [room]);
+  const publishedTrackRef = useRef<any>(null);
 
   useEffect(() => {
     if (!room || !room.localParticipant || room.state !== ConnectionState.Connected) return;
@@ -141,31 +129,23 @@ function LiveKitTrackSync({
       if (isScreenSharing && screenStream) {
         const videoTrack = screenStream.getVideoTracks()[0];
         if (videoTrack && videoTrack.readyState === 'live') {
-          try {
-            const existingPubs = Array.from(room.localParticipant.trackPublications.values());
-            const alreadyPublished = existingPubs.some(
-              (pub: any) => pub.source === Track.Source.ScreenShare && pub.videoTrack?.mediaStreamTrack === videoTrack
-            );
+          const existingPubs = Array.from(room.localParticipant.trackPublications.values());
+          const hasScreenSharePub = existingPubs.some(
+            (pub: any) => pub.source === Track.Source.ScreenShare
+          );
 
-            if (!alreadyPublished) {
-              // Unpublish stale screen tracks first
-              for (const pub of existingPubs) {
-                if (pub.source === Track.Source.ScreenShare && pub.track) {
-                  try {
-                    await room.localParticipant.unpublishTrack(pub.track);
-                  } catch (e) {}
-                }
-              }
-
-              console.log('[LiveKitTrackSync] Room is CONNECTED! Publishing ScreenShare track to room...');
-              await room.localParticipant.publishTrack(videoTrack, {
+          if (!hasScreenSharePub && !publishedTrackRef.current) {
+            try {
+              console.log('[LiveKitTrackSync] Room connected. Publishing ScreenShare track...');
+              const pub = await room.localParticipant.publishTrack(videoTrack, {
                 name: 'screen_share',
                 source: Track.Source.ScreenShare
               });
-              console.log('[LiveKitTrackSync] ScreenShare track successfully published to room!');
+              publishedTrackRef.current = pub;
+              console.log('[LiveKitTrackSync] ScreenShare track published successfully!');
+            } catch (err) {
+              console.error('[LiveKitTrackSync] Error publishing screen track:', err);
             }
-          } catch (err) {
-            console.error('[LiveKitTrackSync] Error publishing screen track:', err);
           }
         }
       } else {
@@ -178,11 +158,12 @@ function LiveKitTrackSync({
             } catch (e) {}
           }
         }
+        publishedTrackRef.current = null;
       }
     }
 
     syncScreenTrack();
-  }, [room, connState, screenStream, isScreenSharing]);
+  }, [room, room?.state, screenStream, isScreenSharing]);
 
   return null;
 }
