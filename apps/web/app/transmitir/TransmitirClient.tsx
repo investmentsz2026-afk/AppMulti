@@ -32,13 +32,10 @@ function LiveKitPlayer({
   screenStream?: MediaStream | null,
   isScreenSharing?: boolean
 }) {
-  const tracks = useTracks(
-    [
-      { source: Track.Source.Camera, withPlaceholder: false },
-      { source: Track.Source.ScreenShare, withPlaceholder: false }
-    ],
-    { onlySubscribed: false }
-  );
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: false },
+    { source: Track.Source.ScreenShare, withPlaceholder: false }
+  ]);
 
   // If local user is sharing screen, render local mediaStream directly for 0-latency display
   if (isLocalUser && isScreenSharing && screenStream) {
@@ -85,7 +82,7 @@ function LiveKitPlayer({
     return false;
   });
   
-  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare) || tracks.find(t => t.source === Track.Source.ScreenShare);
+  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
   const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera);
 
   const activeTrack = screenTrack || cameraTrack;
