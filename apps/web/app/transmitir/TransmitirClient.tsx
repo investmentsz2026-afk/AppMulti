@@ -11,7 +11,7 @@ import {
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { LiveKitRoom, VideoConference, useTracks, VideoTrack, RoomAudioRenderer, useLocalParticipant, useRoomContext } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, RoomEvent, ConnectionState } from 'livekit-client';
 import '@livekit/components-styles';
 import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage, checkStreamStatus } from '@/app/actions/stream';
 import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
@@ -120,16 +120,27 @@ function LiveKitTrackSync({
   isScreenSharing: boolean; 
 }) {
   const room = useRoomContext();
-  
+  const [connState, setConnState] = useState<string>(room?.state || '');
+
   useEffect(() => {
-    if (!room || !room.localParticipant) return;
-    
-    let isSubscribed = true;
+    if (!room) return;
+    const handleStateChange = (state: string) => {
+      setConnState(state);
+    };
+    room.on(RoomEvent.ConnectionStateChanged, handleStateChange);
+    setConnState(room.state);
+    return () => {
+      room.off(RoomEvent.ConnectionStateChanged, handleStateChange);
+    };
+  }, [room]);
+
+  useEffect(() => {
+    if (!room || !room.localParticipant || room.state !== ConnectionState.Connected) return;
 
     async function syncScreenTrack() {
       if (isScreenSharing && screenStream) {
         const videoTrack = screenStream.getVideoTracks()[0];
-        if (videoTrack) {
+        if (videoTrack && videoTrack.readyState === 'live') {
           try {
             const existingPubs = Array.from(room.localParticipant.trackPublications.values());
             const alreadyPublished = existingPubs.some(
@@ -146,12 +157,12 @@ function LiveKitTrackSync({
                 }
               }
 
-              console.log('[LiveKitTrackSync] Publishing ScreenShare track to room...');
+              console.log('[LiveKitTrackSync] Room is CONNECTED! Publishing ScreenShare track to room...');
               await room.localParticipant.publishTrack(videoTrack, {
                 name: 'screen_share',
                 source: Track.Source.ScreenShare
               });
-              console.log('[LiveKitTrackSync] ScreenShare track successfully published!');
+              console.log('[LiveKitTrackSync] ScreenShare track successfully published to room!');
             }
           } catch (err) {
             console.error('[LiveKitTrackSync] Error publishing screen track:', err);
@@ -171,11 +182,7 @@ function LiveKitTrackSync({
     }
 
     syncScreenTrack();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [room, screenStream, isScreenSharing]);
+  }, [room, connState, screenStream, isScreenSharing]);
 
   return null;
 }
