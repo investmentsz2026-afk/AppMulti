@@ -783,4 +783,46 @@ export async function getTopDonators() {
   }
 }
 
+// 16. Exit / Cancel an active battle for the logged in streamer without ending their live stream
+export async function exitBattleAction() {
+  const session = await getSession();
+  if (!session) return { error: 'No autenticado.' };
+
+  try {
+    const userStream = await prisma.stream.findUnique({
+      where: { userId: session.id }
+    });
+
+    if (!userStream) return { error: 'Stream no encontrado.' };
+
+    const activeBattle = await prisma.streamBattle.findFirst({
+      where: {
+        OR: [
+          { stream1Id: userStream.id },
+          { stream2Id: userStream.id }
+        ],
+        status: { in: ['PENDING', 'ONGOING'] }
+      }
+    });
+
+    if (!activeBattle) {
+      return { success: true };
+    }
+
+    await prisma.streamBattle.update({
+      where: { id: activeBattle.id },
+      data: {
+        status: 'FINISHED',
+        endTime: new Date()
+      }
+    });
+
+    revalidatePath('/transmitir');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error exiting battle:', error);
+    return { error: error.message || 'Error al salir de la batalla.' };
+  }
+}
+
 

@@ -15,7 +15,7 @@ import { Track, RoomEvent, ConnectionState } from 'livekit-client';
 import '@livekit/components-styles';
 import { updateStreamStatus, keepStreamAliveAction, getStreamChatMessages, sendStreamChatMessage, checkStreamStatus } from '@/app/actions/stream';
 import { checkUserActiveWagerStatusAction } from '@/app/actions/gameroom';
-import { getLiveStreamers, createBattleInvite, respondToBattleInvite, getPendingInvite, startBattleAction, getActiveUserBattleAction } from '@/app/actions/battle';
+import { getLiveStreamers, createBattleInvite, respondToBattleInvite, getPendingInvite, startBattleAction, getActiveUserBattleAction, exitBattleAction } from '@/app/actions/battle';
 
 function LiveKitPlayer({ 
   fallbackVideoSrc, 
@@ -409,6 +409,26 @@ export default function TransmitirClient({ user }: { user: any }) {
       toast.error('Error al iniciar la batalla.');
     } finally {
       setIsStartingBattle(false);
+    }
+  };
+
+  const [isExitingBattle, setIsExitingBattle] = useState(false);
+
+  const handleExitBattle = async () => {
+    if (isExitingBattle) return;
+    setIsExitingBattle(true);
+    try {
+      const res = await exitBattleAction();
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success('Saliste de la batalla. Tu transmisión sigue en vivo.');
+        setActiveBattle(null);
+      }
+    } catch (err) {
+      toast.error('Error al salir de la batalla.');
+    } finally {
+      setIsExitingBattle(false);
     }
   };
 
@@ -1476,12 +1496,20 @@ export default function TransmitirClient({ user }: { user: any }) {
 
                       {/* Center Winner Banner (If battleTimer === 0 and battle finished) */}
                       {battleTimer === 0 && (
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/90 backdrop-blur-md p-6 rounded-3xl border-2 border-yellow-400 shadow-[0_0_50px_rgba(234,179,8,0.5)] text-center flex flex-col items-center gap-2 animate-bounce pointer-events-auto">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/90 backdrop-blur-md p-6 rounded-3xl border-2 border-yellow-400 shadow-[0_0_50px_rgba(234,179,8,0.5)] text-center flex flex-col items-center gap-3 animate-bounce pointer-events-auto">
                           <Trophy className="w-12 h-12 text-yellow-400 fill-yellow-400 animate-spin" />
                           <h3 className="text-xl font-black text-white">¡BATALLA FINALIZADA!</h3>
                           <p className="text-sm font-bold text-yellow-400">
                             Gana: @{(activeBattle.points1 || 0) >= (activeBattle.points2 || 0) ? activeBattle.stream1?.user?.username : activeBattle.stream2?.user?.username} 🏆
                           </p>
+                          <button
+                            onClick={handleExitBattle}
+                            disabled={isExitingBattle}
+                            className="mt-2 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black text-xs sm:text-sm rounded-full shadow-lg border border-amber-400/40 cursor-pointer active:scale-95 transition-all flex items-center gap-2"
+                          >
+                            <Swords className="w-4 h-4 text-yellow-300" />
+                            {isExitingBattle ? 'Volviendo a Live Solo...' : 'Salir de Batalla ⚔️'}
+                          </button>
                         </div>
                       )}
 
@@ -1611,22 +1639,36 @@ export default function TransmitirClient({ user }: { user: any }) {
 
               {/* Invite Battle & End live buttons on top right */}
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <button 
-                  onClick={handleOpenInviteModal}
-                  className="px-2 py-1 sm:px-4 sm:py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-pink-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
-                  title="Invitar streamer a Batalla PvP"
-                >
-                  <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-300 animate-pulse" />
-                  <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate max-w-[90px] sm:max-w-none">Batalla</span>
-                </button>
+                {activeBattle ? (
+                  <button 
+                    onClick={handleExitBattle}
+                    disabled={isExitingBattle}
+                    className="px-2.5 py-1 sm:px-4 sm:py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1.5 shadow-xl border border-amber-400/40 active:scale-95 transition-all shrink-0 cursor-pointer disabled:opacity-50"
+                    title="Salir de la batalla sin cortar tu transmisión en vivo"
+                  >
+                    <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-300" />
+                    <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate">
+                      {isExitingBattle ? 'Saliendo...' : 'Salir de Batalla'}
+                    </span>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleOpenInviteModal}
+                    className="px-2 py-1 sm:px-4 sm:py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-pink-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
+                    title="Invitar streamer a Batalla PvP"
+                  >
+                    <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-300 animate-pulse" />
+                    <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate max-w-[90px] sm:max-w-none">Batalla</span>
+                  </button>
+                )}
 
                 <button 
                   onClick={handleStopLive}
                   className="px-2 py-1 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-500 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-red-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
-                  title="Finalizar En Vivo"
+                  title="Finalizar En Vivo por completo"
                 >
                   <X className="w-3.5 h-3.5 text-white stroke-[2.5]" />
-                  <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate">Salir</span>
+                  <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate">Finalizar Live</span>
                 </button>
               </div>
             </div>
