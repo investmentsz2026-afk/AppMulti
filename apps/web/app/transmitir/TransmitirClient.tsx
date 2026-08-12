@@ -554,74 +554,50 @@ export default function TransmitirClient({ user }: { user: any }) {
       setScreenStream(null);
       screenStreamRef.current = null;
       setIsScreenSharing(false);
-    } else {
-      let stream: MediaStream | null = null;
+      return;
+    }
 
-      // 1. Try standard navigator.mediaDevices.getDisplayMedia
-      if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
-        try {
-          stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-        } catch (e1) {
-          console.warn('Standard getDisplayMedia failed, trying fallback options:', e1);
-        }
+    try {
+      // Invoke getDisplayMedia directly so user touch gesture is preserved 100% on mobile browsers
+      const getDisplayMedia = 
+        navigator.mediaDevices?.getDisplayMedia?.bind(navigator.mediaDevices) ||
+        ((navigator as any).getDisplayMedia?.bind(navigator));
+
+      if (!getDisplayMedia) {
+        toast.error('Tu navegador no permite compartir pantalla en móvil. Usa Chrome en Android o Safari en iPhone.');
+        return;
       }
 
-      // 2. Try legacy navigator.getDisplayMedia
-      if (!stream && (navigator as any).getDisplayMedia) {
-        try {
-          stream = await (navigator as any).getDisplayMedia({ video: true });
-        } catch (e2) {
-          console.warn('Legacy getDisplayMedia failed:', e2);
-        }
+      const stream = await getDisplayMedia({ video: true, audio: false });
+
+      if (!stream) {
+        toast.error('No se pudo iniciar la pantalla.');
+        return;
       }
 
-      // 3. Try getUserMedia with mediaSource: "screen" or "window"
-      if (!stream && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { mediaSource: 'screen' } as any
-          });
-        } catch (e3) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { mediaSource: 'window' } as any
-            });
-          } catch (e4) {}
-        }
+      const screenTrack = stream.getVideoTracks()[0];
+      if (!screenTrack) {
+        toast.error('No se detectó ningún track de pantalla.');
+        return;
       }
 
-      // 4. Try camera fallback as ultimate mobile option so sharing never blocks
-      if (!stream && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' },
-            audio: false
-          });
-        } catch (e5) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-          } catch (e6) {}
-        }
+      screenTrack.onended = () => {
+        setScreenStream(null);
+        screenStreamRef.current = null;
+        setIsScreenSharing(false);
+      };
+
+      setScreenStream(stream);
+      screenStreamRef.current = stream;
+      setIsScreenSharing(true);
+      toast.success('¡Compartiendo pantalla!');
+    } catch (err: any) {
+      console.error('Error al compartir pantalla:', err);
+      if (err.name === 'NotAllowedError') {
+        toast.error('Selección de pantalla cancelada.');
+      } else {
+        toast.error('En móvil, abre la app desde Chrome (Android) o Safari (iPhone) y permite el acceso a la pantalla.');
       }
-
-      if (stream) {
-        const screenTrack = stream.getVideoTracks()[0];
-        if (screenTrack) {
-          screenTrack.onended = () => {
-            setScreenStream(null);
-            screenStreamRef.current = null;
-            setIsScreenSharing(false);
-          };
-
-          setScreenStream(stream);
-          screenStreamRef.current = stream;
-          setIsScreenSharing(true);
-          toast.success('Compartiendo pantalla / cámara');
-          return;
-        }
-      }
-
-      toast.error('Por favor permite el acceso a la cámara o pantalla en tu navegador.');
     }
   };
 
