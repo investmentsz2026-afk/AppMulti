@@ -554,60 +554,53 @@ export default function TransmitirClient({ user }: { user: any }) {
       setScreenStream(null);
       screenStreamRef.current = null;
       setIsScreenSharing(false);
-      return;
-    }
-
-    let stream: MediaStream | null = null;
-    let captureError: any = null;
-
-    // 1. Primary Attempt: Standard getDisplayMedia
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
-      try {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            displaySurface: 'monitor',
-            surfaceSwitch: 'include',
-            selfBrowserSurface: 'exclude'
-          } as any,
-          audio: false
-        });
-      } catch (err1: any) {
-        captureError = err1;
-        console.warn('Standard getDisplayMedia with monitor failed, trying basic constraints:', err1);
-        try {
-          stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-        } catch (err1b: any) {
-          captureError = err1b;
+    } else {
+      // Check if creator has a waiting PvP game room
+      if (!wagerUnblocked) {
+        const pvpCheck = await checkUserActiveWagerStatusAction();
+        if (pvpCheck.isWaiting) {
+          toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
+          return;
         }
       }
-    }
 
-    // 2. Fallback Attempt: Legacy getDisplayMedia on navigator
-    if (!stream && typeof (navigator as any).getDisplayMedia === 'function') {
-      try {
-        stream = await (navigator as any).getDisplayMedia({ video: true, audio: false });
-      } catch (err2: any) {
-        captureError = err2;
-        console.warn('Legacy getDisplayMedia failed:', err2);
+      // Mobile device check: screen share is only for computers
+      const isMobileDevice = typeof window !== 'undefined' && (
+        window.innerWidth < 768 ||
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      );
+
+      if (isMobileDevice) {
+        toast.error('En celular no se puede compartir pantalla. Esta función es solo para computadora. En celular transmite con tu cámara y micrófono.', { duration: 5000 });
+        return;
       }
-    }
 
-    // 3. Fallback Attempt: getUserMedia with chromeMediaSource screen constraint (Android Chromium)
-    if (!stream && typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { mandatory: { chromeMediaSource: 'screen' } } as any,
-          audio: false
-        });
-      } catch (err3: any) {
-        console.warn('getUserMedia screen fallback failed:', err3);
+      if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        toast.error('En celular no se puede compartir pantalla. Esta función es solo para computadora. En celular transmite con tu cámara y micrófono.', { duration: 5000 });
+        return;
       }
-    }
 
-    // 4. Handle stream success
-    if (stream) {
-      const screenTrack = stream.getVideoTracks()[0];
-      if (screenTrack) {
+      try {
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true
+          });
+        } catch (err) {
+          console.warn('System audio capture not supported or denied, trying video only:', err);
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: false
+          });
+        }
+        
+        const screenTrack = stream.getVideoTracks()[0];
+        if (!screenTrack) {
+          toast.error('No se detectó ningún track de video.');
+          return;
+        }
+        
         screenTrack.onended = () => {
           setScreenStream(null);
           screenStreamRef.current = null;
@@ -617,16 +610,11 @@ export default function TransmitirClient({ user }: { user: any }) {
         setScreenStream(stream);
         screenStreamRef.current = stream;
         setIsScreenSharing(true);
-        toast.success('¡Transmitiendo pantalla completa del celular!');
-        return;
+        toast.success('Compartiendo pantalla.');
+      } catch (err) {
+        console.error('Error al compartir pantalla:', err);
+        toast.error('No se pudo iniciar la pantalla. Verifica los permisos de tu navegador.');
       }
-    }
-
-    // 5. User feedback
-    if (captureError?.name === 'NotAllowedError') {
-      toast.error('Permiso de grabación de pantalla cancelado.');
-    } else {
-      toast.error('Abre el sitio desde la app de Chrome en Android o Safari en iPhone (no desde el navegador interno de WhatsApp/TikTok).');
     }
   };
 
