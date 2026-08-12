@@ -22,6 +22,8 @@ function LiveKitPlayer({
   streamerName, 
   opponentName,
   isLocalUser,
+  cameraStream,
+  cameraActive,
   screenStream,
   isScreenSharing
 }: { 
@@ -29,6 +31,8 @@ function LiveKitPlayer({
   streamerName: string, 
   opponentName?: string,
   isLocalUser?: boolean,
+  cameraStream?: MediaStream | null,
+  cameraActive?: boolean,
   screenStream?: MediaStream | null,
   isScreenSharing?: boolean
 }) {
@@ -37,23 +41,42 @@ function LiveKitPlayer({
     { source: Track.Source.ScreenShare, withPlaceholder: false }
   ]);
 
-  // If local user is sharing screen, render local mediaStream directly for 0-latency display
-  if (isLocalUser && isScreenSharing && screenStream) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-black relative">
-        <video
-          ref={(node) => {
-            if (node && screenStream) {
-              node.srcObject = screenStream;
-            }
-          }}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-contain bg-black"
-        />
-      </div>
-    );
+  // If local user is active, render local mediaStream directly for 0-latency display
+  if (isLocalUser) {
+    if (isScreenSharing && screenStream) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-black relative">
+          <video
+            ref={(node) => {
+              if (node && screenStream) {
+                node.srcObject = screenStream;
+              }
+            }}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-contain bg-black"
+          />
+        </div>
+      );
+    }
+    if (cameraActive && cameraStream) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-black relative">
+          <video
+            ref={(node) => {
+              if (node && cameraStream) {
+                node.srcObject = cameraStream;
+              }
+            }}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-contain bg-black scale-x-[-1]"
+          />
+        </div>
+      );
+    }
   }
 
   const cleanStreamer = decodeURIComponent(streamerName || '').toLowerCase().trim();
@@ -113,46 +136,87 @@ function LiveKitPlayer({
 }
 
 function LiveKitTrackSync({ 
-  screenStream, 
+  cameraStream,
+  screenStream,
+  cameraActive, 
   isScreenSharing 
 }: { 
+  cameraStream: MediaStream | null;
   screenStream: MediaStream | null; 
+  cameraActive: boolean;
   isScreenSharing: boolean; 
 }) {
   const room = useRoomContext();
-  const publishedTrackRef = useRef<any>(null);
+  const publishedCameraTrackRef = useRef<any>(null);
+  const publishedScreenTrackRef = useRef<any>(null);
   const currentRoomNameRef = useRef<string>('');
 
   useEffect(() => {
     if (!room) return;
 
     if (currentRoomNameRef.current !== room.name) {
-      console.log(`[LiveKitTrackSync] Room changed from "${currentRoomNameRef.current}" to "${room.name}". Resetting published track ref.`);
+      console.log(`[LiveKitTrackSync] Room changed from "${currentRoomNameRef.current}" to "${room.name}". Resetting track refs.`);
       currentRoomNameRef.current = room.name;
-      publishedTrackRef.current = null;
+      publishedCameraTrackRef.current = null;
+      publishedScreenTrackRef.current = null;
     }
   }, [room, room?.name]);
 
   useEffect(() => {
     if (!room || !room.localParticipant || room.state !== ConnectionState.Connected) return;
 
-    async function syncScreenTrack() {
+    async function syncTracks() {
+      const existingPubs = Array.from(room.localParticipant.trackPublications.values());
+
+      // 1. Sync Camera Track
+      if (cameraActive && cameraStream) {
+        const camVideoTrack = cameraStream.getVideoTracks()[0];
+        if (camVideoTrack && camVideoTrack.readyState === 'live') {
+          const hasCamPub = existingPubs.some(
+            (pub: any) => pub.source === Track.Source.Camera
+          );
+          if (!hasCamPub) {
+            try {
+              console.log(`[LiveKitTrackSync] Room "${room.name}" connected. Publishing Camera track...`);
+              const pub = await room.localParticipant.publishTrack(camVideoTrack, {
+                name: 'camera',
+                source: Track.Source.Camera
+              });
+              publishedCameraTrackRef.current = pub;
+              console.log(`[LiveKitTrackSync] Camera track published successfully to room "${room.name}"!`);
+            } catch (err) {
+              console.error('[LiveKitTrackSync] Error publishing camera track:', err);
+            }
+          }
+        }
+      } else {
+        for (const pub of existingPubs) {
+          if (pub.source === Track.Source.Camera && pub.track) {
+            try {
+              console.log('[LiveKitTrackSync] Unpublishing Camera track...');
+              await room.localParticipant.unpublishTrack(pub.track);
+            } catch (e) {}
+          }
+        }
+        publishedCameraTrackRef.current = null;
+      }
+
+      // 2. Sync Screen Share Track
       if (isScreenSharing && screenStream) {
-        const videoTrack = screenStream.getVideoTracks()[0];
-        if (videoTrack && videoTrack.readyState === 'live') {
-          const existingPubs = Array.from(room.localParticipant.trackPublications.values());
-          const hasScreenSharePub = existingPubs.some(
+        const screenVideoTrack = screenStream.getVideoTracks()[0];
+        if (screenVideoTrack && screenVideoTrack.readyState === 'live') {
+          const hasScreenPub = existingPubs.some(
             (pub: any) => pub.source === Track.Source.ScreenShare
           );
 
-          if (!hasScreenSharePub) {
+          if (!hasScreenPub) {
             try {
               console.log(`[LiveKitTrackSync] Room "${room.name}" connected. Publishing ScreenShare track...`);
-              const pub = await room.localParticipant.publishTrack(videoTrack, {
+              const pub = await room.localParticipant.publishTrack(screenVideoTrack, {
                 name: 'screen_share',
                 source: Track.Source.ScreenShare
               });
-              publishedTrackRef.current = pub;
+              publishedScreenTrackRef.current = pub;
               console.log(`[LiveKitTrackSync] ScreenShare track published successfully to room "${room.name}"!`);
             } catch (err) {
               console.error('[LiveKitTrackSync] Error publishing screen track:', err);
@@ -160,7 +224,6 @@ function LiveKitTrackSync({
           }
         }
       } else {
-        const existingPubs = Array.from(room.localParticipant.trackPublications.values());
         for (const pub of existingPubs) {
           if (pub.source === Track.Source.ScreenShare && pub.track) {
             try {
@@ -169,12 +232,12 @@ function LiveKitTrackSync({
             } catch (e) {}
           }
         }
-        publishedTrackRef.current = null;
+        publishedScreenTrackRef.current = null;
       }
     }
 
-    syncScreenTrack();
-  }, [room, room?.name, room?.state, screenStream, isScreenSharing]);
+    syncTracks();
+  }, [room, room?.name, room?.state, cameraStream, screenStream, cameraActive, isScreenSharing]);
 
   return null;
 }
@@ -1377,9 +1440,9 @@ export default function TransmitirClient({ user }: { user: any }) {
 
                       {/* Split Screen Video Grid (2 Columns side-by-side) */}
                       {livekitToken ? (
-                        <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive} audio={micActive} screen={false} className="w-full h-full">
+                        <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={micActive} screen={false} className="w-full h-full">
                           <RoomAudioRenderer />
-                          <LiveKitTrackSync screenStream={screenStream} isScreenSharing={isScreenSharing} />
+                          <LiveKitTrackSync cameraStream={cameraStream} screenStream={screenStream} cameraActive={cameraActive} isScreenSharing={isScreenSharing} />
                           <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                             {/* Left Streamer (Host) Video Canvas */}
                             <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
@@ -1388,6 +1451,8 @@ export default function TransmitirClient({ user }: { user: any }) {
                                 streamerName={leftUser?.username || ''} 
                                 opponentName={rightUser?.username || ''} 
                                 isLocalUser={leftUser?.username === user?.username}
+                                cameraStream={cameraStream}
+                                cameraActive={cameraActive}
                                 screenStream={screenStream}
                                 isScreenSharing={isScreenSharing}
                               />
@@ -1404,6 +1469,8 @@ export default function TransmitirClient({ user }: { user: any }) {
                                 streamerName={rightUser?.username || ''} 
                                 opponentName={leftUser?.username || ''} 
                                 isLocalUser={rightUser?.username === user?.username}
+                                cameraStream={cameraStream}
+                                cameraActive={cameraActive}
                                 screenStream={screenStream}
                                 isScreenSharing={isScreenSharing}
                               />
@@ -1442,17 +1509,19 @@ export default function TransmitirClient({ user }: { user: any }) {
                 token={livekitToken}
                 serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
                 connect={true}
-                video={cameraActive}
+                video={false}
                 audio={micActive}
                 screen={false}
                 className="w-full h-full"
               >
                 <RoomAudioRenderer />
-                <LiveKitTrackSync screenStream={screenStream} isScreenSharing={isScreenSharing} />
+                <LiveKitTrackSync cameraStream={cameraStream} screenStream={screenStream} cameraActive={cameraActive} isScreenSharing={isScreenSharing} />
                 <LiveKitPlayer 
                   fallbackVideoSrc="" 
                   streamerName={user?.username || ''} 
                   isLocalUser={true}
+                  cameraStream={cameraStream}
+                  cameraActive={cameraActive}
                   screenStream={screenStream}
                   isScreenSharing={isScreenSharing}
                 />
