@@ -121,6 +121,17 @@ function LiveKitTrackSync({
 }) {
   const room = useRoomContext();
   const publishedTrackRef = useRef<any>(null);
+  const currentRoomNameRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!room) return;
+
+    if (currentRoomNameRef.current !== room.name) {
+      console.log(`[LiveKitTrackSync] Room changed from "${currentRoomNameRef.current}" to "${room.name}". Resetting published track ref.`);
+      currentRoomNameRef.current = room.name;
+      publishedTrackRef.current = null;
+    }
+  }, [room, room?.name]);
 
   useEffect(() => {
     if (!room || !room.localParticipant || room.state !== ConnectionState.Connected) return;
@@ -134,15 +145,15 @@ function LiveKitTrackSync({
             (pub: any) => pub.source === Track.Source.ScreenShare
           );
 
-          if (!hasScreenSharePub && !publishedTrackRef.current) {
+          if (!hasScreenSharePub) {
             try {
-              console.log('[LiveKitTrackSync] Room connected. Publishing ScreenShare track...');
+              console.log(`[LiveKitTrackSync] Room "${room.name}" connected. Publishing ScreenShare track...`);
               const pub = await room.localParticipant.publishTrack(videoTrack, {
                 name: 'screen_share',
                 source: Track.Source.ScreenShare
               });
               publishedTrackRef.current = pub;
-              console.log('[LiveKitTrackSync] ScreenShare track published successfully!');
+              console.log(`[LiveKitTrackSync] ScreenShare track published successfully to room "${room.name}"!`);
             } catch (err) {
               console.error('[LiveKitTrackSync] Error publishing screen track:', err);
             }
@@ -163,7 +174,7 @@ function LiveKitTrackSync({
     }
 
     syncScreenTrack();
-  }, [room, room?.state, screenStream, isScreenSharing]);
+  }, [room, room?.name, room?.state, screenStream, isScreenSharing]);
 
   return null;
 }
