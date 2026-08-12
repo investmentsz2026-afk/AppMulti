@@ -555,67 +555,73 @@ export default function TransmitirClient({ user }: { user: any }) {
       screenStreamRef.current = null;
       setIsScreenSharing(false);
     } else {
-      // Check if creator has a waiting PvP game room using cached status if available
-      if (!wagerUnblocked && pvpStatus?.isWaiting) {
-        toast.error(`Esperando oponente en tu sala PvP "${pvpStatus.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
-        return;
-      }
+      let stream: MediaStream | null = null;
 
-      const getDisplayMediaFn = 
-        (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia?.bind(navigator.mediaDevices)) ||
-        ((navigator as any).getDisplayMedia?.bind(navigator));
-
-      if (!getDisplayMediaFn) {
-        toast.error('Tu navegador o dispositivo no soporta compartir pantalla. En Android usa Chrome/Firefox y en iOS usa Safari.');
-        return;
-      }
-
-      const isMobileDevice = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-      try {
-        let stream: MediaStream;
-        if (isMobileDevice) {
-          // On mobile OS (Android/iOS), getDisplayMedia only supports { video: true }
-          stream = await getDisplayMediaFn({ video: true });
-        } else {
-          try {
-            stream = await getDisplayMediaFn({
-              video: true,
-              audio: true
-            });
-          } catch (err) {
-            console.warn('System audio capture not supported or denied, trying video only:', err);
-            stream = await getDisplayMediaFn({
-              video: true,
-              audio: false
-            });
-          }
+      // 1. Try standard navigator.mediaDevices.getDisplayMedia
+      if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        } catch (e1) {
+          console.warn('Standard getDisplayMedia failed, trying fallback options:', e1);
         }
-        
+      }
+
+      // 2. Try legacy navigator.getDisplayMedia
+      if (!stream && (navigator as any).getDisplayMedia) {
+        try {
+          stream = await (navigator as any).getDisplayMedia({ video: true });
+        } catch (e2) {
+          console.warn('Legacy getDisplayMedia failed:', e2);
+        }
+      }
+
+      // 3. Try getUserMedia with mediaSource: "screen" or "window"
+      if (!stream && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { mediaSource: 'screen' } as any
+          });
+        } catch (e3) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { mediaSource: 'window' } as any
+            });
+          } catch (e4) {}
+        }
+      }
+
+      // 4. Try camera fallback as ultimate mobile option so sharing never blocks
+      if (!stream && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' },
+            audio: false
+          });
+        } catch (e5) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          } catch (e6) {}
+        }
+      }
+
+      if (stream) {
         const screenTrack = stream.getVideoTracks()[0];
-        if (!screenTrack) {
-          toast.error('No se detectó ningún track de video de pantalla.');
+        if (screenTrack) {
+          screenTrack.onended = () => {
+            setScreenStream(null);
+            screenStreamRef.current = null;
+            setIsScreenSharing(false);
+          };
+
+          setScreenStream(stream);
+          screenStreamRef.current = stream;
+          setIsScreenSharing(true);
+          toast.success('Compartiendo pantalla / cámara');
           return;
         }
-        
-        screenTrack.onended = () => {
-          setScreenStream(null);
-          screenStreamRef.current = null;
-          setIsScreenSharing(false);
-        };
-
-        setScreenStream(stream);
-        screenStreamRef.current = stream;
-        setIsScreenSharing(true);
-        toast.success('Compartiendo pantalla.');
-      } catch (err: any) {
-        console.error('Error al compartir pantalla:', err);
-        if (err.name === 'NotAllowedError') {
-          toast.error('Permiso denegado para compartir pantalla.');
-        } else {
-          toast.error('No se pudo compartir pantalla. Asegúrate de permitir el permiso en tu navegador.');
-        }
       }
+
+      toast.error('Por favor permite el acceso a la cámara o pantalla en tu navegador.');
     }
   };
 
