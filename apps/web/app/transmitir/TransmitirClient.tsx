@@ -1385,7 +1385,7 @@ export default function TransmitirClient({ user }: { user: any }) {
 
                       {/* Split Screen Video Grid (2 Columns side-by-side) */}
                       {livekitToken ? (
-                        <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive || isScreenSharing} audio={micActive} screen={false} className="w-full h-full">
+                        <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive} audio={micActive} screen={false} className="w-full h-full">
                           <RoomAudioRenderer />
                           <LiveKitTrackSync screenStream={screenStream} isScreenSharing={isScreenSharing} />
                           <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
@@ -1450,7 +1450,7 @@ export default function TransmitirClient({ user }: { user: any }) {
                 token={livekitToken}
                 serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
                 connect={true}
-                video={cameraActive || isScreenSharing}
+                video={cameraActive}
                 audio={micActive}
                 screen={false}
                 className="w-full h-full"
