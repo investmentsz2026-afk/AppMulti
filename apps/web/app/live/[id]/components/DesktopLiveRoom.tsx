@@ -751,7 +751,7 @@ export default function DesktopLiveRoom({ user, streamerName }: { user: any, str
 
               {/* Split Screen Video Grid (Side by side on Desktop) */}
               {livekitToken ? (
-                <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
+                <LiveKitRoom key={livekitToken} token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
                   <RoomAudioRenderer />
                   <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                     {/* Streamer 1 Video Canvas */}

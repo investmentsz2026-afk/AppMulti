@@ -715,7 +715,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
 
                     {/* Split Screen Video Grid (2 Columns side-by-side) */}
                     {livekitToken ? (
-                      <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
+                      <LiveKitRoom key={livekitToken} token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={false} audio={true} className="w-full h-full">
                         <RoomAudioRenderer />
                         <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                           {/* Left Streamer Video Canvas */}
@@ -790,6 +790,7 @@ export default function MobileLiveRoom({ user, streamerName }: { user: any, stre
             <div className="w-full h-full bg-black flex items-center justify-center">
               {livekitToken ? (
                 <LiveKitRoom
+                  key={livekitToken}
                   token={livekitToken}
                   serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
                   connect={true}
