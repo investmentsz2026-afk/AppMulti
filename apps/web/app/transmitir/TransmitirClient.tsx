@@ -37,8 +37,8 @@ function LiveKitPlayer({
   isScreenSharing?: boolean
 }) {
   const tracks = useTracks([
-    { source: Track.Source.Camera, withPlaceholder: false },
-    { source: Track.Source.ScreenShare, withPlaceholder: false }
+    { source: Track.Source.ScreenShare, withPlaceholder: true },
+    { source: Track.Source.Camera, withPlaceholder: true }
   ]);
 
   // If local user is active, render local mediaStream directly for 0-latency display
@@ -80,35 +80,25 @@ function LiveKitPlayer({
   }
 
   const cleanStreamer = decodeURIComponent(streamerName || '').toLowerCase().trim();
-  const cleanOpponent = decodeURIComponent(opponentName || '').toLowerCase().trim();
 
-  const streamerTracks = tracks.filter(t => {
+  // Find track belonging to streamerName (or any remote participant if streamerName is opponent)
+  const matchingTrack = tracks.find(t => {
+    if (!t.participant) return false;
     const identity = decodeURIComponent(t.participant.identity || '').toLowerCase().trim();
     const name = decodeURIComponent(t.participant.name || '').toLowerCase().trim();
-
-    if (!cleanStreamer) return true;
-
-    if (
-      identity === cleanStreamer ||
-      identity.includes(cleanStreamer) ||
-      cleanStreamer.includes(identity) ||
-      name === cleanStreamer ||
-      name.includes(cleanStreamer)
-    ) {
-      return true;
+    if (cleanStreamer) {
+      return (
+        identity === cleanStreamer ||
+        identity.includes(cleanStreamer) ||
+        cleanStreamer.includes(identity) ||
+        name === cleanStreamer ||
+        name.includes(cleanStreamer)
+      );
     }
-
-    if (cleanOpponent && identity && !identity.includes(cleanOpponent) && !cleanOpponent.includes(identity)) {
-      return true;
-    }
-
-    return false;
+    return !t.participant.isLocal;
   });
-  
-  const screenTrack = streamerTracks.find(t => t.source === Track.Source.ScreenShare);
-  const cameraTrack = streamerTracks.find(t => t.source === Track.Source.Camera);
 
-  const activeTrack = screenTrack || cameraTrack;
+  const activeTrack = matchingTrack && ('publication' in matchingTrack && matchingTrack.publication || 'track' in matchingTrack && matchingTrack.track) ? matchingTrack : null;
 
   if (!activeTrack) {
     return (
