@@ -115,7 +115,57 @@ function LiveKitPlayer({
   );
 }
 
+function ScreenShareController({
+  isScreenSharing,
+  setIsScreenSharing,
+  setScreenStream,
+  screenShareRequested,
+  setScreenShareRequested
+}: {
+  isScreenSharing: boolean;
+  setIsScreenSharing: (val: boolean) => void;
+  setScreenStream: (stream: MediaStream | null) => void;
+  screenShareRequested: boolean;
+  setScreenShareRequested: (val: boolean) => void;
+}) {
+  const { localParticipant } = useLocalParticipant();
 
+  useEffect(() => {
+    if (!localParticipant || !screenShareRequested) return;
+
+    async function handleToggle() {
+      try {
+        if (!isScreenSharing) {
+          await localParticipant.setScreenShareEnabled(true, { audio: true });
+          const screenPublication = Array.from(localParticipant.trackPublications.values()).find(
+            (pub: any) => pub.source === Track.Source.ScreenShare
+          );
+          if (screenPublication && screenPublication.videoTrack) {
+            const mediaStream = new MediaStream([screenPublication.videoTrack.mediaStreamTrack]);
+            setScreenStream(mediaStream);
+          }
+          setIsScreenSharing(true);
+          toast.success('Compartiendo pantalla en vivo.');
+        } else {
+          await localParticipant.setScreenShareEnabled(false);
+          setScreenStream(null);
+          setIsScreenSharing(false);
+          toast.success('Pantalla compartida finalizada.');
+        }
+      } catch (err: any) {
+        console.error('Error toggling screen share in LiveKit:', err);
+        setIsScreenSharing(false);
+        setScreenStream(null);
+      } finally {
+        setScreenShareRequested(false);
+      }
+    }
+
+    handleToggle();
+  }, [screenShareRequested, localParticipant]);
+
+  return null;
+}
 
 interface HeartAnimation {
   id: number;
@@ -347,6 +397,7 @@ export default function TransmitirClient({ user }: { user: any }) {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [screenShareRequested, setScreenShareRequested] = useState(false);
 
   // Auto fill title/category from room creation query parameters
   useEffect(() => {
@@ -355,64 +406,14 @@ export default function TransmitirClient({ user }: { user: any }) {
   }, [roomTitle, roomCategory]);
 
   const toggleScreenShare = async () => {
-    if (isScreenSharing) {
-      if (screenStreamRef.current) {
-        screenStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      setScreenStream(null);
-      screenStreamRef.current = null;
-      setIsScreenSharing(false);
-    } else {
-      // Check if creator has a waiting PvP game room
-      if (!wagerUnblocked) {
-        const pvpCheck = await checkUserActiveWagerStatusAction();
-        if (pvpCheck.isWaiting) {
-          toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
-          return;
-        }
-      }
-
-      if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        toast.error('Tu navegador o dispositivo no soporta compartir pantalla. Por favor, usa Safari en iOS o Chrome en Android.');
+    if (!isScreenSharing && !wagerUnblocked) {
+      const pvpCheck = await checkUserActiveWagerStatusAction();
+      if (pvpCheck.isWaiting) {
+        toast.error(`Esperando oponente en tu sala PvP "${pvpCheck.roomTitle}". No puedes compartir pantalla hasta que alguien se una.`);
         return;
       }
-
-      try {
-        let stream: MediaStream;
-        try {
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: true
-          });
-        } catch (err) {
-          console.warn('System audio capture not supported or denied, trying video only:', err);
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: false
-          });
-        }
-        
-        const screenTrack = stream.getVideoTracks()[0];
-        if (!screenTrack) {
-          toast.error('No se detectó ningún track de video.');
-          return;
-        }
-        
-        screenTrack.onended = () => {
-          setScreenStream(null);
-          screenStreamRef.current = null;
-          setIsScreenSharing(false);
-        };
-
-        setScreenStream(stream);
-        screenStreamRef.current = stream;
-        setIsScreenSharing(true);
-        toast.success('Compartiendo pantalla.');
-      } catch (err) {
-        console.error('Error al compartir pantalla:', err);
-        toast.error('No se pudo iniciar la pantalla. Verifica los permisos de tu navegador.');
-      }
     }
+    setScreenShareRequested(true);
   };
 
   // Auto screen-share on mount if query parameter is set
@@ -1315,8 +1316,15 @@ export default function TransmitirClient({ user }: { user: any }) {
 
                       {/* Split Screen Video Grid (2 Columns side-by-side) */}
                       {livekitToken ? (
-                        <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive || isScreenSharing} audio={micActive} screen={isScreenSharing} className="w-full h-full">
+                        <LiveKitRoom token={livekitToken} serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL} connect={true} video={cameraActive} audio={micActive} className="w-full h-full">
                           <RoomAudioRenderer />
+                          <ScreenShareController 
+                            isScreenSharing={isScreenSharing} 
+                            setIsScreenSharing={setIsScreenSharing} 
+                            setScreenStream={setScreenStream} 
+                            screenShareRequested={screenShareRequested} 
+                            setScreenShareRequested={setScreenShareRequested} 
+                          />
                           <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                             {/* Left Streamer (Host) Video Canvas */}
                             <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
@@ -1379,12 +1387,18 @@ export default function TransmitirClient({ user }: { user: any }) {
                 token={livekitToken}
                 serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
                 connect={true}
-                video={cameraActive || isScreenSharing}
+                video={cameraActive}
                 audio={micActive}
-                screen={isScreenSharing}
                 className="w-full h-full"
               >
                 <RoomAudioRenderer />
+                <ScreenShareController 
+                  isScreenSharing={isScreenSharing} 
+                  setIsScreenSharing={setIsScreenSharing} 
+                  setScreenStream={setScreenStream} 
+                  screenShareRequested={screenShareRequested} 
+                  setScreenShareRequested={setScreenShareRequested} 
+                />
                 <LiveKitPlayer 
                   fallbackVideoSrc="" 
                   streamerName={user?.username || ''} 
