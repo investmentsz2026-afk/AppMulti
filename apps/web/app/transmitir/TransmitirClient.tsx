@@ -1442,7 +1442,7 @@ export default function TransmitirClient({ user }: { user: any }) {
                   return (
                     <>
                       {/* TikTok PvP Score Header Bar (Placed cleanly below top header buttons) */}
-                      <div className="absolute top-[72px] sm:top-[80px] left-2 right-2 z-30 max-w-xl mx-auto flex flex-col gap-1 pointer-events-auto">
+                      <div className="absolute top-[100px] sm:top-[90px] lg:top-[76px] left-2 right-2 z-30 max-w-xl mx-auto flex flex-col gap-1 pointer-events-auto">
                         <div className="flex items-center justify-between px-1 text-[10px] sm:text-xs font-black text-white">
                           {/* Left Streamer */}
                           <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-pink-500/40 shadow-lg max-w-[42%] truncate">
@@ -1531,10 +1531,6 @@ export default function TransmitirClient({ user }: { user: any }) {
                                 screenStream={screenStream}
                                 isScreenSharing={isScreenSharing}
                               />
-                              <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
-                                <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
-                                <span className="truncate">@{leftUser?.username}</span>
-                              </div>
                             </div>
 
                             {/* Right Streamer (Opponent) Video Canvas */}
@@ -1549,10 +1545,6 @@ export default function TransmitirClient({ user }: { user: any }) {
                                 screenStream={screenStream}
                                 isScreenSharing={isScreenSharing}
                               />
-                              <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
-                                <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
-                                <span className="truncate">@{rightUser?.username}</span>
-                              </div>
                             </div>
                           </div>
                         </LiveKitRoom>
@@ -1560,17 +1552,9 @@ export default function TransmitirClient({ user }: { user: any }) {
                         <div className="w-full h-full grid grid-cols-2 gap-1 bg-black p-1">
                           <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-pink-500/20 rounded-2xl">
                             <video ref={liveCameraVideoRef} autoPlay playsInline muted className={`w-full h-full object-contain bg-black ${isScreenSharing ? '' : 'scale-x-[-1]'}`} />
-                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-pink-500/40 text-[10px] font-black text-pink-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
-                              <img src={leftUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leftUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-pink-500 shrink-0" />
-                              <span className="truncate">@{leftUser?.username}</span>
-                            </div>
                           </div>
                           <div className="relative w-full h-full bg-[#0a0a0f] overflow-hidden flex items-center justify-center border border-blue-500/20 rounded-2xl">
                             <video autoPlay playsInline muted loop src="/uploads/1779484645064-rwef26.mp4" className="w-full h-full object-contain bg-black" />
-                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-blue-500/40 text-[10px] font-black text-blue-400 flex items-center gap-1 shadow-md max-w-[85%] truncate z-20">
-                              <img src={rightUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rightUser?.username}`} className="w-3.5 h-3.5 rounded-full border border-blue-500 shrink-0" />
-                              <span className="truncate">@{rightUser?.username}</span>
-                            </div>
                           </div>
                         </div>
                       )}
@@ -1610,65 +1594,65 @@ export default function TransmitirClient({ user }: { user: any }) {
             )}
 
             {/* Live Stats floating overlays inside the stream area */}
-            <div className="absolute top-0 left-0 right-0 pt-[max(14px,env(safe-area-inset-top,14px))] px-4 sm:px-6 pb-3 z-30 flex justify-between items-center bg-gradient-to-b from-black/90 via-black/50 to-transparent">
+            <div className="absolute top-0 left-0 right-0 pt-[max(10px,env(safe-area-inset-top,10px))] px-3 sm:px-6 pb-2 z-30 flex justify-between items-center bg-gradient-to-b from-black/90 via-black/50 to-transparent">
               
               {/* Host Streamer Info */}
-              <div className="flex flex-col gap-1.5 max-w-[60%] sm:max-w-none">
-                <div className="flex items-center bg-black/60 backdrop-blur-md rounded-full pr-3 sm:pr-4 p-1 gap-2 sm:gap-3 border border-white/15 shadow-lg">
-                  <img src={user.avatar} className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border border-pink-500 bg-zinc-800 shrink-0" />
+              <div className="flex flex-col gap-1 max-w-[48%] sm:max-w-none shrink-0">
+                <div className="flex items-center bg-black/60 backdrop-blur-md rounded-full pr-2.5 sm:pr-4 p-0.5 sm:p-1 gap-1.5 sm:gap-2.5 border border-white/15 shadow-lg max-w-full">
+                  <img src={user.avatar} className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-pink-500 bg-zinc-800 shrink-0" />
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] sm:text-xs font-black leading-tight flex items-center gap-1.5 truncate text-white">
-                      {user.username} <Shield className="w-2.5 h-2.5 sm:w-3 h-3 text-blue-400 shrink-0" />
+                    <span className="text-[9px] sm:text-xs font-black leading-tight flex items-center gap-1 truncate text-white">
+                      <span className="truncate">{user.username}</span> <Shield className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-400 shrink-0" />
                     </span>
                     <span className="text-[8px] sm:text-[10px] text-zinc-300 font-bold flex items-center gap-0.5 truncate">
-                      <Sparkles className="w-2.5 h-2.5 sm:w-3 h-3 text-yellow-400 animate-pulse shrink-0" /> {streamCategory}
+                      <Sparkles className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-yellow-400 animate-pulse shrink-0" /> {streamCategory}
                     </span>
                   </div>
                 </div>
 
                 {/* Badge indicator */}
-                <div className="flex gap-1.5 items-center">
-                  <span className="px-2 py-0.5 bg-red-600 text-[8px] sm:text-[9px] font-black text-white rounded uppercase tracking-wider flex items-center gap-1 shadow-lg">
+                <div className="flex gap-1 items-center">
+                  <span className="px-1.5 py-0.5 bg-red-600 text-[8px] sm:text-[9px] font-black text-white rounded uppercase tracking-wider flex items-center gap-1 shadow-lg">
                     <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" /> LIVE
                   </span>
-                  <span className="px-2 py-0.5 bg-black/60 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white rounded flex items-center gap-1 border border-white/15 shadow-lg">
-                    <Eye className="w-3 h-3 sm:w-3.5 h-3.5 text-zinc-300 animate-pulse" /> {dbViewers}
+                  <span className="px-1.5 py-0.5 bg-black/60 backdrop-blur-md text-[8px] sm:text-[9px] font-black text-white rounded flex items-center gap-1 border border-white/15 shadow-lg">
+                    <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-zinc-300 animate-pulse" /> {dbViewers}
                   </span>
                 </div>
               </div>
 
               {/* Invite Battle & End live buttons on top right */}
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 {activeBattle ? (
                   <button 
                     onClick={handleExitBattle}
                     disabled={isExitingBattle}
-                    className="px-2.5 py-1 sm:px-4 sm:py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1.5 shadow-xl border border-amber-400/40 active:scale-95 transition-all shrink-0 cursor-pointer disabled:opacity-50"
+                    className="px-2 py-1 sm:px-3.5 sm:py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-[9px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-amber-400/40 active:scale-95 transition-all shrink-0 cursor-pointer disabled:opacity-50"
                     title="Salir de la batalla sin cortar tu transmisión en vivo"
                   >
-                    <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-300" />
+                    <Swords className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-300 shrink-0" />
                     <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate">
-                      {isExitingBattle ? 'Saliendo...' : 'Salir de Batalla'}
+                      {isExitingBattle ? 'Saliendo...' : 'Salir Batalla'}
                     </span>
                   </button>
                 ) : (
                   <button 
                     onClick={handleOpenInviteModal}
-                    className="px-2 py-1 sm:px-4 sm:py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-pink-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
+                    className="px-2 py-1 sm:px-3.5 sm:py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:scale-105 text-white text-[9px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-pink-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
                     title="Invitar streamer a Batalla PvP"
                   >
-                    <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-300 animate-pulse" />
-                    <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate max-w-[90px] sm:max-w-none">Batalla</span>
+                    <Swords className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-300 animate-pulse shrink-0" />
+                    <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate">Batalla</span>
                   </button>
                 )}
 
                 <button 
                   onClick={handleStopLive}
-                  className="px-2 py-1 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-500 text-white text-[10px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-red-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
+                  className="px-2 py-1 sm:px-3.5 sm:py-1.5 bg-red-600 hover:bg-red-500 text-white text-[9px] sm:text-xs font-black rounded-full flex items-center gap-1 shadow-xl border border-red-500/40 active:scale-95 transition-all shrink-0 cursor-pointer"
                   title="Finalizar En Vivo por completo"
                 >
-                  <X className="w-3.5 h-3.5 text-white stroke-[2.5]" />
-                  <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate">Finalizar Live</span>
+                  <X className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white stroke-[2.5] shrink-0" />
+                  <span className="text-[9px] sm:text-xs uppercase tracking-wider font-extrabold truncate">Finalizar</span>
                 </button>
               </div>
             </div>
