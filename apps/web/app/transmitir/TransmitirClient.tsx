@@ -557,27 +557,45 @@ export default function TransmitirClient({ user }: { user: any }) {
       return;
     }
 
-    try {
-      // Invoke getDisplayMedia directly so user touch gesture is preserved 100% on mobile browsers
-      const getDisplayMedia = 
-        navigator.mediaDevices?.getDisplayMedia?.bind(navigator.mediaDevices) ||
-        ((navigator as any).getDisplayMedia?.bind(navigator));
+    if (typeof window !== 'undefined' && !window.isSecureContext && window.location.hostname !== 'localhost') {
+      toast.error('Para compartir la pantalla completa de tu celular debes ingresar con HTTPS (https://)');
+      return;
+    }
 
-      if (!getDisplayMedia) {
-        toast.error('Tu navegador no permite compartir pantalla en móvil. Usa Chrome en Android o Safari en iPhone.');
-        return;
+    const getDisplayMedia = 
+      navigator.mediaDevices?.getDisplayMedia?.bind(navigator.mediaDevices) ||
+      ((navigator as any).getDisplayMedia?.bind(navigator));
+
+    if (!getDisplayMedia) {
+      toast.error('Para compartir tu celular, abre la web en Chrome para Android o Safari en iPhone con HTTPS.');
+      return;
+    }
+
+    try {
+      let stream: MediaStream;
+      try {
+        // Attempt requesting full device screen capture (displaySurface: 'monitor')
+        stream = await getDisplayMedia({
+          video: {
+            displaySurface: 'monitor',
+            surfaceSwitch: 'include',
+            selfBrowserSurface: 'exclude'
+          } as any,
+          audio: false
+        });
+      } catch (errSurface) {
+        // Fallback to basic video constraint if displaySurface is not supported
+        stream = await getDisplayMedia({ video: true, audio: false });
       }
 
-      const stream = await getDisplayMedia({ video: true, audio: false });
-
       if (!stream) {
-        toast.error('No se pudo iniciar la pantalla.');
+        toast.error('No se pudo iniciar la transmisión de pantalla.');
         return;
       }
 
       const screenTrack = stream.getVideoTracks()[0];
       if (!screenTrack) {
-        toast.error('No se detectó ningún track de pantalla.');
+        toast.error('No se detectó el video de tu pantalla.');
         return;
       }
 
@@ -590,13 +608,13 @@ export default function TransmitirClient({ user }: { user: any }) {
       setScreenStream(stream);
       screenStreamRef.current = stream;
       setIsScreenSharing(true);
-      toast.success('¡Compartiendo pantalla!');
+      toast.success('¡Transmitiendo pantalla completa del celular!');
     } catch (err: any) {
       console.error('Error al compartir pantalla:', err);
       if (err.name === 'NotAllowedError') {
-        toast.error('Selección de pantalla cancelada.');
+        toast.error('Permiso de pantalla cancelado por el usuario.');
       } else {
-        toast.error('En móvil, abre la app desde Chrome (Android) o Safari (iPhone) y permite el acceso a la pantalla.');
+        toast.error('Asegúrate de conceder permiso para grabar pantalla en Android/iOS.');
       }
     }
   };
